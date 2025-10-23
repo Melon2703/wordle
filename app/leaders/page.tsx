@@ -5,7 +5,10 @@ import { GameHeader } from '@/components/GameHeader';
 import { getDailyLeaderboard } from '@/lib/api';
 
 export default function LeadersPage() {
-  const { data } = useQuery({ queryKey: ['leaderboard', 'daily'], queryFn: getDailyLeaderboard });
+  const { data } = useQuery({ 
+    queryKey: ['leaderboard', 'daily'], 
+    queryFn: () => getDailyLeaderboard('sample-puzzle-id') // TODO: get real puzzle ID
+  });
 
   return (
     <main className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)]">

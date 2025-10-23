@@ -4,15 +4,44 @@ import { env } from '../../../../../lib/env';
 export const runtime = 'nodejs';
 
 export async function POST(
-  _request: Request,
+  request: Request,
   context: { params: { secret: string } }
 ): Promise<Response> {
-  const { secret } = context.params;
-  const { WEBHOOK_SECRET_PATH } = env();
+  try {
+    const { secret } = context.params;
+    const { WEBHOOK_SECRET_PATH } = env();
 
-  if (secret !== WEBHOOK_SECRET_PATH) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    // Validate secret path
+    if (secret !== WEBHOOK_SECRET_PATH) {
+      return NextResponse.json(
+        { error: 'Invalid webhook secret' },
+        { status: 401 }
+      );
+    }
+
+    // Parse webhook payload
+    const body = await request.json();
+
+    // Log webhook for debugging
+    console.log('Telegram webhook received:', {
+      updateId: body.update_id,
+      type: Object.keys(body).filter(key => key !== 'update_id')[0],
+      timestamp: new Date().toISOString()
+    });
+
+    // Handle successful payment (stub for v0)
+    if (body.successful_payment) {
+      console.log('Payment webhook:', body.successful_payment);
+      // TODO: In post-v0, process payment and grant entitlements
+    }
+
+    return NextResponse.json({ ok: true });
+
+  } catch (error) {
+    console.error('Webhook POST error:', error);
+    return NextResponse.json(
+      { error: 'Webhook processing failed' },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json({ error: 'Not implemented' }, { status: 501 });
 }

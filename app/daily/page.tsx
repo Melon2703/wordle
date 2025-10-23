@@ -1,14 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { GameHeader } from '@/components/GameHeader';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
 import { ResultModal } from '@/components/ResultModal';
 import { SettingsSheet } from '@/components/SettingsSheet';
 import { useToast } from '@/components/ToastCenter';
-import { getDailyPuzzle } from '@/lib/api';
+import { triggerHaptic } from '@/components/HapticsBridge';
+import { getDailyPuzzle, submitDailyGuess } from '@/lib/api';
 import type { GuessLine, LetterState } from '@/lib/contracts';
 
 interface SettingsState {
@@ -44,12 +45,60 @@ function buildKeyboardState(lines: GuessLine[]): Record<string, LetterState> {
 }
 
 export default function DailyPage() {
-  const { data } = useQuery({ queryKey: ['puzzle', 'daily'], queryFn: getDailyPuzzle });
+  const queryClient = useQueryClient();
+  const { data, isLoading, error } = useQuery({ 
+    queryKey: ['puzzle', 'daily'], 
+    queryFn: getDailyPuzzle,
+    staleTime: 5 * 60 * 1000 // 5 minutes
+  });
+  
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<SettingsState>(initialSettings);
   const [currentGuess, setCurrentGuess] = useState('');
   const [showResult, setShowResult] = useState(false);
   const toast = useToast();
+
+  // Load settings from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('wordle-settings');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setSettings({ ...initialSettings, ...parsed });
+      } catch {
+        // Ignore invalid JSON
+      }
+    }
+  }, []);
+
+  // Save settings to localStorage
+  const updateSettings = (newSettings: SettingsState) => {
+    setSettings(newSettings);
+    localStorage.setItem('wordle-settings', JSON.stringify(newSettings));
+  };
+
+  // Apply high contrast setting
+  useEffect(() => {
+    document.documentElement.setAttribute('data-contrast', settings.highContrast ? 'high' : 'normal');
+  }, [settings.highContrast]);
+
+  const submitGuessMutation = useMutation({
+    mutationFn: ({ puzzleId, guess, hardMode }: { puzzleId: string; guess: string; hardMode: boolean }) =>
+      submitDailyGuess(puzzleId, guess, hardMode),
+    onSuccess: (response) => {
+      // Invalidate and refetch puzzle data
+      queryClient.invalidateQueries({ queryKey: ['puzzle', 'daily'] });
+      
+      if (response.status === 'won' || response.status === 'lost') {
+        triggerHaptic('success');
+        setShowResult(true);
+      }
+    },
+    onError: (error) => {
+      triggerHaptic('error');
+      toast.notify(error instanceof Error ? error.message : 'Ошибка при отправке догадки');
+    }
+  });
 
   const lines = useMemo(() => data?.yourState.lines ?? [], [data]);
   const keyboardState = useMemo(() => buildKeyboardState(lines), [lines]);
@@ -71,13 +120,62 @@ export default function DailyPage() {
   };
 
   const handleEnter = () => {
+    if (!data) {
+      toast.notify('Загрузка данных...');
+      return;
+    }
+    
     if (currentGuess.length !== length) {
       toast.notify('Слово должно быть нужной длины.');
       return;
     }
-    toast.notify('Отправка догадки скоро появится.');
-    setShowResult(true);
+    
+    submitGuessMutation.mutate({
+      puzzleId: data.puzzleId,
+      guess: currentGuess,
+      hardMode: false // TODO: get from settings
+    });
+    
+    setCurrentGuess('');
   };
+
+  if (isLoading) {
+    return (
+      <main className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)]">
+        <GameHeader
+          title="Ежедневная загадка"
+          subtitle="Загрузка..."
+          backHref="/"
+        />
+        <div className="flex flex-1 items-center justify-center">
+          <p className="text-sm opacity-70">Загрузка загадки...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)]">
+        <GameHeader
+          title="Ежедневная загадка"
+          subtitle="Ошибка загрузки"
+          backHref="/"
+        />
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center">
+            <p className="text-sm opacity-70">Не удалось загрузить загадку</p>
+            <button 
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['puzzle', 'daily'] })}
+              className="mt-2 text-sm text-[var(--accent)] underline"
+            >
+              Попробовать снова
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)]">
@@ -122,7 +220,7 @@ export default function DailyPage() {
       <SettingsSheet
         open={settingsOpen}
         state={settings}
-        onChange={setSettings}
+        onChange={updateSettings}
         onClose={() => setSettingsOpen(false)}
       />
     </main>

@@ -1,6 +1,7 @@
 'use client';
 
 import clsx from 'clsx';
+import { triggerHaptic } from './HapticsBridge';
 import type { LetterState } from '@/lib/contracts';
 
 type KeyState = LetterState | undefined;
@@ -26,6 +27,8 @@ const stateClassName: Record<Exclude<KeyState, undefined>, string> = {
 
 export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {} }: KeyboardCyrProps) {
   const handlePress = (value: string) => {
+    triggerHaptic('light');
+    
     if (value === 'ENTER') {
       onEnter?.();
       return;

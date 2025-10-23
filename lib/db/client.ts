@@ -1,6 +1,9 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { env } from '../env';
-import type { Database } from './types';
+
+// Temporary any type for v0 - will be replaced with generated types once Supabase schema is deployed
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Database = any;
 
 let cachedClient: SupabaseClient<Database> | null = null;
 

@@ -7,7 +7,7 @@ import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
 import { ResultModal } from '@/components/ResultModal';
 import { useToast } from '@/components/ToastCenter';
-import { startArcade } from '@/lib/api';
+import { startArcade, submitArcadeGuess } from '@/lib/api';
 import type { ArcadeStartResponse, GuessLine } from '@/lib/contracts';
 
 const lengths: Array<ArcadeStartResponse['length']> = [4, 5, 6, 7];
@@ -20,12 +20,31 @@ export default function ArcadePage() {
   const [currentGuess, setCurrentGuess] = useState('');
   const [showResult, setShowResult] = useState(false);
 
-  const { mutateAsync, isPending } = useMutation({
-    mutationFn: (len: ArcadeStartResponse['length']) => startArcade().then((session) => ({ session, len })),
-    onSuccess: ({ session, len }) => {
-      setSession({ ...session, length: len });
+  const startArcadeMutation = useMutation({
+    mutationFn: (len: ArcadeStartResponse['length']) => startArcade(len, false),
+    onSuccess: (sessionData) => {
+      setSession(sessionData);
       setLines([]);
       setCurrentGuess('');
+    },
+    onError: (error) => {
+      console.error(error);
+      toast.notify('Не удалось запустить аркаду.');
+    }
+  });
+
+  const submitGuessMutation = useMutation({
+    mutationFn: ({ puzzleId, guess }: { puzzleId: string; guess: string }) =>
+      submitArcadeGuess(puzzleId, guess),
+    onSuccess: (response) => {
+      setLines(prev => [...prev, response.line]);
+      
+      if (response.status === 'won' || response.status === 'lost') {
+        setShowResult(true);
+      }
+    },
+    onError: (error) => {
+      toast.notify(error instanceof Error ? error.message : 'Ошибка при отправке догадки');
     }
   });
 
@@ -34,10 +53,9 @@ export default function ArcadePage() {
   const handleStart = async (len: ArcadeStartResponse['length']) => {
     setActiveLength(len);
     try {
-      await mutateAsync(len);
+      await startArcadeMutation.mutateAsync(len);
     } catch (error) {
-      console.error(error);
-      toast.notify('Не удалось запустить аркаду.');
+      // Error handled by mutation
     }
   };
 
@@ -64,8 +82,13 @@ export default function ArcadePage() {
       toast.notify('Слово должно быть нужной длины.');
       return;
     }
-    toast.notify('Запись догадки появится позже.');
-    setShowResult(true);
+    
+    submitGuessMutation.mutate({
+      puzzleId: session.puzzleId,
+      guess: currentGuess
+    });
+    
+    setCurrentGuess('');
   };
 
   return (
@@ -82,7 +105,7 @@ export default function ArcadePage() {
               className={`rounded-full px-4 py-2 text-sm font-semibold ${
                 len === length ? 'bg-[var(--accent)] text-white' : 'bg-[var(--key-bg)] text-[var(--text)]'
               }`}
-              disabled={isPending}
+              disabled={startArcadeMutation.isPending}
             >
               {len} букв
             </button>
@@ -91,6 +114,12 @@ export default function ArcadePage() {
 
         {session ? (
           <>
+            <div className="flex items-center justify-between text-sm">
+              <span>
+                Попыток использовано: {lines.length} / {session.maxAttempts}
+              </span>
+              <span>Аркада</span>
+            </div>
             <PuzzleGrid length={length} maxAttempts={session.maxAttempts} lines={lines} activeGuess={currentGuess} />
             <KeyboardCyr onKey={handleKey} onEnter={handleEnter} onBackspace={handleBackspace} />
           </>
