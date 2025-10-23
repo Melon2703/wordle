@@ -7,15 +7,72 @@ import type {
   ShopCatalog
 } from './contracts';
 
-// Helper to get Telegram init data from window
-function getTelegramInitData(): string | null {
-  if (typeof window === 'undefined') return null;
-  
-  const tg = (window as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
-  return tg?.initData || null;
+// Telegram WebApp types
+interface TelegramWebApp {
+  initData?: string;
+  version?: string;
+  platform?: string;
+  ready?: boolean;
 }
 
-// Helper to create headers with auth
+interface TelegramWindow {
+  Telegram?: {
+    WebApp?: TelegramWebApp;
+  };
+  tg?: {
+    WebApp?: TelegramWebApp;
+  };
+}
+
+// Helper to get Telegram init data from window with comprehensive detection
+function getTelegramInitData(): string | null {
+  if (typeof window === 'undefined') {
+    console.log('🔍 API Debug - Running on server side, no window object');
+    return null;
+  }
+  
+  console.log('🔍 API Debug - Checking Telegram WebApp availability...');
+  console.log('🔍 API Debug - window.Telegram:', !!(window as TelegramWindow).Telegram);
+  console.log('🔍 API Debug - window.Telegram.WebApp:', !!(window as TelegramWindow).Telegram?.WebApp);
+  
+  // Try multiple ways to access Telegram WebApp
+  const tg1 = (window as TelegramWindow).Telegram?.WebApp;
+  const tg2 = (window as TelegramWindow).Telegram?.WebApp;
+  const tg3 = (window as TelegramWindow).tg?.WebApp;
+  
+  const tg = tg1 || tg2 || tg3;
+  
+  if (!tg) {
+    console.log('❌ API Debug - Telegram WebApp not available');
+    console.log('🔍 API Debug - Available window properties:', Object.keys(window).filter(key => key.toLowerCase().includes('telegram')));
+    console.log('🔍 API Debug - All window properties:', Object.keys(window).slice(0, 20)); // First 20 properties
+    
+    // Try to find any Telegram-related objects
+    const telegramKeys = Object.keys(window).filter(key => 
+      key.toLowerCase().includes('telegram') || 
+      key.toLowerCase().includes('tg') ||
+      key.toLowerCase().includes('webapp')
+    );
+    console.log('🔍 API Debug - Telegram-related keys:', telegramKeys);
+    
+    return null;
+  }
+  
+  console.log('🔍 API Debug - Telegram WebApp found!');
+  console.log('🔍 API Debug - Telegram WebApp initData:', tg.initData ? 'present' : 'missing');
+  console.log('🔍 API Debug - Telegram WebApp version:', tg.version);
+  console.log('🔍 API Debug - Telegram WebApp platform:', tg.platform);
+  console.log('🔍 API Debug - Telegram WebApp ready:', tg.ready);
+  
+  // Check if WebApp is ready
+  if (!tg.ready) {
+    console.log('⚠️ API Debug - Telegram WebApp not ready yet');
+  }
+  
+  return tg.initData || null;
+}
+
+// Helper to create headers with auth and debug info
 function createHeaders(): HeadersInit {
   const initData = getTelegramInitData();
   const headers: HeadersInit = {
@@ -24,6 +81,22 @@ function createHeaders(): HeadersInit {
   
   if (initData) {
     headers['x-telegram-init-data'] = initData;
+    console.log('✅ API Debug - Added init data to headers');
+  } else {
+    console.log('❌ API Debug - No init data available, request will fail');
+    
+    // Send debug info to backend for troubleshooting
+    const debugInfo = {
+      userAgent: navigator.userAgent,
+      telegramAvailable: !!(window as TelegramWindow).Telegram,
+      webAppAvailable: !!(window as TelegramWindow).Telegram?.WebApp,
+      webAppVersion: (window as TelegramWindow).Telegram?.WebApp?.version,
+      webAppPlatform: (window as TelegramWindow).Telegram?.WebApp?.platform,
+      windowKeys: Object.keys(window).filter(key => key.toLowerCase().includes('telegram'))
+    };
+    
+    headers['x-debug-info'] = JSON.stringify(debugInfo);
+    console.log('🔍 API Debug - Sending debug info to backend:', debugInfo);
   }
   
   return headers;
@@ -40,6 +113,16 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getDailyPuzzle(): Promise<DailyPuzzlePayload> {
+  // Try to get init data with retry mechanism
+  let initData = getTelegramInitData();
+  
+  // If no init data, wait a bit and try again (Telegram WebApp might be loading)
+  if (!initData && typeof window !== 'undefined') {
+    console.log('⏳ API Debug - No init data found, waiting for Telegram WebApp...');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    initData = getTelegramInitData();
+  }
+  
   const response = await fetch('/api/puzzle/daily', {
     headers: createHeaders()
   });

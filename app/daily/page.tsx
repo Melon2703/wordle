@@ -10,7 +10,7 @@ import { SettingsSheet } from '@/components/SettingsSheet';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { getDailyPuzzle, submitDailyGuess } from '@/lib/api';
-import type { GuessLine, LetterState } from '@/lib/contracts';
+import type { GuessLine, LetterState, DailyPuzzlePayload } from '@/lib/contracts';
 
 interface SettingsState {
   highContrast: boolean;
@@ -49,7 +49,7 @@ export default function DailyPage() {
   const { data, isLoading, error } = useQuery({ 
     queryKey: ['puzzle', 'daily'], 
     queryFn: getDailyPuzzle,
-    staleTime: 5 * 60 * 1000 // 5 minutes
+    staleTime: 30 * 1000 // 30 seconds
   });
   
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -86,15 +86,35 @@ export default function DailyPage() {
     mutationFn: ({ puzzleId, guess, hardMode }: { puzzleId: string; guess: string; hardMode: boolean }) =>
       submitDailyGuess(puzzleId, guess, hardMode),
     onSuccess: (response) => {
-      // Invalidate and refetch puzzle data
+      console.log('🎯 Guess submitted successfully:', response);
+      
+      // Update the query cache immediately with the new data
+      queryClient.setQueryData(['puzzle', 'daily'], (oldData: DailyPuzzlePayload | undefined) => {
+        if (!oldData) return oldData;
+        
+        return {
+          ...oldData,
+          yourState: {
+            ...oldData.yourState,
+            status: response.status,
+            attemptsUsed: response.attemptsUsed,
+            lines: [...oldData.yourState.lines, response.line]
+          }
+        };
+      });
+      
+      // Also invalidate the cache to ensure fresh data on next fetch
       queryClient.invalidateQueries({ queryKey: ['puzzle', 'daily'] });
       
       if (response.status === 'won' || response.status === 'lost') {
         triggerHaptic('success');
         setShowResult(true);
+      } else {
+        triggerHaptic('light');
       }
     },
     onError: (error) => {
+      console.error('❌ Guess submission failed:', error);
       triggerHaptic('error');
       toast.notify(error instanceof Error ? error.message : 'Ошибка при отправке догадки');
     }
@@ -130,6 +150,12 @@ export default function DailyPage() {
       return;
     }
     
+    if (submitGuessMutation.isPending) {
+      toast.notify('Отправка догадки...');
+      return;
+    }
+    
+    console.log('🚀 Submitting guess:', currentGuess);
     submitGuessMutation.mutate({
       puzzleId: data.puzzleId,
       guess: currentGuess,
@@ -141,7 +167,7 @@ export default function DailyPage() {
 
   if (isLoading) {
     return (
-      <main className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)]">
+      <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800">
         <GameHeader
           title="Ежедневная загадка"
           subtitle="Загрузка..."
@@ -156,7 +182,7 @@ export default function DailyPage() {
 
   if (error) {
     return (
-      <main className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)]">
+      <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800">
         <GameHeader
           title="Ежедневная загадка"
           subtitle="Ошибка загрузки"
@@ -167,7 +193,7 @@ export default function DailyPage() {
             <p className="text-sm opacity-70">Не удалось загрузить загадку</p>
             <button 
               onClick={() => queryClient.invalidateQueries({ queryKey: ['puzzle', 'daily'] })}
-              className="mt-2 text-sm text-[var(--accent)] underline"
+              className="mt-2 text-sm text-blue-500 underline"
             >
               Попробовать снова
             </button>
@@ -178,7 +204,7 @@ export default function DailyPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)]">
+    <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800">
       <GameHeader
         title="Ежедневная загадка"
         subtitle="Одна попытка в день, общий рейтинг"
@@ -187,7 +213,7 @@ export default function DailyPage() {
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
-            className="rounded-full bg-[var(--key-bg)] px-3 py-2 text-sm font-semibold text-[var(--text)]"
+            className="rounded-full bg-blue-100 px-3 py-2 text-sm font-semibold text-slate-800"
           >
             Настройки
           </button>
@@ -207,6 +233,7 @@ export default function DailyPage() {
           onEnter={handleEnter}
           onBackspace={handleBackspace}
           keyStates={keyboardState}
+          disabled={submitGuessMutation.isPending}
         />
       </section>
 

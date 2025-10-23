@@ -12,6 +12,13 @@ export async function POST(
     const { WEBHOOK_SECRET_PATH } = env();
 
     // Validate secret path
+    if (!WEBHOOK_SECRET_PATH) {
+      return NextResponse.json(
+        { error: 'Webhook secret not configured' },
+        { status: 500 }
+      );
+    }
+
     if (secret !== WEBHOOK_SECRET_PATH) {
       return NextResponse.json(
         { error: 'Invalid webhook secret' },

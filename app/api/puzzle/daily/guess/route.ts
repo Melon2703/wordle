@@ -9,7 +9,6 @@ import {
   updateSessionResult,
   getSessionGuesses 
 } from '../../../../../lib/db/queries';
-import { loadDictionary } from '../../../../../lib/dict/loader';
 import { evaluateGuess } from '../../../../../lib/game/feedback';
 import { normalizeGuess, validateHardMode } from '../../../../../lib/game/policies';
 import { consumeRateLimit } from '../../../../../lib/rate-limit';
@@ -55,24 +54,28 @@ export async function POST(request: Request) {
       );
     }
     
-    // Load dictionary
-    const dictionary = await loadDictionary();
-    
     // Normalize guess
     const normalizedGuess = normalizeGuess(guess, false); // TODO: get from user settings
     
     // Validate guess length
     if (normalizedGuess.length !== puzzle.letters) {
       return NextResponse.json(
-        { error: 'Invalid guess length' },
+        { error: 'Неверная длина слова' },
         { status: 400 }
       );
     }
     
-    // Validate dictionary membership
-    if (!dictionary.allowed.has(normalizedGuess)) {
+    // Validate dictionary membership using database
+    const { data: wordCheck } = await client
+      .from('dictionary_words')
+      .select('word_id, is_allowed_guess')
+      .eq('text_norm', normalizedGuess)
+      .eq('len', puzzle.letters)
+      .single();
+    
+    if (!wordCheck || !wordCheck.is_allowed_guess) {
       return NextResponse.json(
-        { error: 'Word not in dictionary' },
+        { error: 'Слово не найдено в словаре' },
         { status: 400 }
       );
     }

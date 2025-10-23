@@ -6,10 +6,10 @@ import clsx from 'clsx';
 import type { LetterState } from '@/lib/contracts';
 
 const stateToClass: Record<LetterState | 'empty', string> = {
-  correct: 'bg-[var(--state-correct)] text-white',
-  present: 'bg-[var(--state-present)] text-[var(--text)]',
-  absent: 'bg-[var(--state-absent)] text-[var(--text)] opacity-80',
-  empty: 'bg-[var(--panel)] text-[var(--text)] opacity-60'
+  correct: 'bg-green-500 text-white',
+  present: 'bg-yellow-400 text-slate-800',
+  absent: 'bg-gray-300 text-slate-800 opacity-80',
+  empty: 'bg-white text-slate-800 opacity-60'
 };
 
 const stateToIcon: Record<LetterState, typeof Check> = {
@@ -32,7 +32,7 @@ export function Tile({ letter, state, delay = 0 }: TileProps) {
     <motion.span
       className={clsx(
         'relative flex h-12 w-12 items-center justify-center rounded-xl border text-xl font-semibold transition-colors',
-        'border-[color:var(--tile-border)]',
+        'border-blue-200',
         stateToClass[variant]
       )}
       aria-live="polite"

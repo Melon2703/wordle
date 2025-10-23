@@ -17,16 +17,19 @@ interface KeyboardCyrProps {
   onEnter?(): void;
   onBackspace?(): void;
   keyStates?: Record<string, KeyState>;
+  disabled?: boolean;
 }
 
 const stateClassName: Record<Exclude<KeyState, undefined>, string> = {
-  correct: 'bg-[var(--state-correct)] text-white',
-  present: 'bg-[var(--state-present)] text-[var(--text)]',
-  absent: 'bg-[var(--state-absent)] text-[var(--text)] opacity-80'
+  correct: 'bg-green-500 text-white',
+  present: 'bg-yellow-400 text-slate-800',
+  absent: 'bg-gray-300 text-slate-800 opacity-80'
 };
 
-export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {} }: KeyboardCyrProps) {
+export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {}, disabled = false }: KeyboardCyrProps) {
   const handlePress = (value: string) => {
+    if (disabled) return;
+    
     triggerHaptic('light');
     
     if (value === 'ENTER') {
@@ -52,10 +55,12 @@ export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {} }: Key
                 key={label}
                 type="button"
                 onClick={() => handlePress(label)}
+                disabled={disabled}
                 className={clsx(
-                  'flex-1 rounded-xl bg-[var(--key-bg)] px-2 py-3 text-sm font-semibold text-[var(--text)] shadow-sm transition active:scale-95',
+                  'flex-1 rounded-xl bg-blue-100 px-2 py-3 text-sm font-semibold text-slate-800 shadow-sm transition active:scale-95',
                   label.length > 1 && 'flex-[1.5]',
-                  state ? stateClassName[state] : null
+                  state ? stateClassName[state] : null,
+                  disabled && 'opacity-50 cursor-not-allowed'
                 )}
                 aria-label={`key ${label}`}
               >

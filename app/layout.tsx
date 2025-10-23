@@ -14,6 +14,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru">
+      <head>
+        {/* Telegram WebApp Script - Required for Telegram Mini Apps */}
+        <script src="https://telegram.org/js/telegram-web-app.js" async />
+      </head>
       <body>
         <Providers>
           <ThemeBridge />

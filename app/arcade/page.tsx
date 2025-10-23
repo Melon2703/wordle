@@ -92,7 +92,7 @@ export default function ArcadePage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)]">
+    <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800">
       <GameHeader title="Аркада" subtitle="Режим без ограничений" backHref="/" />
 
       <section className="flex flex-col gap-6 px-4 py-6">
@@ -103,7 +103,7 @@ export default function ArcadePage() {
               type="button"
               onClick={() => handleStart(len)}
               className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                len === length ? 'bg-[var(--accent)] text-white' : 'bg-[var(--key-bg)] text-[var(--text)]'
+                len === length ? 'bg-blue-500 text-white' : 'bg-blue-100 text-slate-800'
               }`}
               disabled={startArcadeMutation.isPending}
             >
@@ -124,7 +124,7 @@ export default function ArcadePage() {
             <KeyboardCyr onKey={handleKey} onEnter={handleEnter} onBackspace={handleBackspace} />
           </>
         ) : (
-          <p className="rounded-3xl border border-dashed border-[color:var(--tile-border)] bg-[var(--panel)] px-4 py-10 text-center text-sm opacity-80">
+          <p className="rounded-3xl border border-dashed border-blue-200 bg-white px-4 py-10 text-center text-sm opacity-80">
             Выберите длину слова, чтобы начать новую игру. Режим MMR появится позже.
           </p>
         )}

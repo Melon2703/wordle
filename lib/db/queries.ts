@@ -40,24 +40,84 @@ export async function upsertDailySession(
     hardMode?: boolean;
   }
 ): Promise<Database['public']['Tables']['sessions']['Row']> {
+  console.log('🔍 Session Debug - Creating/updating session with params:', {
+    profileId: params.profileId,
+    puzzleId: params.puzzleId,
+    hardMode: params.hardMode
+  });
+
+  // First, try to find existing session
+  const { data: existing, error: findError } = await client
+    .from('sessions')
+    .select('*')
+    .eq('profile_id', params.profileId)
+    .eq('puzzle_id', params.puzzleId)
+    .eq('mode', 'daily')
+    .single();
+
+  if (findError && findError.code !== 'PGRST116') { // PGRST116 = no rows returned
+    console.error('❌ Session Debug - Error finding existing session:', findError);
+    throw new Error(`Failed to find existing session: ${findError.message}`);
+  }
+
+  if (existing && !findError) {
+    console.log('✅ Session Debug - Found existing session, updating:', existing);
+    
+    // Update existing session
+    const { data: updated, error: updateError } = await client
+      .from('sessions')
+      .update({
+        hard_mode: params.hardMode || false
+      })
+      .eq('session_id', existing.session_id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ Session Debug - Error updating session:', updateError);
+      throw new Error(`Failed to update session: ${updateError.message}`);
+    }
+
+    console.log('✅ Session Debug - Session updated successfully:', updated);
+    return updated;
+  }
+
+  console.log('🔍 Session Debug - No existing session found, creating new one...');
+
+  // Create new session
+  const sessionData = {
+    profile_id: params.profileId,
+    puzzle_id: params.puzzleId,
+    mode: 'daily',
+    hard_mode: params.hardMode || false,
+    started_at: new Date().toISOString()
+  };
+
+  console.log('🔍 Session Debug - Session data to insert:', sessionData);
+
   const { data, error } = await client
     .from('sessions')
-    .upsert({
-      profile_id: params.profileId,
-      puzzle_id: params.puzzleId,
-      mode: 'daily',
-      hard_mode: params.hardMode || false,
-      started_at: new Date().toISOString()
-    }, {
-      onConflict: 'profile_id,puzzle_id'
-    })
+    .insert(sessionData)
     .select()
     .single();
 
-  if (error || !data) {
-    throw new Error('Failed to create/update session');
+  if (error) {
+    console.error('❌ Session Debug - Database error:', error);
+    console.error('❌ Session Debug - Error details:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint
+    });
+    throw new Error(`Failed to create session: ${error.message}`);
   }
 
+  if (!data) {
+    console.error('❌ Session Debug - No data returned from insert');
+    throw new Error('Failed to create session: No data returned');
+  }
+
+  console.log('✅ Session Debug - Session created successfully:', data);
   return data;
 }
 
@@ -170,6 +230,11 @@ export async function getOrCreateProfile(
   telegramId: number,
   username?: string
 ): Promise<Database['public']['Tables']['profiles']['Row']> {
+  console.log('🔍 Profile Debug - Getting/creating profile for:', {
+    telegramId,
+    username
+  });
+
   // Try to find existing profile
   const { data: existing, error: findError } = await client
     .from('profiles')
@@ -177,9 +242,17 @@ export async function getOrCreateProfile(
     .eq('telegram_id', telegramId)
     .single();
 
+  if (findError && findError.code !== 'PGRST116') { // PGRST116 = no rows returned
+    console.error('❌ Profile Debug - Error finding profile:', findError);
+    throw new Error(`Failed to find profile: ${findError.message}`);
+  }
+
   if (existing && !findError) {
+    console.log('✅ Profile Debug - Found existing profile:', existing);
     return existing;
   }
+
+  console.log('🔍 Profile Debug - Creating new profile...');
 
   // Create new profile
   const { data, error } = await client
@@ -191,10 +264,23 @@ export async function getOrCreateProfile(
     .select()
     .single();
 
-  if (error || !data) {
-    throw new Error('Failed to create profile');
+  if (error) {
+    console.error('❌ Profile Debug - Error creating profile:', error);
+    console.error('❌ Profile Debug - Error details:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint
+    });
+    throw new Error(`Failed to create profile: ${error.message}`);
   }
 
+  if (!data) {
+    console.error('❌ Profile Debug - No data returned from profile creation');
+    throw new Error('Failed to create profile: No data returned');
+  }
+
+  console.log('✅ Profile Debug - Profile created successfully:', data);
   return data;
 }
 

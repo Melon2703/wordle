@@ -2,11 +2,10 @@ const requiredKeys = [
   'BOT_TOKEN',
   'SUPABASE_URL',
   'SUPABASE_SERVICE_KEY',
-  'WEBHOOK_SECRET_PATH',
   'DICTIONARY_BUCKET'
 ] satisfies Array<keyof NodeJS.ProcessEnv>;
 
-const optionalKeys = ['DICTIONARY_URL'] satisfies Array<keyof NodeJS.ProcessEnv>;
+const optionalKeys = ['DICTIONARY_URL', 'WEBHOOK_SECRET_PATH'] satisfies Array<keyof NodeJS.ProcessEnv>;
 
 let cache: Record<string, string | undefined> | null = null;
 

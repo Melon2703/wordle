@@ -11,7 +11,7 @@ export default function LeadersPage() {
   });
 
   return (
-    <main className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)]">
+    <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800">
       <GameHeader title="Рейтинги" subtitle="Попытки важнее времени" backHref="/" />
       <section className="flex flex-1 flex-col gap-4 px-4 py-6">
         <h2 className="text-sm font-semibold opacity-70">Топ игроков сегодня</h2>
@@ -19,7 +19,7 @@ export default function LeadersPage() {
           {data?.entries.map((entry) => (
             <li
               key={entry.userId}
-              className="flex items-center justify-between rounded-2xl border border-[color:var(--tile-border)] bg-[var(--panel)] px-4 py-3 text-sm"
+              className="flex items-center justify-between rounded-2xl border border-blue-200 bg-white px-4 py-3 text-sm"
             >
               <div className="flex items-center gap-3">
                 <span className="text-xs font-semibold opacity-70">#{entry.rank}</span>
