@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { getUserPurchases, refundPurchase, type Purchase } from '@/lib/api';
 import { useToast } from '@/components/ToastCenter';
+import { LoadingFallback } from '@/components/LoadingFallback';
 import { popup, hapticFeedback } from '@tma.js/sdk';
 
 export default function PurchasesPage() {
@@ -119,19 +120,20 @@ export default function PurchasesPage() {
     }
   };
 
+  // Show loading state while Telegram is initializing or data is loading
+  if (!isTelegramReady) {
+    return <LoadingFallback length={5} />;
+  }
+
+  if (isLoading) {
+    return <LoadingFallback length={5} />;
+  }
+
   return (
     <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">
       <section className="flex flex-1 flex-col gap-4 px-4 py-6">
             <h1 className="text-xl font-semibold font-sans">Покупки</h1>
-        {!isTelegramReady ? (
-          <p className="rounded-3xl border border-dashed border-blue-200 bg-white px-4 py-10 text-center text-sm opacity-70">
-            Инициализация Telegram...
-          </p>
-        ) : isLoading ? (
-          <p className="rounded-3xl border border-dashed border-blue-200 bg-white px-4 py-10 text-center text-sm opacity-70">
-            Загрузка покупок...
-          </p>
-        ) : purchases && purchases.length > 0 ? (
+        {purchases && purchases.length > 0 ? (
           <div className="space-y-3">
             {purchases.map((purchase: Purchase) => (
               <div

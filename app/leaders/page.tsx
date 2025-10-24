@@ -2,21 +2,27 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { getDailyPuzzle, getDailyLeaderboard } from '@/lib/api';
+import { LoadingFallback } from '@/components/LoadingFallback';
 
 export default function LeadersPage() {
   // First get the daily puzzle to get the puzzle ID
-  const { data: dailyPuzzle } = useQuery({ 
+  const { data: dailyPuzzle, isLoading: puzzleLoading } = useQuery({ 
     queryKey: ['puzzle', 'daily'], 
     queryFn: getDailyPuzzle,
     staleTime: 5 * 60 * 1000 // 5 minutes
   });
 
   // Then get the leaderboard using the real puzzle ID
-  const { data: leaderboard } = useQuery({ 
+  const { data: leaderboard, isLoading: leaderboardLoading } = useQuery({ 
     queryKey: ['leaderboard', 'daily', dailyPuzzle?.puzzleId], 
     queryFn: () => getDailyLeaderboard(dailyPuzzle!.puzzleId),
     enabled: !!dailyPuzzle?.puzzleId // Only run when we have a puzzle ID
   });
+
+  // Show loading state while fetching data
+  if (puzzleLoading || leaderboardLoading) {
+    return <LoadingFallback length={5} />;
+  }
 
   return (
     <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">

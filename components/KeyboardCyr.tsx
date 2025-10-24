@@ -19,6 +19,7 @@ interface KeyboardCyrProps {
   onBackspace?(): void;
   keyStates?: Record<string, KeyState>;
   disabled?: boolean;
+  disableEnter?: boolean;
 }
 
 const stateClassName: Record<Exclude<KeyState, undefined>, string> = {
@@ -27,7 +28,7 @@ const stateClassName: Record<Exclude<KeyState, undefined>, string> = {
   absent: 'bg-gray-300 text-slate-800 opacity-80'
 };
 
-export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {}, disabled = false }: KeyboardCyrProps) {
+export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {}, disabled = false, disableEnter = false }: KeyboardCyrProps) {
   const handlePress = (value: string) => {
     if (disabled) return;
     
@@ -54,15 +55,16 @@ export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {}, disab
             
             // Render action buttons with icons
             if (label === 'ENTER') {
+              const isEnterDisabled = disabled || disableEnter;
               return (
                 <button
                   key={label}
                   type="button"
                   onClick={() => handlePress(label)}
-                  disabled={disabled}
+                  disabled={isEnterDisabled}
                   className={clsx(
                     'flex-1 rounded-md bg-blue-200 h-12 text-slate-800 shadow-sm transition active:scale-95 hover:bg-blue-300 font-sans flex items-center justify-center',
-                    disabled && 'opacity-50 cursor-not-allowed'
+                    isEnterDisabled && 'opacity-50 cursor-not-allowed'
                   )}
                   aria-label="Enter"
                 >

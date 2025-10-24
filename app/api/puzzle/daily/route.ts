@@ -29,6 +29,7 @@ export async function GET(request: Request) {
     let lines: GuessLine[] = [];
     let status: 'playing' | 'won' | 'lost' = 'playing';
     let attemptsUsed = 0;
+    let timeMs: number | undefined;
     
     if (session) {
       // Get existing guesses
@@ -44,7 +45,13 @@ export async function GET(request: Request) {
       }));
       
       attemptsUsed = session.attempts_used;
-      status = session.result as 'playing' | 'won' | 'lost' || 'playing';
+      // Map database result values to frontend status values
+      status = session.result === 'win' ? 'won' : session.result === 'lose' ? 'lost' : 'playing';
+      
+      // Use time_ms from session if available
+      if (session.time_ms) {
+        timeMs = session.time_ms;
+      }
     }
     
     const payload: DailyPuzzlePayload = {
@@ -60,7 +67,8 @@ export async function GET(request: Request) {
       yourState: {
         status,
         attemptsUsed,
-        lines
+        lines,
+        timeMs
       }
     };
     

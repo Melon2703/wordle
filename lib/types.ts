@@ -27,6 +27,7 @@ export interface DailyPuzzlePayload {
     status: 'playing' | 'won' | 'lost';
     attemptsUsed: number;
     lines: GuessLine[];
+    timeMs?: number;
   };
 }
 

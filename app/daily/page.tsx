@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
-import { ResultModal } from '@/components/ResultModal';
+import { LoadingFallback } from '@/components/LoadingFallback';
+import { ResultScreen } from '@/components/ResultScreen';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { getDailyPuzzle, submitDailyGuess } from '@/lib/api';
@@ -21,7 +22,6 @@ export default function DailyPage() {
   
   const [currentGuess, setCurrentGuess] = useState('');
   const [submittingGuess, setSubmittingGuess] = useState<string | null>(null);
-  const [showResult, setShowResult] = useState(false);
   const toast = useToast();
 
   const submitGuessMutation = useMutation({
@@ -53,23 +53,18 @@ export default function DailyPage() {
       
       if (response.status === 'won' || response.status === 'lost') {
         triggerHaptic('success');
-        setShowResult(true);
       } else {
         triggerHaptic('light');
       }
-    },
-    onError: (error) => {
-      console.error('❌ Guess submission failed:', error);
-      triggerHaptic('error');
-      setSubmittingGuess(null);
-      toast.notify(error instanceof Error ? error.message : 'Ошибка при отправке догадки');
     }
   });
 
   const lines = useMemo(() => data?.yourState.lines ?? [], [data]);
   const keyboardState = useMemo(() => buildKeyboardState(lines), [lines]);
   const length = data?.length ?? 5;
-  const maxAttempts = data?.maxAttempts ?? 6;
+  
+  // Derive result state from game data instead of local state
+  const isGameCompleted = data?.yourState.status === 'won' || data?.yourState.status === 'lost';
 
   const handleKey = (letter: string) => {
     if (letter.length !== 1) {
@@ -85,7 +80,7 @@ export default function DailyPage() {
     setCurrentGuess((prev) => prev.slice(0, -1));
   };
 
-  const handleEnter = () => {
+  const handleEnter = async () => {
     if (!data) {
       toast.notify('Загрузка данных...');
       return;
@@ -93,6 +88,7 @@ export default function DailyPage() {
     
     if (currentGuess.length !== length) {
       toast.notify('Слово должно быть нужной длины.');
+      setCurrentGuess('');
       return;
     }
     
@@ -101,27 +97,30 @@ export default function DailyPage() {
       return;
     }
     
-    console.log('🚀 Submitting guess:', currentGuess);
+    // Capture the guess value before state updates to avoid race condition
+    const guessToSubmit = currentGuess;
     
     // Set submitting state and clear current guess
-    setSubmittingGuess(currentGuess);
+    setSubmittingGuess(guessToSubmit);
     setCurrentGuess('');
     
-    submitGuessMutation.mutate({
-      puzzleId: data.puzzleId,
-      guess: submittingGuess || currentGuess,
-      hardMode: false // TODO: get from settings
-    });
+    try {
+      await submitGuessMutation.mutateAsync({
+        puzzleId: data.puzzleId,
+        guess: guessToSubmit,
+        hardMode: false // TODO: get from settings
+      });
+    } catch (error) {
+      triggerHaptic('error');
+      setSubmittingGuess(null);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Ошибка при отправке догадки';
+      toast.notify(errorMessage);
+    }
   };
 
   if (isLoading) {
-    return (
-      <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800">
-        <div className="flex flex-1 items-center justify-center">
-          <p className="text-sm opacity-70">Загрузка загадки...</p>
-        </div>
-      </main>
-    );
+    return <LoadingFallback length={5} />;
   }
 
   if (error) {
@@ -145,32 +144,69 @@ export default function DailyPage() {
   return (
     <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">
       <section className="flex flex-1 flex-col px-2 mx-auto w-full max-w-lg">
-        <div className="pt-2 pb-4">
-          <PuzzleGrid 
-            length={length} 
-            maxAttempts={maxAttempts} 
-            lines={lines} 
-            activeGuess={currentGuess}
-            pendingGuess={submittingGuess}
+        {/* Result Screen */}
+        {isGameCompleted && (
+          <div className="transition-all duration-500 ease-in-out opacity-100 translate-y-0">
+            <ResultScreen
+              status={data?.yourState.status === 'won' ? 'won' : 'lost'}
+              attemptsUsed={lines.length}
+              answer={undefined}
+              mode="daily"
+              timeMs={data?.yourState.timeMs}
+              length={length}
+              lines={lines}
+            />
+          </div>
+        )}
+
+        {!isGameCompleted && (
+          <div className="pt-2 pb-4">
+            <PuzzleGrid 
+              length={length} 
+              maxAttempts={6} 
+              lines={lines} 
+              activeGuess={currentGuess}
+              pendingGuess={submittingGuess}
+            />
+          </div>
+        )}
+
+        {!isGameCompleted && <div className="flex-1" />}
+
+        {/* Share Button - only show when game is completed */}
+        {isGameCompleted && (
+          <>
+            <div className="flex-1" />
+            <div className="mb-4">
+              <button
+                type="button"
+                disabled
+                className="w-full rounded-xl bg-gray-300 px-4 py-3 text-sm font-semibold text-gray-500 cursor-not-allowed"
+                title="Share functionality coming soon"
+              >
+                Поделиться результатом
+              </button>
+              <p className="text-xs text-slate-500 text-center mt-2">
+                Функция поделиться будет доступна в следующих обновлениях
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* Keyboard with animation */}
+        <div className={`transition-all duration-300 ${
+          isGameCompleted ? 'opacity-0 pointer-events-none h-0 overflow-hidden' : 'opacity-100'
+        }`}>
+          <KeyboardCyr
+            onKey={handleKey}
+            onEnter={handleEnter}
+            onBackspace={handleBackspace}
+            keyStates={keyboardState}
+            disabled={submitGuessMutation.isPending}
+            disableEnter={currentGuess.length !== length}
           />
         </div>
-        <div className="flex-1" />
-        <KeyboardCyr
-          onKey={handleKey}
-          onEnter={handleEnter}
-          onBackspace={handleBackspace}
-          keyStates={keyboardState}
-          disabled={submitGuessMutation.isPending}
-        />
       </section>
-
-      <ResultModal
-        open={showResult}
-        status={data?.yourState.status ?? 'playing'}
-        attemptsUsed={lines.length}
-        onClose={() => setShowResult(false)}
-        answer={undefined}
-      />
     </main>
   );
 }

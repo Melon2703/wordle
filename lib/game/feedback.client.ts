@@ -103,3 +103,9 @@ export function validateHardMode(context: HardModeContext): void {
     }
   }
 }
+
+export function validateDictionary(word: string, dictionary: Set<string>): boolean {
+  // why: normalize word to match server logic in /api/dict/check (uppercase, trim)
+  const normalizedWord = word.trim().toUpperCase();
+  return dictionary.has(normalizedWord);
+}

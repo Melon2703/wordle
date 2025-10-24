@@ -45,12 +45,12 @@ export function ToastCenter({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 bottom-8 flex justify-center">
+      <div className="pointer-events-none fixed inset-x-0 bottom-20 flex justify-center z-50">
         <div className="flex w-full max-w-sm flex-col gap-2 px-4">
           {messages.map((toast) => (
             <div
               key={toast.id}
-              className="rounded-xl bg-[var(--panel)] px-4 py-3 text-center text-sm text-[var(--text)] shadow-lg"
+              className="rounded-xl bg-[var(--panel)] px-4 py-3 text-center text-sm text-[var(--text)] shadow-xl border border-[var(--tile-border)]"
             >
               {toast.message}
             </div>

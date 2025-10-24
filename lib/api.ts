@@ -216,6 +216,15 @@ export async function checkDictionaryWord(word: string): Promise<{ valid: boolea
   return handleResponse<{ valid: boolean }>(response);
 }
 
+export async function getDictionaryWords(length: 4 | 5 | 6 | 7): Promise<Set<string>> {
+  const response = await fetch(`/api/dict/words?length=${length}`, {
+    headers: createHeaders()
+  });
+  
+  const data = await handleResponse<{ words: string[] }>(response);
+  return new Set(data.words);
+}
+
 export async function completeArcadeSession(
   puzzleId: string,
   result: 'won' | 'lost',
