@@ -7,6 +7,13 @@ import type {
   ShopCatalog
 } from './contracts';
 
+// Debug logging helper - only logs in development
+function debugLog(message: string, ...args: unknown[]) {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(message, ...args);
+  }
+}
+
 // Telegram WebApp types
 interface TelegramWebApp {
   initData?: string;
@@ -27,13 +34,13 @@ interface TelegramWindow {
 // Helper to get Telegram init data from window with comprehensive detection
 function getTelegramInitData(): string | null {
   if (typeof window === 'undefined') {
-    console.log('🔍 API Debug - Running on server side, no window object');
+    debugLog('🔍 API Debug - Running on server side, no window object');
     return null;
   }
   
-  console.log('🔍 API Debug - Checking Telegram WebApp availability...');
-  console.log('🔍 API Debug - window.Telegram:', !!(window as TelegramWindow).Telegram);
-  console.log('🔍 API Debug - window.Telegram.WebApp:', !!(window as TelegramWindow).Telegram?.WebApp);
+  debugLog('🔍 API Debug - Checking Telegram WebApp availability...');
+  debugLog('🔍 API Debug - window.Telegram:', !!(window as TelegramWindow).Telegram);
+  debugLog('🔍 API Debug - window.Telegram.WebApp:', !!(window as TelegramWindow).Telegram?.WebApp);
   
   // Try multiple ways to access Telegram WebApp
   const tg1 = (window as TelegramWindow).Telegram?.WebApp;
@@ -43,9 +50,9 @@ function getTelegramInitData(): string | null {
   const tg = tg1 || tg2 || tg3;
   
   if (!tg) {
-    console.log('❌ API Debug - Telegram WebApp not available');
-    console.log('🔍 API Debug - Available window properties:', Object.keys(window).filter(key => key.toLowerCase().includes('telegram')));
-    console.log('🔍 API Debug - All window properties:', Object.keys(window).slice(0, 20)); // First 20 properties
+    debugLog('❌ API Debug - Telegram WebApp not available');
+    debugLog('🔍 API Debug - Available window properties:', Object.keys(window).filter(key => key.toLowerCase().includes('telegram')));
+    debugLog('🔍 API Debug - All window properties:', Object.keys(window).slice(0, 20)); // First 20 properties
     
     // Try to find any Telegram-related objects
     const telegramKeys = Object.keys(window).filter(key => 
@@ -53,20 +60,20 @@ function getTelegramInitData(): string | null {
       key.toLowerCase().includes('tg') ||
       key.toLowerCase().includes('webapp')
     );
-    console.log('🔍 API Debug - Telegram-related keys:', telegramKeys);
+    debugLog('🔍 API Debug - Telegram-related keys:', telegramKeys);
     
     return null;
   }
   
-  console.log('🔍 API Debug - Telegram WebApp found!');
-  console.log('🔍 API Debug - Telegram WebApp initData:', tg.initData ? 'present' : 'missing');
-  console.log('🔍 API Debug - Telegram WebApp version:', tg.version);
-  console.log('🔍 API Debug - Telegram WebApp platform:', tg.platform);
-  console.log('🔍 API Debug - Telegram WebApp ready:', tg.ready);
+  debugLog('🔍 API Debug - Telegram WebApp found!');
+  debugLog('🔍 API Debug - Telegram WebApp initData:', tg.initData ? 'present' : 'missing');
+  debugLog('🔍 API Debug - Telegram WebApp version:', tg.version);
+  debugLog('🔍 API Debug - Telegram WebApp platform:', tg.platform);
+  debugLog('🔍 API Debug - Telegram WebApp ready:', tg.ready);
   
   // Check if WebApp is ready
   if (!tg.ready) {
-    console.log('⚠️ API Debug - Telegram WebApp not ready yet');
+    debugLog('⚠️ API Debug - Telegram WebApp not ready yet');
   }
   
   return tg.initData || null;
@@ -74,9 +81,9 @@ function getTelegramInitData(): string | null {
 
 // Helper to create headers with auth and debug info
 function createHeaders(): HeadersInit {
-  console.log('🔍 Shop Debug - Creating headers for shop request');
+  debugLog('🔍 Shop Debug - Creating headers for shop request');
   const initData = getTelegramInitData();
-  console.log('🔍 Shop Debug - Init data result:', initData ? 'present' : 'missing');
+  debugLog('🔍 Shop Debug - Init data result:', initData ? 'present' : 'missing');
   
   const headers: HeadersInit = {
     'Content-Type': 'application/json'
@@ -84,9 +91,9 @@ function createHeaders(): HeadersInit {
   
   if (initData) {
     headers['x-telegram-init-data'] = initData;
-    console.log('✅ Shop Debug - Added init data to headers');
+    debugLog('✅ Shop Debug - Added init data to headers');
   } else {
-    console.log('❌ Shop Debug - No init data available, request will fail');
+    debugLog('❌ Shop Debug - No init data available, request will fail');
     
     // Send debug info to backend for troubleshooting
     const debugInfo = {
@@ -99,7 +106,7 @@ function createHeaders(): HeadersInit {
     };
     
     headers['x-debug-info'] = JSON.stringify(debugInfo);
-    console.log('🔍 Shop Debug - Sending debug info to backend:', debugInfo);
+    debugLog('🔍 Shop Debug - Sending debug info to backend:', debugInfo);
   }
   
   return headers;
@@ -121,7 +128,7 @@ export async function getDailyPuzzle(): Promise<DailyPuzzlePayload> {
   
   // If no init data, wait a bit and try again (Telegram WebApp might be loading)
   if (!initData && typeof window !== 'undefined') {
-    console.log('⏳ API Debug - No init data found, waiting for Telegram WebApp...');
+    debugLog('⏳ API Debug - No init data found, waiting for Telegram WebApp...');
     await new Promise(resolve => setTimeout(resolve, 100));
     initData = getTelegramInitData();
   }
@@ -182,14 +189,14 @@ export async function getDailyLeaderboard(puzzleId: string): Promise<DailyLeader
 }
 
 export async function getShopCatalog(): Promise<ShopCatalog> {
-  console.log('🔍 Shop Debug - Starting getShopCatalog');
+  debugLog('🔍 Shop Debug - Starting getShopCatalog');
   
   // Try to get init data with retry mechanism
   let initData = getTelegramInitData();
   
   // If no init data, wait a bit and try again (Telegram WebApp might be loading)
   if (!initData && typeof window !== 'undefined') {
-    console.log('⏳ Shop Debug - No init data found, waiting for Telegram WebApp...');
+    debugLog('⏳ Shop Debug - No init data found, waiting for Telegram WebApp...');
     await new Promise(resolve => setTimeout(resolve, 100));
     initData = getTelegramInitData();
   }
@@ -210,7 +217,7 @@ export async function checkDictionaryWord(word: string): Promise<{ valid: boolea
 }
 
 export async function purchaseProduct(productId: string): Promise<{ ok: boolean; purchase_id: string; invoice_url: string; stars_amount: number }> {
-  console.log('🛒 Purchase Debug - Starting purchase for product:', productId);
+  debugLog('🛒 Purchase Debug - Starting purchase for product:', productId);
   
   const response = await fetch('/api/shop/purchase', {
     method: 'POST',
@@ -222,7 +229,7 @@ export async function purchaseProduct(productId: string): Promise<{ ok: boolean;
 }
 
 export async function cleanupCancelledPurchase(purchaseId: string): Promise<void> {
-  console.log('🧹 Cleanup Debug - Cleaning up cancelled purchase:', purchaseId);
+  debugLog('🧹 Cleanup Debug - Cleaning up cancelled purchase:', purchaseId);
   
   const response = await fetch(`/api/purchases/${purchaseId}/cleanup`, {
     method: 'DELETE',
@@ -234,7 +241,7 @@ export async function cleanupCancelledPurchase(purchaseId: string): Promise<void
     throw new Error(error.error || `HTTP ${response.status}`);
   }
   
-  console.log('✅ Cleanup Debug - Purchase cleanup successful');
+  debugLog('✅ Cleanup Debug - Purchase cleanup successful');
 }
 
 // Purchase types
@@ -269,7 +276,7 @@ export async function getUserPurchases(): Promise<Purchase[]> {
 }
 
 export async function refundPurchase(purchaseId: string): Promise<{ ok: boolean }> {
-  console.log('💸 Refund Debug - Starting refund for purchase:', purchaseId);
+  debugLog('💸 Refund Debug - Starting refund for purchase:', purchaseId);
   
   const response = await fetch(`/api/purchases/${purchaseId}/refund`, {
     method: 'POST',

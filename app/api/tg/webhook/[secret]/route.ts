@@ -9,19 +9,11 @@ export async function POST(
   context: { params: { secret: string } }
 ): Promise<Response> {
   try {
-    console.log('🔔 Webhook Debug - Starting webhook processing');
-    
     const { secret } = context.params;
     const { WEBHOOK_SECRET_PATH } = env();
 
-    console.log('🔔 Webhook Debug - Secret validation:', {
-      provided_secret: secret,
-      expected_secret: WEBHOOK_SECRET_PATH ? 'configured' : 'not_configured'
-    });
-
     // Validate secret path
     if (!WEBHOOK_SECRET_PATH) {
-      console.log('❌ Webhook Debug - Webhook secret not configured');
       return NextResponse.json(
         { error: 'Webhook secret not configured' },
         { status: 500 }
@@ -29,43 +21,20 @@ export async function POST(
     }
 
     if (secret !== WEBHOOK_SECRET_PATH) {
-      console.log('❌ Webhook Debug - Invalid webhook secret');
       return NextResponse.json(
         { error: 'Invalid webhook secret' },
         { status: 401 }
       );
     }
 
-    console.log('✅ Webhook Debug - Secret validation passed');
-
     // Parse webhook payload
     const body = await request.json();
-    
-    console.log('🔔 Webhook Debug - Raw webhook payload:', JSON.stringify(body, null, 2));
-
-    // Log webhook for debugging
-    console.log('🔔 Webhook Debug - Webhook summary:', {
-      updateId: body.update_id,
-      type: Object.keys(body).filter(key => key !== 'update_id')[0],
-      timestamp: new Date().toISOString(),
-      payload_size: JSON.stringify(body).length
-    });
 
     // Handle successful payment
     if (body.message?.successful_payment) {
-      console.log('💰 Payment Webhook Debug - Processing successful payment');
-      console.log('💰 Payment Webhook Debug - Payment details:', {
-        currency: body.message.successful_payment.currency,
-        total_amount: body.message.successful_payment.total_amount,
-        invoice_payload: body.message.successful_payment.invoice_payload,
-        telegram_payment_charge_id: body.message.successful_payment.telegram_payment_charge_id,
-        provider_payment_charge_id: body.message.successful_payment.provider_payment_charge_id
-      });
-      
       try {
         // Parse invoice payload to find the purchase
         const payload = JSON.parse(body.message.successful_payment.invoice_payload);
-        console.log('💰 Payment Webhook Debug - Parsed payload:', payload);
         
         const client = getServiceClient();
         
@@ -78,11 +47,8 @@ export async function POST(
           .single();
         
         if (purchaseError || !purchase) {
-          console.log('❌ Payment Webhook Debug - Purchase not found:', purchaseError);
           return NextResponse.json({ error: 'Purchase not found' }, { status: 404 });
         }
-        
-        console.log('✅ Payment Webhook Debug - Found purchase:', purchase.purchase_id);
         
         // Update purchase status to paid
         const { error: updateError } = await client
@@ -105,7 +71,6 @@ export async function POST(
           .eq('purchase_id', purchase.purchase_id);
         
         if (updateError) {
-          console.log('❌ Payment Webhook Debug - Failed to update purchase:', updateError);
           return NextResponse.json({ error: 'Failed to update purchase' }, { status: 500 });
         }
         
@@ -122,35 +87,20 @@ export async function POST(
           });
         
         if (entitlementError) {
-          console.log('❌ Payment Webhook Debug - Failed to grant entitlement:', entitlementError);
           // Don't fail the webhook - payment was successful, entitlement can be granted later
-        } else {
-          console.log('✅ Payment Webhook Debug - Entitlement granted successfully');
         }
         
-        console.log('✅ Payment Webhook Debug - Payment processed successfully');
-        
       } catch (error) {
-        console.error('❌ Payment Webhook Debug - Error processing payment:', error);
+        console.error('Error processing payment:', error);
         return NextResponse.json({ error: 'Payment processing failed' }, { status: 500 });
       }
     }
 
     // Handle pre-checkout query
     if (body.pre_checkout_query) {
-      console.log('🔍 Pre-checkout Debug - Processing pre-checkout query');
-      console.log('🔍 Pre-checkout Debug - Query details:', {
-        id: body.pre_checkout_query.id,
-        from: body.pre_checkout_query.from,
-        currency: body.pre_checkout_query.currency,
-        total_amount: body.pre_checkout_query.total_amount,
-        invoice_payload: body.pre_checkout_query.invoice_payload
-      });
-      
       try {
         // Parse invoice payload to validate purchase
-        const payload = JSON.parse(body.pre_checkout_query.invoice_payload);
-        console.log('🔍 Pre-checkout Debug - Parsed payload:', payload);
+        JSON.parse(body.pre_checkout_query.invoice_payload);
         
         // Validate the purchase request
         const { BOT_TOKEN } = env();
@@ -169,14 +119,11 @@ export async function POST(
         });
         
         if (!answerResponse.ok) {
-          const errorText = await answerResponse.text();
-          console.log('❌ Pre-checkout Debug - Failed to answer query:', errorText);
-        } else {
-          console.log('✅ Pre-checkout Debug - Query answered successfully');
+          // Log error but don't expose details
         }
         
       } catch (error) {
-        console.error('❌ Pre-checkout Debug - Error processing query:', error);
+        console.error('Error processing query:', error);
         
         // Answer with error if validation fails
         try {
@@ -193,18 +140,15 @@ export async function POST(
             })
           });
         } catch (answerError) {
-          console.error('❌ Pre-checkout Debug - Failed to answer with error:', answerError);
+          console.error('Failed to answer with error:', answerError);
         }
       }
     }
 
-    console.log('✅ Webhook Debug - Webhook processing completed successfully');
-
     return NextResponse.json({ ok: true });
 
   } catch (error) {
-    console.error('❌ Webhook Debug - Webhook POST error:', error);
-    console.error('❌ Webhook Debug - Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('Webhook POST error:', error);
     return NextResponse.json(
       { error: 'Webhook processing failed' },
       { status: 500 }

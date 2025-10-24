@@ -6,12 +6,18 @@ export const runtime = 'nodejs';
 
 export async function GET(): Promise<Response> {
   try {
-    // Check for Vercel cron user-agent
-    const userAgent = process.env.VERCEL_CRON_SECRET || 'vercel-cron/1.0';
+    // Verify this is a legitimate Vercel cron request
+    const userAgent = process.env.VERCEL_CRON_SECRET;
+    if (!userAgent) {
+      console.log('Nightly rollover job rejected - no cron secret configured');
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
     
     console.log('Nightly rollover job started:', {
-      timestamp: new Date().toISOString(),
-      userAgent
+      timestamp: new Date().toISOString()
     });
     
     const client = getServiceClient();
