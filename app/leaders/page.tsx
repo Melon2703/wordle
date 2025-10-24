@@ -2,12 +2,21 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { GameHeader } from '@/components/GameHeader';
-import { getDailyLeaderboard } from '@/lib/api';
+import { getDailyPuzzle, getDailyLeaderboard } from '@/lib/api';
 
 export default function LeadersPage() {
-  const { data } = useQuery({ 
-    queryKey: ['leaderboard', 'daily'], 
-    queryFn: () => getDailyLeaderboard('sample-puzzle-id') // TODO: get real puzzle ID
+  // First get the daily puzzle to get the puzzle ID
+  const { data: dailyPuzzle } = useQuery({ 
+    queryKey: ['puzzle', 'daily'], 
+    queryFn: getDailyPuzzle,
+    staleTime: 5 * 60 * 1000 // 5 minutes
+  });
+
+  // Then get the leaderboard using the real puzzle ID
+  const { data: leaderboard } = useQuery({ 
+    queryKey: ['leaderboard', 'daily', dailyPuzzle?.puzzleId], 
+    queryFn: () => getDailyLeaderboard(dailyPuzzle!.puzzleId),
+    enabled: !!dailyPuzzle?.puzzleId // Only run when we have a puzzle ID
   });
 
   return (
@@ -16,7 +25,7 @@ export default function LeadersPage() {
       <section className="flex flex-1 flex-col gap-4 px-4 py-6">
         <h2 className="text-sm font-semibold opacity-70">Топ игроков сегодня</h2>
         <ul className="space-y-2">
-          {data?.entries.map((entry) => (
+          {leaderboard?.entries.map((entry) => (
             <li
               key={entry.userId}
               className="flex items-center justify-between rounded-2xl border border-blue-200 bg-white px-4 py-3 text-sm"
@@ -32,6 +41,11 @@ export default function LeadersPage() {
             </li>
           ))}
         </ul>
+        {!leaderboard?.entries.length && (
+          <div className="text-center text-sm opacity-70 py-8">
+            Пока никто не решил сегодняшнее слово
+          </div>
+        )}
       </section>
     </main>
   );

@@ -74,16 +74,19 @@ function getTelegramInitData(): string | null {
 
 // Helper to create headers with auth and debug info
 function createHeaders(): HeadersInit {
+  console.log('🔍 Shop Debug - Creating headers for shop request');
   const initData = getTelegramInitData();
+  console.log('🔍 Shop Debug - Init data result:', initData ? 'present' : 'missing');
+  
   const headers: HeadersInit = {
     'Content-Type': 'application/json'
   };
   
   if (initData) {
     headers['x-telegram-init-data'] = initData;
-    console.log('✅ API Debug - Added init data to headers');
+    console.log('✅ Shop Debug - Added init data to headers');
   } else {
-    console.log('❌ API Debug - No init data available, request will fail');
+    console.log('❌ Shop Debug - No init data available, request will fail');
     
     // Send debug info to backend for troubleshooting
     const debugInfo = {
@@ -96,7 +99,7 @@ function createHeaders(): HeadersInit {
     };
     
     headers['x-debug-info'] = JSON.stringify(debugInfo);
-    console.log('🔍 API Debug - Sending debug info to backend:', debugInfo);
+    console.log('🔍 Shop Debug - Sending debug info to backend:', debugInfo);
   }
   
   return headers;
@@ -179,6 +182,18 @@ export async function getDailyLeaderboard(puzzleId: string): Promise<DailyLeader
 }
 
 export async function getShopCatalog(): Promise<ShopCatalog> {
+  console.log('🔍 Shop Debug - Starting getShopCatalog');
+  
+  // Try to get init data with retry mechanism
+  let initData = getTelegramInitData();
+  
+  // If no init data, wait a bit and try again (Telegram WebApp might be loading)
+  if (!initData && typeof window !== 'undefined') {
+    console.log('⏳ Shop Debug - No init data found, waiting for Telegram WebApp...');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    initData = getTelegramInitData();
+  }
+  
   const response = await fetch('/api/shop/catalog', {
     headers: createHeaders()
   });
@@ -192,4 +207,74 @@ export async function checkDictionaryWord(word: string): Promise<{ valid: boolea
   });
   
   return handleResponse<{ valid: boolean }>(response);
+}
+
+export async function purchaseProduct(productId: string): Promise<{ ok: boolean; purchase_id: string; invoice_url: string; stars_amount: number }> {
+  console.log('🛒 Purchase Debug - Starting purchase for product:', productId);
+  
+  const response = await fetch('/api/shop/purchase', {
+    method: 'POST',
+    headers: createHeaders(),
+    body: JSON.stringify({ productId })
+  });
+  
+  return handleResponse<{ ok: boolean; purchase_id: string; invoice_url: string; stars_amount: number }>(response);
+}
+
+export async function cleanupCancelledPurchase(purchaseId: string): Promise<void> {
+  console.log('🧹 Cleanup Debug - Cleaning up cancelled purchase:', purchaseId);
+  
+  const response = await fetch(`/api/purchases/${purchaseId}/cleanup`, {
+    method: 'DELETE',
+    headers: createHeaders(),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(error.error || `HTTP ${response.status}`);
+  }
+  
+  console.log('✅ Cleanup Debug - Purchase cleanup successful');
+}
+
+// Purchase types
+export interface Purchase {
+  idx: number;
+  purchase_id: string;
+  profile_id: string;
+  product_id: string;
+  status: 'pending' | 'paid' | 'refunded' | 'failed';
+  stars_amount: number;
+  telegram_invoice_id: string | null;
+  telegram_payment_charge_id: string | null;
+  provider_payment_charge_id: string | null;
+  provider_payload: Record<string, unknown>;
+  created_at: string;
+  completed_at: string | null;
+  refunded_at: string | null;
+  products: {
+    product_id: string;
+    title_ru: string;
+    type: string;
+    price_stars: number;
+  };
+}
+
+export async function getUserPurchases(): Promise<Purchase[]> {
+  const response = await fetch('/api/purchases', {
+    headers: createHeaders()
+  });
+  
+  return handleResponse<Purchase[]>(response);
+}
+
+export async function refundPurchase(purchaseId: string): Promise<{ ok: boolean }> {
+  console.log('💸 Refund Debug - Starting refund for purchase:', purchaseId);
+  
+  const response = await fetch(`/api/purchases/${purchaseId}/refund`, {
+    method: 'POST',
+    headers: createHeaders()
+  });
+  
+  return handleResponse<{ ok: boolean }>(response);
 }

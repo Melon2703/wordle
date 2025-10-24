@@ -5,9 +5,9 @@ import { listShopProducts } from '../../../../lib/db/queries';
 
 export const runtime = 'nodejs';
 
-export async function GET(): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   try {
-    requireAuthContext(new Request('http://localhost')); // Minimal auth check for public endpoint
+    requireAuthContext(request); // Use actual request instead of creating new one
     
     const client = getServiceClient();
     const catalog = await listShopProducts(client);

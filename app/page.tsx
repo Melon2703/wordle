@@ -20,6 +20,11 @@ const cards = [
     href: '/shop' as const,
     title: 'Магазин',
     description: 'Подписки, косметика и билеты за Telegram Stars.'
+  },
+  {
+    href: '/purchases' as const,
+    title: 'Покупки',
+    description: 'История покупок и возвраты.'
   }
 ];
 
