@@ -124,7 +124,7 @@ export async function POST(request: Request) {
         });
       } catch (error) {
         return NextResponse.json(
-          { error: error instanceof Error ? error.message : 'Hard mode validation failed' },
+          { error: 'Hard mode validation failed' },
           { status: 400 }
         );
       }
