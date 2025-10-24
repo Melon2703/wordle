@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { GameHeader } from '@/components/GameHeader';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
 import { ResultModal } from '@/components/ResultModal';
 import { useToast } from '@/components/ToastCenter';
 import { startArcade, submitArcadeGuess } from '@/lib/api';
+import { buildKeyboardState } from '@/lib/game/feedback';
 import type { ArcadeStartResponse, GuessLine } from '@/lib/contracts';
 
 const lengths: Array<ArcadeStartResponse['length']> = [4, 5, 6, 7];
@@ -48,6 +48,7 @@ export default function ArcadePage() {
     }
   });
 
+  const keyboardState = buildKeyboardState(lines);
   const length = session?.length ?? activeLength;
 
   const handleStart = async (len: ArcadeStartResponse['length']) => {
@@ -92,10 +93,8 @@ export default function ArcadePage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800">
-      <GameHeader title="Аркада" subtitle="Режим без ограничений" backHref="/" />
-
-      <section className="flex flex-col gap-6 px-4 py-6">
+    <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">
+      <section className="flex flex-col px-2 py-6 mx-auto w-full max-w-lg">
         <div className="flex flex-wrap items-center gap-2 text-sm">
           {lengths.map((len) => (
             <button
@@ -113,16 +112,18 @@ export default function ArcadePage() {
         </div>
 
         {session ? (
-          <>
-            <div className="flex items-center justify-between text-sm">
-              <span>
-                Попыток использовано: {lines.length} / {session.maxAttempts}
-              </span>
-              <span>Аркада</span>
+          <div className="flex flex-1 flex-col">
+            <div className="pt-2 pb-4">
+              <PuzzleGrid length={length} maxAttempts={session.maxAttempts} lines={lines} activeGuess={currentGuess} />
             </div>
-            <PuzzleGrid length={length} maxAttempts={session.maxAttempts} lines={lines} activeGuess={currentGuess} />
-            <KeyboardCyr onKey={handleKey} onEnter={handleEnter} onBackspace={handleBackspace} />
-          </>
+            <div className="flex-1" />
+            <KeyboardCyr 
+              onKey={handleKey} 
+              onEnter={handleEnter} 
+              onBackspace={handleBackspace}
+              keyStates={keyboardState}
+            />
+          </div>
         ) : (
           <p className="rounded-3xl border border-dashed border-blue-200 bg-white px-4 py-10 text-center text-sm opacity-80">
             Выберите длину слова, чтобы начать новую игру. Режим MMR появится позже.

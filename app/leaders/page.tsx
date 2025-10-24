@@ -1,7 +1,6 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { GameHeader } from '@/components/GameHeader';
 import { getDailyPuzzle, getDailyLeaderboard } from '@/lib/api';
 
 export default function LeadersPage() {
@@ -20,9 +19,9 @@ export default function LeadersPage() {
   });
 
   return (
-    <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800">
-      <GameHeader title="Рейтинги" subtitle="Попытки важнее времени" backHref="/" />
+    <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">
       <section className="flex flex-1 flex-col gap-4 px-4 py-6">
+        <h1 className="text-xl font-semibold">Рейтинги</h1>
         <h2 className="text-sm font-semibold opacity-70">Топ игроков сегодня</h2>
         <ul className="space-y-2">
           {leaderboard?.entries.map((entry) => (

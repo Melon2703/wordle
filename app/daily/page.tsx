@@ -1,48 +1,15 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { GameHeader } from '@/components/GameHeader';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
 import { ResultModal } from '@/components/ResultModal';
-import { SettingsSheet } from '@/components/SettingsSheet';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { getDailyPuzzle, submitDailyGuess } from '@/lib/api';
-import type { GuessLine, LetterState, DailyPuzzlePayload } from '@/lib/contracts';
-
-interface SettingsState {
-  highContrast: boolean;
-  haptics: boolean;
-  showTimer: boolean;
-  treatYoAsYe: boolean;
-}
-
-const initialSettings: SettingsState = {
-  highContrast: true,
-  haptics: true,
-  showTimer: false,
-  treatYoAsYe: false
-};
-
-const statePriority: Record<LetterState, number> = {
-  correct: 3,
-  present: 2,
-  absent: 1
-};
-
-function buildKeyboardState(lines: GuessLine[]): Record<string, LetterState> {
-  return lines.reduce<Record<string, LetterState>>((acc, line) => {
-    line.feedback.forEach(({ letter, state }) => {
-      const existing = acc[letter];
-      if (!existing || statePriority[state] > statePriority[existing]) {
-        acc[letter] = state;
-      }
-    });
-    return acc;
-  }, {});
-}
+import { buildKeyboardState } from '@/lib/game/feedback';
+import type { DailyPuzzlePayload } from '@/lib/contracts';
 
 export default function DailyPage() {
   const queryClient = useQueryClient();
@@ -52,35 +19,9 @@ export default function DailyPage() {
     staleTime: 30 * 1000 // 30 seconds
   });
   
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState<SettingsState>(initialSettings);
   const [currentGuess, setCurrentGuess] = useState('');
   const [showResult, setShowResult] = useState(false);
   const toast = useToast();
-
-  // Load settings from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('wordle-settings');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setSettings({ ...initialSettings, ...parsed });
-      } catch {
-        // Ignore invalid JSON
-      }
-    }
-  }, []);
-
-  // Save settings to localStorage
-  const updateSettings = (newSettings: SettingsState) => {
-    setSettings(newSettings);
-    localStorage.setItem('wordle-settings', JSON.stringify(newSettings));
-  };
-
-  // Apply high contrast setting
-  useEffect(() => {
-    document.documentElement.setAttribute('data-contrast', settings.highContrast ? 'high' : 'normal');
-  }, [settings.highContrast]);
 
   const submitGuessMutation = useMutation({
     mutationFn: ({ puzzleId, guess, hardMode }: { puzzleId: string; guess: string; hardMode: boolean }) =>
@@ -168,11 +109,6 @@ export default function DailyPage() {
   if (isLoading) {
     return (
       <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800">
-        <GameHeader
-          title="Ежедневная загадка"
-          subtitle="Загрузка..."
-          backHref="/"
-        />
         <div className="flex flex-1 items-center justify-center">
           <p className="text-sm opacity-70">Загрузка загадки...</p>
         </div>
@@ -183,11 +119,6 @@ export default function DailyPage() {
   if (error) {
     return (
       <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800">
-        <GameHeader
-          title="Ежедневная загадка"
-          subtitle="Ошибка загрузки"
-          backHref="/"
-        />
         <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
             <p className="text-sm opacity-70">Не удалось загрузить загадку</p>
@@ -204,30 +135,12 @@ export default function DailyPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800">
-      <GameHeader
-        title="Ежедневная загадка"
-        subtitle="Одна попытка в день, общий рейтинг"
-        backHref="/"
-        actions={
-          <button
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-            className="rounded-full bg-blue-100 px-3 py-2 text-sm font-semibold text-slate-800"
-          >
-            Настройки
-          </button>
-        }
-      />
-
-      <section className="flex flex-1 flex-col gap-6 px-4 py-6">
-        <div className="flex items-center justify-between text-sm">
-          <span>
-            Попыток использовано: {lines.length} / {maxAttempts}
-          </span>
-          <span>Серия: 0</span>
+    <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">
+      <section className="flex flex-1 flex-col px-2 mx-auto w-full max-w-lg">
+        <div className="pt-2 pb-4">
+          <PuzzleGrid length={length} maxAttempts={maxAttempts} lines={lines} activeGuess={currentGuess} />
         </div>
-        <PuzzleGrid length={length} maxAttempts={maxAttempts} lines={lines} activeGuess={currentGuess} />
+        <div className="flex-1" />
         <KeyboardCyr
           onKey={handleKey}
           onEnter={handleEnter}
@@ -243,12 +156,6 @@ export default function DailyPage() {
         attemptsUsed={lines.length}
         onClose={() => setShowResult(false)}
         answer={undefined}
-      />
-      <SettingsSheet
-        open={settingsOpen}
-        state={settings}
-        onChange={updateSettings}
-        onClose={() => setSettingsOpen(false)}
       />
     </main>
   );

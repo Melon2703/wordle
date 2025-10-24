@@ -1,7 +1,6 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Check, Circle, X } from 'lucide-react';
 import clsx from 'clsx';
 import type { LetterState } from '@/lib/contracts';
 
@@ -12,12 +11,6 @@ const stateToClass: Record<LetterState | 'empty', string> = {
   empty: 'bg-white text-slate-800 opacity-60'
 };
 
-const stateToIcon: Record<LetterState, typeof Check> = {
-  correct: Check,
-  present: Circle,
-  absent: X
-};
-
 interface TileProps {
   letter?: string;
   state?: LetterState;
@@ -26,12 +19,11 @@ interface TileProps {
 
 export function Tile({ letter, state, delay = 0 }: TileProps) {
   const variant = state ?? 'empty';
-  const Icon = state ? stateToIcon[state] : null;
   
   return (
     <motion.span
       className={clsx(
-        'relative flex h-12 w-12 items-center justify-center rounded-xl border text-xl font-semibold transition-colors',
+        'relative flex h-14 w-14 items-center justify-center rounded-md border text-xl font-semibold transition-colors',
         'border-blue-200',
         stateToClass[variant]
       )}
@@ -45,12 +37,6 @@ export function Tile({ letter, state, delay = 0 }: TileProps) {
       }}
     >
       {letter ?? ''}
-      {Icon && (
-        <Icon 
-          className="absolute right-1 top-1 h-3 w-3 text-current opacity-70" 
-          aria-hidden="true"
-        />
-      )}
     </motion.span>
   );
 }

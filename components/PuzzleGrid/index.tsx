@@ -14,7 +14,7 @@ export function PuzzleGrid({ length, maxAttempts, lines, activeGuess }: PuzzleGr
   const rows = Array.from({ length: maxAttempts });
 
   return (
-    <div className="flex flex-col gap-2 md:gap-3">
+    <div className="flex flex-col" style={{ gap: '8px' }}>
       {rows.map((_, index) => {
         const historyLine = lines[index];
         const isActiveRow = index === lines.length;

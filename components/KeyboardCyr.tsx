@@ -9,7 +9,7 @@ type KeyState = LetterState | undefined;
 const layout: string[][] = [
   ['Й', 'Ц', 'У', 'К', 'Е', 'Н', 'Г', 'Ш', 'Щ', 'З', 'Х'],
   ['Ф', 'Ы', 'В', 'А', 'П', 'Р', 'О', 'Л', 'Д', 'Ж', 'Э'],
-  ['ENTER', 'Я', 'Ч', 'С', 'М', 'И', 'Т', 'Ь', 'Б', 'Ю', '⌫']
+  ['Я', 'Ч', 'С', 'М', 'И', 'Т', 'Ь', 'Б', 'Ю']
 ];
 
 interface KeyboardCyrProps {
@@ -32,11 +32,11 @@ export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {}, disab
     
     triggerHaptic('light');
     
-    if (value === 'ENTER') {
+    if (value === 'Ввод') {
       onEnter?.();
       return;
     }
-    if (value === '⌫') {
+    if (value === 'Стереть') {
       onBackspace?.();
       return;
     }
@@ -44,12 +44,12 @@ export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {}, disab
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-0.5 justify-center">
+      {/* Letter keys */}
       {layout.map((row, rowIndex) => (
-        <div key={rowIndex} className="flex justify-center gap-2">
+        <div key={rowIndex} className="flex justify-center gap-0.5">
           {row.map((label) => {
-            const normalized = label.length === 1 ? label : label;
-            const state = keyStates[normalized];
+            const state = keyStates[label];
             return (
               <button
                 key={label}
@@ -57,8 +57,7 @@ export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {}, disab
                 onClick={() => handlePress(label)}
                 disabled={disabled}
                 className={clsx(
-                  'flex-1 rounded-xl bg-blue-100 px-2 py-3 text-sm font-semibold text-slate-800 shadow-sm transition active:scale-95',
-                  label.length > 1 && 'flex-[1.5]',
+                  'flex-1 rounded-md bg-blue-100 h-12 text-sm font-semibold text-slate-800 shadow-sm transition active:scale-95',
                   state ? stateClassName[state] : null,
                   disabled && 'opacity-50 cursor-not-allowed'
                 )}
@@ -70,6 +69,34 @@ export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {}, disab
           })}
         </div>
       ))}
+      
+      {/* Action buttons row */}
+      <div className="flex gap-2 mt-2">
+        <button
+          type="button"
+          onClick={() => handlePress('Ввод')}
+          disabled={disabled}
+          className={clsx(
+            'flex-1 rounded-md bg-blue-200 px-4 h-12 text-sm font-semibold text-slate-800 shadow-sm transition active:scale-95 hover:bg-blue-300',
+            disabled && 'opacity-50 cursor-not-allowed'
+          )}
+          aria-label="Ввод"
+        >
+          Ввод
+        </button>
+        <button
+          type="button"
+          onClick={() => handlePress('Стереть')}
+          disabled={disabled}
+          className={clsx(
+            'flex-1 rounded-md bg-red-200 px-4 h-12 text-sm font-semibold text-slate-800 shadow-sm transition active:scale-95 hover:bg-red-300',
+            disabled && 'opacity-50 cursor-not-allowed'
+          )}
+          aria-label="Стереть"
+        >
+          Стереть
+        </button>
+      </div>
     </div>
   );
 }

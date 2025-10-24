@@ -5,6 +5,7 @@ import { Providers } from './providers';
 import { ThemeBridge } from '@/components/ThemeBridge';
 import { HapticsBridge } from '@/components/HapticsBridge';
 import { ToastCenter } from '@/components/ToastCenter';
+import { BottomNavWrapper } from '@/components/BottomNavWrapper';
 
 export const metadata: Metadata = {
   title: 'RU Word Puzzle',
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <ThemeBridge />
           <HapticsBridge />
           <ToastCenter>{children}</ToastCenter>
+          <BottomNavWrapper />
         </Providers>
       </body>
     </html>
