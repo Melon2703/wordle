@@ -248,6 +248,50 @@ export interface Database {
           created_at?: string;
         };
       };
+      purchases: {
+        Row: {
+          purchase_id: string;
+          profile_id: string;
+          product_id: string;
+          status: 'pending' | 'paid' | 'refunded' | 'failed';
+          stars_amount: number;
+          telegram_invoice_id: string | null;
+          telegram_payment_charge_id: string | null;
+          provider_payment_charge_id: string | null;
+          provider_payload: Record<string, unknown>;
+          created_at: string;
+          completed_at: string | null;
+          refunded_at: string | null;
+        };
+        Insert: {
+          purchase_id?: string;
+          profile_id: string;
+          product_id: string;
+          status?: 'pending' | 'paid' | 'refunded' | 'failed';
+          stars_amount: number;
+          telegram_invoice_id?: string | null;
+          telegram_payment_charge_id?: string | null;
+          provider_payment_charge_id?: string | null;
+          provider_payload?: Record<string, unknown>;
+          created_at?: string;
+          completed_at?: string | null;
+          refunded_at?: string | null;
+        };
+        Update: {
+          purchase_id?: string;
+          profile_id?: string;
+          product_id?: string;
+          status?: 'pending' | 'paid' | 'refunded' | 'failed';
+          stars_amount?: number;
+          telegram_invoice_id?: string | null;
+          telegram_payment_charge_id?: string | null;
+          provider_payment_charge_id?: string | null;
+          provider_payload?: Record<string, unknown>;
+          created_at?: string;
+          completed_at?: string | null;
+          refunded_at?: string | null;
+        };
+      };
     };
     Views: {
       leaderboard_by_puzzle: {

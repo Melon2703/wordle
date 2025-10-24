@@ -602,5 +602,14 @@ components:
       properties:
         ok:
           type: boolean
-      required: [ok]
+        purchase_id:
+          type: string
+          format: uuid
+        invoice_url:
+          type: string
+          format: uri
+        stars_amount:
+          type: integer
+          minimum: 0
+      required: [ok, purchase_id, invoice_url, stars_amount]
       additionalProperties: false
