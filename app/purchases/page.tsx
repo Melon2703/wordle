@@ -122,7 +122,7 @@ export default function PurchasesPage() {
   return (
     <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">
       <section className="flex flex-1 flex-col gap-4 px-4 py-6">
-        <h1 className="text-xl font-semibold">Покупки</h1>
+            <h1 className="text-xl font-semibold font-sans">Покупки</h1>
         {!isTelegramReady ? (
           <p className="rounded-3xl border border-dashed border-blue-200 bg-white px-4 py-10 text-center text-sm opacity-70">
             Инициализация Telegram...

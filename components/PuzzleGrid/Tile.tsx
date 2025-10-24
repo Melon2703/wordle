@@ -23,7 +23,7 @@ export function Tile({ letter, state, delay = 0 }: TileProps) {
   return (
     <motion.span
       className={clsx(
-        'relative flex h-14 w-14 items-center justify-center rounded-md border text-xl font-semibold transition-colors',
+        'relative flex h-14 w-14 items-center justify-center rounded-md border text-xl font-semibold transition-colors font-sans',
         'border-blue-200',
         stateToClass[variant]
       )}

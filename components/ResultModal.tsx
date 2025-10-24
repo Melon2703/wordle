@@ -26,14 +26,14 @@ export function ResultModal({ open, status, attemptsUsed, answer, onClose }: Res
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500">
             <span className="text-2xl">⭐</span>
           </div>
-          <h2 className="text-2xl font-bold text-slate-800">{resultCopy}</h2>
-          <p className="mt-2 text-sm text-slate-600">
+              <h2 className="text-2xl font-bold text-slate-800 font-sans">{resultCopy}</h2>
+          <p className="mt-2 text-sm text-slate-600 font-sans">
             {status === 'won'
               ? `Решено за ${attemptsUsed} попыток.`
               : 'Можете потренироваться в режиме Аркада.'}
           </p>
           {status === 'lost' && answer ? (
-            <p className="mt-3 text-sm text-slate-600">Сегодняшнее слово: {answer}</p>
+                <p className="mt-3 text-sm text-slate-600 font-sans">Сегодняшнее слово: {answer}</p>
           ) : null}
         </div>
         <button

@@ -1,13 +1,13 @@
 export default function HelpPage() {
   return (
     <main className="flex min-h-screen flex-col bg-blue-50 px-4 py-12 text-slate-800 pb-32">
-      <h1 className="text-3xl font-semibold">Как играть</h1>
-      <p className="mt-4 text-lg">Угадайте слово за 6 попыток.</p>
-      
-      <div className="mt-6 space-y-4">
-        <p className="text-sm">• Каждая догадка должна быть валидным словом нужной длины.</p>
-        <p className="text-sm">• Цвет плиток показывает, насколько близко ваша догадка к слову.</p>
-      </div>
+          <h1 className="text-3xl font-semibold font-sans">Как играть</h1>
+          <p className="mt-4 text-lg font-sans">Угадайте слово за 6 попыток</p>
+
+          <div className="mt-6 space-y-4">
+            <p className="text-sm font-sans">• Каждая догадка должна быть валидным словом нужной длины</p>
+            <p className="text-sm font-sans">• Цвет плиток показывает, насколько близко ваша догадка к слову</p>
+          </div>
 
       <div className="mt-8 space-y-6">
         <div>
@@ -28,7 +28,7 @@ export default function HelpPage() {
               О
             </div>
           </div>
-          <p className="text-sm text-slate-600">С находится в слове и в правильной позиции.</p>
+              <p className="text-sm text-slate-600 font-sans"><span className="font-bold">С</span> находится в слове и в правильной позиции</p>
         </div>
 
         <div>
@@ -49,7 +49,7 @@ export default function HelpPage() {
               К
             </div>
           </div>
-          <p className="text-sm text-slate-600">Р находится в слове, но в неправильной позиции.</p>
+          <p className="text-sm text-slate-600 font-sans"><span className="font-bold">Р</span> находится в слове, но в неправильной позиции</p>
         </div>
 
         <div>
@@ -70,7 +70,7 @@ export default function HelpPage() {
               А
             </div>
           </div>
-          <p className="text-sm text-slate-600">К не находится в слове ни в какой позиции.</p>
+          <p className="text-sm text-slate-600 font-sans"><span className="font-bold">К</span> не находится в слове ни в какой позиции</p>
         </div>
       </div>
     </main>

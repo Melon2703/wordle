@@ -57,7 +57,7 @@ export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {}, disab
                 onClick={() => handlePress(label)}
                 disabled={disabled}
                 className={clsx(
-                  'flex-1 rounded-md bg-blue-100 h-12 text-sm font-semibold text-slate-800 shadow-sm transition active:scale-95',
+                  'flex-1 rounded-md bg-blue-100 h-12 text-sm font-semibold text-slate-800 shadow-sm transition active:scale-95 font-sans',
                   state ? stateClassName[state] : null,
                   disabled && 'opacity-50 cursor-not-allowed'
                 )}
@@ -77,7 +77,7 @@ export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {}, disab
           onClick={() => handlePress('Ввод')}
           disabled={disabled}
           className={clsx(
-            'flex-1 rounded-md bg-blue-200 px-4 h-12 text-sm font-semibold text-slate-800 shadow-sm transition active:scale-95 hover:bg-blue-300',
+            'flex-1 rounded-md bg-blue-200 px-4 h-12 text-sm font-semibold text-slate-800 shadow-sm transition active:scale-95 hover:bg-blue-300 font-sans',
             disabled && 'opacity-50 cursor-not-allowed'
           )}
           aria-label="Ввод"
@@ -89,7 +89,7 @@ export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {}, disab
           onClick={() => handlePress('Стереть')}
           disabled={disabled}
           className={clsx(
-            'flex-1 rounded-md bg-red-200 px-4 h-12 text-sm font-semibold text-slate-800 shadow-sm transition active:scale-95 hover:bg-red-300',
+            'flex-1 rounded-md bg-red-200 px-4 h-12 text-sm font-semibold text-slate-800 shadow-sm transition active:scale-95 hover:bg-red-300 font-sans',
             disabled && 'opacity-50 cursor-not-allowed'
           )}
           aria-label="Стереть"
