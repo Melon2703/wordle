@@ -20,6 +20,7 @@ export default function DailyPage() {
   });
   
   const [currentGuess, setCurrentGuess] = useState('');
+  const [submittingGuess, setSubmittingGuess] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const toast = useToast();
 
@@ -28,6 +29,9 @@ export default function DailyPage() {
       submitDailyGuess(puzzleId, guess, hardMode),
     onSuccess: (response) => {
       console.log('🎯 Guess submitted successfully:', response);
+      
+      // Clear submitting state
+      setSubmittingGuess(null);
       
       // Update the query cache immediately with the new data
       queryClient.setQueryData(['puzzle', 'daily'], (oldData: DailyPuzzlePayload | undefined) => {
@@ -57,6 +61,7 @@ export default function DailyPage() {
     onError: (error) => {
       console.error('❌ Guess submission failed:', error);
       triggerHaptic('error');
+      setSubmittingGuess(null);
       toast.notify(error instanceof Error ? error.message : 'Ошибка при отправке догадки');
     }
   });
@@ -97,13 +102,16 @@ export default function DailyPage() {
     }
     
     console.log('🚀 Submitting guess:', currentGuess);
+    
+    // Set submitting state and clear current guess
+    setSubmittingGuess(currentGuess);
+    setCurrentGuess('');
+    
     submitGuessMutation.mutate({
       puzzleId: data.puzzleId,
-      guess: currentGuess,
+      guess: submittingGuess || currentGuess,
       hardMode: false // TODO: get from settings
     });
-    
-    setCurrentGuess('');
   };
 
   if (isLoading) {
@@ -138,7 +146,13 @@ export default function DailyPage() {
     <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">
       <section className="flex flex-1 flex-col px-2 mx-auto w-full max-w-lg">
         <div className="pt-2 pb-4">
-          <PuzzleGrid length={length} maxAttempts={maxAttempts} lines={lines} activeGuess={currentGuess} />
+          <PuzzleGrid 
+            length={length} 
+            maxAttempts={maxAttempts} 
+            lines={lines} 
+            activeGuess={currentGuess}
+            pendingGuess={submittingGuess}
+          />
         </div>
         <div className="flex-1" />
         <KeyboardCyr

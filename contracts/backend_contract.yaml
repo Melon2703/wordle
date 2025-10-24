@@ -102,11 +102,11 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/arcade/guess:
+  /api/arcade/complete:
     post:
       tags: [puzzles]
-      summary: Submit a guess for the arcade session
-      operationId: postArcadeGuess
+      summary: Record completion of an arcade session
+      operationId: completeArcadeSession
       security:
         - InitDataHeader: []
         - InitDataQuery: []
@@ -115,18 +115,50 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ArcadeGuessRequest'
+              type: object
+              properties:
+                puzzleId:
+                  type: string
+                  format: uuid
+                result:
+                  type: string
+                  enum: [won, lost]
+                attemptsUsed:
+                  type: integer
+                  minimum: 1
+                timeMs:
+                  type: integer
+                  minimum: 0
+              required: [puzzleId, result, attemptsUsed, timeMs]
+              additionalProperties: false
       responses:
         '200':
-          description: Guess result (arcade)
+          description: Session completion recorded
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ArcadeGuessResponse'
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required: [ok]
+                additionalProperties: false
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Arcade session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Session already completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/ServerError'
   /api/leaderboard/daily:
@@ -466,7 +498,10 @@ components:
         serverNow:
           type: string
           format: date-time
-      required: [puzzleId, mode, length, maxAttempts, serverNow]
+        solution:
+          type: string
+          description: Normalized solution word for client-side evaluation
+      required: [puzzleId, mode, length, maxAttempts, serverNow, solution]
       additionalProperties: false
     ArcadeGuessRequest:
       type: object

@@ -22,6 +22,7 @@
 **Arcade**
 - `POST /api/arcade/start` `{ length: 4|5|6|7, hardMode }` → `ArcadeStartResponse`.
 - `POST /api/arcade/guess` `{ puzzleId, guess }` → Daily‑like result; on final state: `{ mmrDelta }`.
+- `POST /api/arcade/complete` `{ puzzleId, result, attemptsUsed, timeMs }` → `{ ok: boolean }` (records session completion).
 
 **Dictionary**
 - `GET /api/dict/check?word=СТРОКА` → `{ valid: boolean }` (no hints, no solution leakage).
@@ -167,7 +168,8 @@ DICTIONARY_URL           # optional CDN/signed URL base for dictionary assets
 
 **Arcade**
 1) Create `arcade_runs` on start; each stage is a `session` linked via `run_id`.  
-2) Update `score_total` and lives; compute `mmr_delta` if you add rating later.
+2) Client evaluates guesses locally for instant feedback; calls `/api/arcade/complete` to record final result.
+3) Update `score_total` and lives; compute `mmr_delta` if you add rating later.
 
 **Economy**
 1) Show `products` catalog.  

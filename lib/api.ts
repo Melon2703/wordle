@@ -216,6 +216,21 @@ export async function checkDictionaryWord(word: string): Promise<{ valid: boolea
   return handleResponse<{ valid: boolean }>(response);
 }
 
+export async function completeArcadeSession(
+  puzzleId: string,
+  result: 'won' | 'lost',
+  attemptsUsed: number,
+  timeMs: number
+): Promise<{ ok: boolean }> {
+  const response = await fetch('/api/arcade/complete', {
+    method: 'POST',
+    headers: createHeaders(),
+    body: JSON.stringify({ puzzleId, result, attemptsUsed, timeMs })
+  });
+  
+  return handleResponse<{ ok: boolean }>(response);
+}
+
 export async function purchaseProduct(productId: string): Promise<{ ok: boolean; purchase_id: string; invoice_url: string; stars_amount: number }> {
   debugLog('🛒 Purchase Debug - Starting purchase for product:', productId);
   

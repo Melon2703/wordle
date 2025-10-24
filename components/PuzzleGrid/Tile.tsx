@@ -15,9 +15,10 @@ interface TileProps {
   letter?: string;
   state?: LetterState;
   delay?: number;
+  isFlashing?: boolean;
 }
 
-export function Tile({ letter, state, delay = 0 }: TileProps) {
+export function Tile({ letter, state, delay = 0, isFlashing = false }: TileProps) {
   const variant = state ?? 'empty';
   
   return (
@@ -25,7 +26,8 @@ export function Tile({ letter, state, delay = 0 }: TileProps) {
       className={clsx(
         'relative flex h-14 w-14 items-center justify-center rounded-md border text-xl font-semibold transition-colors font-sans',
         'border-blue-200',
-        stateToClass[variant]
+        stateToClass[variant],
+        isFlashing && 'animate-pulse'
       )}
       aria-live="polite"
       initial={{ rotateX: 0 }}
@@ -34,6 +36,9 @@ export function Tile({ letter, state, delay = 0 }: TileProps) {
         duration: 0.15,
         delay: delay * 0.06,
         times: [0, 0.5, 1]
+      }}
+      style={{
+        opacity: isFlashing ? undefined : 1
       }}
     >
       {letter ?? ''}

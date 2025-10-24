@@ -102,7 +102,8 @@ export const sampleArcadeStart: ArcadeStartResponse = {
   mode: 'arcade',
   length: 5,
   maxAttempts: 6,
-  serverNow: new Date().toISOString()
+  serverNow: new Date().toISOString(),
+  solution: 'СЛОВО'
 };
 
 export const sampleArcadeGuess: ArcadeGuessResponse = {

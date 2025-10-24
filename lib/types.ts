@@ -43,6 +43,7 @@ export interface ArcadeStartResponse {
   length: 4 | 5 | 6 | 7;
   maxAttempts: number;
   serverNow: string;
+  solution: string;
 }
 
 export interface ArcadeGuessResponse {

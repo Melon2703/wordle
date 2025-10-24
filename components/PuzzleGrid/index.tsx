@@ -8,9 +8,10 @@ interface PuzzleGridProps {
   maxAttempts: number;
   lines: GuessLine[];
   activeGuess: string;
+  pendingGuess?: string | null;
 }
 
-export function PuzzleGrid({ length, maxAttempts, lines, activeGuess }: PuzzleGridProps) {
+export function PuzzleGrid({ length, maxAttempts, lines, activeGuess, pendingGuess }: PuzzleGridProps) {
   const rows = Array.from({ length: maxAttempts });
 
   return (
@@ -18,12 +19,15 @@ export function PuzzleGrid({ length, maxAttempts, lines, activeGuess }: PuzzleGr
       {rows.map((_, index) => {
         const historyLine = lines[index];
         const isActiveRow = index === lines.length;
+        const isPendingRow = index === lines.length && pendingGuess;
         return (
           <GuessRow
             key={index}
             length={length}
             feedback={historyLine?.feedback}
             activeGuess={isActiveRow ? activeGuess : undefined}
+            isPending={!!isPendingRow}
+            pendingGuess={isPendingRow ? pendingGuess : undefined}
           />
         );
       })}
