@@ -113,6 +113,25 @@ export async function GET(request: NextRequest) {
       console.warn('⚠️ Failed to query profiles table, using default streak');
     }
 
+    // Try to get arcade puzzles solved count
+    let arcadeSolved = 0;
+    if (profileId) {
+      try {
+        const { count, error: arcadeError } = await supabase
+          .from('sessions')
+          .select('*', { count: 'exact', head: true })
+          .eq('profile_id', profileId)
+          .eq('mode', 'arcade')
+          .eq('result', 'win');
+        
+        if (!arcadeError && count !== null) {
+          arcadeSolved = count;
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to query arcade sessions');
+      }
+    }
+
 
     // Determine daily status from session data
     let dailyStatus: 'not_started' | 'playing' | 'won' | 'lost' = 'not_started';
@@ -140,6 +159,8 @@ export async function GET(request: NextRequest) {
       dailyTimeMs,
       streak,
       nextPuzzleAt: nextPuzzleAt.toISOString(),
+      profileId,  // Add profileId to response
+      arcadeSolved,  // Add arcade count
     };
 
     return NextResponse.json(response);

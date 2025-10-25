@@ -97,6 +97,8 @@ export interface UserStatus {
   dailyTimeMs?: number;
   streak: number;
   nextPuzzleAt: string;
+  profileId?: string;  // User's profile ID for matching with leaderboard
+  arcadeSolved: number;  // Total arcade puzzles solved
   lastMode?: 'daily' | 'arcade';
   lastArcadeLength?: 4 | 5 | 6;
 }

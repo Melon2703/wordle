@@ -1,8 +1,9 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { getDailyPuzzle, getDailyLeaderboard, openUserProfile } from '@/lib/api';
+import { getDailyPuzzle, getDailyLeaderboard, openUserProfile, getUserStatus } from '@/lib/api';
 import { LoadingFallback } from '@/components/LoadingFallback';
+import { UserStatsCard } from '@/components/UserStatsCard';
 
 export default function LeadersPage() {
   // Helper function to extract telegram_id from profileUrl
@@ -25,6 +26,19 @@ export default function LeadersPage() {
     enabled: !!dailyPuzzle?.puzzleId // Only run when we have a puzzle ID
   });
 
+  // Get user status for personal stats
+  const { data: userStatus } = useQuery({
+    queryKey: ['user', 'status'],
+    queryFn: getUserStatus,
+    staleTime: 30 * 1000,
+  });
+
+  // Find user's rank in leaderboard
+  const userRank = leaderboard?.entries.findIndex(
+    entry => entry.userId === userStatus?.profileId
+  );
+  const userRankNumber = userRank !== undefined && userRank >= 0 ? userRank + 1 : undefined;
+
   // Show loading state while fetching data
   if (puzzleLoading || leaderboardLoading) {
     return <LoadingFallback length={5} />;
@@ -34,6 +48,17 @@ export default function LeadersPage() {
     <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">
       <section className="flex flex-1 flex-col gap-4 px-4 py-6">
             <h1 className="text-xl font-semibold font-sans">Рейтинги</h1>
+        
+        {/* User Stats Card */}
+        {userStatus && (
+          <UserStatsCard
+            rank={userRankNumber}
+            totalPlayers={leaderboard?.entries.length || 0}
+            streak={userStatus.streak}
+            arcadeSolved={userStatus.arcadeSolved}
+          />
+        )}
+        
         <h2 className="text-sm font-semibold opacity-70">Топ игроков сегодня</h2>
         <ul className="space-y-2">
           {leaderboard?.entries.map((entry) => (

@@ -8,7 +8,7 @@ import { LoadingFallback } from '@/components/LoadingFallback';
 import { ResultScreen } from '@/components/ResultScreen';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
-import { getDailyPuzzle, submitDailyGuess } from '@/lib/api';
+import { getDailyPuzzle, submitDailyGuess, getUserStatus } from '@/lib/api';
 import { buildKeyboardState } from '@/lib/game/feedback';
 import type { DailyPuzzlePayload } from '@/lib/contracts';
 
@@ -18,6 +18,12 @@ export default function DailyPage() {
     queryKey: ['puzzle', 'daily'], 
     queryFn: getDailyPuzzle,
     staleTime: 30 * 1000 // 30 seconds
+  });
+
+  const { data: userStatus } = useQuery({
+    queryKey: ['user', 'status'],
+    queryFn: getUserStatus,
+    staleTime: 30 * 1000,
   });
   
   const [currentGuess, setCurrentGuess] = useState('');
@@ -153,6 +159,7 @@ export default function DailyPage() {
               answer={undefined}
               mode="daily"
               timeMs={data?.yourState.timeMs}
+              streak={userStatus?.streak}
               length={length}
               lines={lines}
             />
