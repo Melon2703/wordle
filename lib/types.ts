@@ -41,7 +41,7 @@ export interface DailyGuessResponse {
 export interface ArcadeStartResponse {
   puzzleId: string;
   mode: 'arcade';
-  length: 4 | 5 | 6 | 7;
+  length: 4 | 5 | 6;
   maxAttempts: number;
   serverNow: string;
   solution: string;

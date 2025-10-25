@@ -13,7 +13,7 @@ import { buildKeyboardState } from '@/lib/game/feedback';
 import { evaluateGuess, normalizeGuess, validateDictionary } from '@/lib/game/feedback.client';
 import type { ArcadeStartResponse, GuessLine } from '@/lib/contracts';
 
-const lengths: Array<ArcadeStartResponse['length']> = [4, 5, 6, 7];
+const lengths: Array<ArcadeStartResponse['length']> = [4, 5, 6];
 
 export default function ArcadePage() {
   const toast = useToast();

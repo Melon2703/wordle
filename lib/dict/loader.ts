@@ -1,5 +1,7 @@
-// Dictionary loader with hardcoded test wordlist for v0 MVP
+// Dictionary loader that fetches words from database
 // See docs/backend/Backend_Documentation.md §B.5 for requirements.
+import { getServiceClient } from '../db/client';
+
 export interface DictionarySets {
   allowed: Set<string>;
   answers: Set<string>;
@@ -7,31 +9,42 @@ export interface DictionarySets {
 
 let cache: DictionarySets | null = null;
 
-// Minimal test wordlist for v0 MVP
-const TEST_WORDS = {
-  // 5-letter answers (common RU words)
-  answers: [
-    'СЛОВО', 'ЗЕМЛЯ', 'ТРАВА', 'ПТИЦА'
-  ],
-  // Additional allowed guesses
-  allowed: [
-    'СЛОВО', 'ЗЕМЛЯ', 'ТРАВА', 'ПТИЦА',
-    'КРАСК', 'СТРОК', 'БУКВА', 'ТЕКСТ', 'ПЕЧАТ', 'ПИСЬМ', 'ЧИТАТ', 'СМОТР', 'СЛУША', 'ГОВОР'
-  ]
-};
-
 export async function loadDictionary(): Promise<DictionarySets> {
   if (cache) {
     return cache;
   }
 
-  // For v0 MVP: use hardcoded test words
-  // TODO: Load from Supabase Storage in post-v0
-  cache = {
-    allowed: new Set(TEST_WORDS.allowed),
-    answers: new Set(TEST_WORDS.answers)
-  };
+  // Load words from database
+  const client = getServiceClient();
+  
+  const { data: words, error } = await client
+    .from('dictionary_words')
+    .select('text_norm, is_solution, is_allowed_guess');
 
+  if (error) {
+    console.error('Failed to load dictionary from database:', error);
+    throw new Error('Failed to load dictionary');
+  }
+
+  if (!words || words.length === 0) {
+    console.warn('No words found in dictionary_words table');
+    throw new Error('Dictionary is empty');
+  }
+
+  // Build sets from database results
+  const allowed = new Set<string>();
+  const answers = new Set<string>();
+
+  for (const word of words) {
+    if (word.is_allowed_guess) {
+      allowed.add(word.text_norm);
+    }
+    if (word.is_solution) {
+      answers.add(word.text_norm);
+    }
+  }
+
+  cache = { allowed, answers };
   return cache;
 }
 

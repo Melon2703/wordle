@@ -195,7 +195,7 @@ export async function submitDailyGuess(
 }
 
 export async function startArcade(
-  length: 4 | 5 | 6 | 7, 
+  length: 4 | 5 | 6, 
   hardMode = false
 ): Promise<ArcadeStartResponse> {
   const response = await fetch('/api/arcade/start', {

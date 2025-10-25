@@ -475,7 +475,7 @@ components:
       properties:
         length:
           type: integer
-          enum: [4,5,6,7]
+          enum: [4,5,6]
         hardMode:
           type: boolean
           default: false
@@ -492,7 +492,7 @@ components:
           enum: [arcade]
         length:
           type: integer
-          enum: [4,5,6,7]
+          enum: [4,5,6]
         maxAttempts:
           type: integer
         serverNow:
