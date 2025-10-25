@@ -19,7 +19,7 @@ export async function GET(request: Request): Promise<Response> {
     }
     
     const dictionary = await loadDictionary();
-    const normalizedWord = word.trim().toUpperCase();
+    const normalizedWord = word.trim().toLowerCase();
     
     return NextResponse.json({
       valid: dictionary.allowed.has(normalizedWord)

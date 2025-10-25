@@ -4,19 +4,13 @@ import type { DailyLeaderboard, ShopCatalog } from '../contracts';
 
 type Client = SupabaseClient<Database>;
 
-export async function getTodayPuzzle(client: Client): Promise<{
-  puzzle: Database['public']['Tables']['puzzles']['Row'];
-  solution: Database['public']['Tables']['dictionary_words']['Row'];
-}> {
+export async function getTodayPuzzle(client: Client): Promise<Database['public']['Tables']['puzzles']['Row']> {
   const today = new Date().toISOString().split('T')[0];
   
   // Get today's daily puzzle
   const { data: puzzle, error: puzzleError } = await client
     .from('puzzles')
-    .select(`
-      *,
-      dictionary_words!solution_word_id(*)
-    `)
+    .select('*')
     .eq('mode', 'daily')
     .eq('date', today)
     .eq('status', 'published')
@@ -26,10 +20,7 @@ export async function getTodayPuzzle(client: Client): Promise<{
     throw new Error('Today\'s puzzle not found');
   }
 
-  return {
-    puzzle,
-    solution: puzzle.dictionary_words as Database['public']['Tables']['dictionary_words']['Row']
-  };
+  return puzzle;
 }
 
 export async function upsertDailySession(

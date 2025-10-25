@@ -94,15 +94,26 @@ DICTIONARY_URL           # optional CDN/signed URL base for dictionary assets
 - `is_banned bool`, `ban_reason text`, `ban_expires_at timestamptz`  
 - `created_at timestamptz default now()`
 
-**dictionary_words** — lexicon (public select; writes by service role)  
-- `word_id uuid pk`, `text text`, `text_norm text not null`, `len smallint`  
-- `is_solution bool`, `is_allowed_guess bool`  
-- `flags jsonb`, `source text`  
-- **Indexes:** `unique(text_norm)`, `len`
+### B.2a Word Access & Validation
+
+**Storage-backed wordlists:**
+- Public Storage URLs:
+  - `for-guesses.txt` (~3k words) - allowed guesses for validation
+  - `for-puzzles.txt` (~200 words) - curated puzzle answers  
+  - `daily-used-words.txt` - tracks used daily words (server-managed)
+- Next.js fetch with `revalidate: 21600` (6 hours) for wordlists; shorter (60s) for used-words
+- Normalization policy: `toLowerCase()` + `ё→е` via `translate()` in Postgres
+- `puzzles.solution_text` stores actual answer; `solution_norm` is generated column
+- **Daily word cycle**: `daily-used-words.txt` tracks used words; resets when all ~200 exhausted
+- **Validation split**: Daily server-side (fairness), Arcade client-side (performance)
+- Storage writes: use service role client to update `daily-used-words.txt`
+- Optional future: signed URLs if bucket becomes private
+
 
 **puzzles** — daily & arcade targets (public select)  
 - `puzzle_id uuid pk`, `mode enum('daily','arcade')`, `date date`, `letters smallint`  
-- `solution_word_id uuid → dictionary_words`, `difficulty smallint`, `ruleset_version smallint`  
+- `solution_text text`, `solution_norm text` (generated column: lowercase + ё→е normalization)
+- `difficulty smallint`, `ruleset_version smallint`  
 - `status enum('draft','published','retired')`, `seed text`  
 - **Constraint:** unique `(date, letters)` where `mode='daily' and status='published'`
 
@@ -145,13 +156,12 @@ DICTIONARY_URL           # optional CDN/signed URL base for dictionary assets
 
 ### B.3 RLS Patterns
 - Owner tables (`profiles`, `sessions`, `guesses`, `arcade_runs`, `purchases`, `entitlements`): **enable RLS** and allow `select/insert/update` only where `profile_id` equals the JWT claim. citeturn0search4
-- Catalog tables (`dictionary_words`, `puzzles`, `products`, `leaderboard_by_puzzle`): public `select` (or `select using (true)`), writes by service role only.
+- Catalog tables (`puzzles`, `products`, `leaderboard_by_puzzle`): public `select` (or `select using (true)`), writes by service role only.
 
 ### B.4 Indexing & Performance
 - `sessions (profile_id, puzzle_id)` unique (daily)  
 - `sessions (puzzle_id)`, `(result, attempts_used, time_ms)`  
 - `guesses (session_id, guess_index)`  
-- `dictionary_words (text_norm)` unique, `(len)`  
 - `leaderboard_by_puzzle (puzzle_id, rank)` (MV index)  
 - Store `feedback_mask` to avoid recomputation on reads.
 

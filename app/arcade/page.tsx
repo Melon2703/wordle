@@ -83,7 +83,8 @@ export default function ArcadePage() {
     }
     
     const normalizedGuess = normalizeGuess(guess, false);
-    const feedback = evaluateGuess(normalizedGuess, session.solution);
+    // why: normalize both guess and solution to lowercase for consistent comparison
+    const feedback = evaluateGuess(normalizedGuess.toLowerCase(), session.solution.toLowerCase());
     
     return {
       guess: normalizedGuess,

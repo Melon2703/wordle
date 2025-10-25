@@ -39,7 +39,7 @@ export function evaluateGuess(guess: string, answer: string): TileFeedback[] {
 
   return letters.map((letter, index) => ({
     index,
-    letter,
+    letter: letter.toUpperCase(), // why: uppercase for UI display
     state: states[index]
   }));
 }

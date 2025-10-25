@@ -83,11 +83,14 @@ We apply a gentle white/blue palette with clear contrast and rounded shapes.
 
 ## 5) UX Mechanics (summary)
 
-- **Input & validation**: type with on‑screen Cyrillic keyboard (and desktop physical keys); enforce word length and dictionary validity in UI; final validation server‑side.
+- **Input & validation**: type with on‑screen Cyrillic keyboard (and desktop physical keys); enforce word length in UI.
+- **Validation split**: 
+  - **Daily**: server-side validation (fairness/security)
+  - **Arcade**: client-side validation with wordlist from Storage
 - **Feedback**: tiles and keys show **color + small icon** (✓ / • / ×) to avoid relying on color alone.
 - **Hard Mode**: client warns if known greens must be reused or if yellows are mispositioned; server is authoritative.
 - **Scoring UI**: Daily shows attempts (primary) and time (secondary, badge off by default); Arcade shows MMR delta.
-- **RU orthography**: “ё=е” input toggle (answer reveal uses correct character).
+- **RU orthography**: "ё=е" input toggle (answer reveal uses correct character).
 
 Microcopy (RU, compact):
 - **Invalid**: «Слова нет в словаре.»

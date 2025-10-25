@@ -12,6 +12,7 @@ import {
 import { evaluateGuess } from '../../../../../lib/game/feedback';
 import { normalizeGuess, validateHardMode } from '../../../../../lib/game/policies';
 import { consumeRateLimit } from '../../../../../lib/rate-limit';
+import { loadDictionary } from '../../../../../lib/dict/loader';
 import type { DailyGuessResponse, GuessLine } from '../../../../../lib/contracts';
 
 export const runtime = 'nodejs';
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
     );
     
     // Get today's puzzle
-    const { puzzle, solution } = await getTodayPuzzle(client);
+    const puzzle = await getTodayPuzzle(client);
     
     if (puzzle.puzzle_id !== puzzleId) {
       return NextResponse.json(
@@ -71,15 +72,13 @@ export async function POST(request: Request) {
       );
     }
     
-    // Validate dictionary membership using database
-    const { data: wordCheck } = await client
-      .from('dictionary_words')
-      .select('word_id, is_allowed_guess')
-      .eq('text_norm', normalizedGuess)
-      .eq('len', puzzle.letters)
-      .single();
+    // Validate dictionary membership using Storage wordlist
+    const dictionary = await loadDictionary();
     
-    if (!wordCheck || !wordCheck.is_allowed_guess) {
+    // Convert normalized guess to lowercase for dictionary lookup
+    const guessForLookup = normalizedGuess.toLowerCase();
+    
+    if (!dictionary.allowed.has(guessForLookup)) {
       return NextResponse.json(
         { error: 'Слово не найдено в словаре' },
         { status: 400 }
@@ -136,8 +135,8 @@ export async function POST(request: Request) {
       }
     }
     
-    // Evaluate guess
-    const feedback = evaluateGuess(normalizedGuess, solution.text_norm);
+    // Evaluate guess against puzzle solution
+    const feedback = evaluateGuess(guessForLookup, puzzle.solution_norm);
     const feedbackMask = JSON.stringify(feedback.map(f => f.state));
     
     // Record guess
