@@ -89,3 +89,27 @@ export interface ShopCatalog {
   products: Product[];
   asOf: string;
 }
+
+// User status for home page
+export interface UserStatus {
+  dailyStatus: 'not_started' | 'playing' | 'won' | 'lost';
+  dailyAttempts?: number;
+  dailyTimeMs?: number;
+  streak: number;
+  nextPuzzleAt: string;
+  lastMode?: 'daily' | 'arcade';
+  lastArcadeLength?: 4 | 5 | 6;
+}
+
+// Banner system
+export type BannerVariant = 'success' | 'info' | 'warning' | 'promo';
+
+export interface Banner {
+  id: string;
+  variant: BannerVariant;
+  message: string;
+  ctaText?: string;
+  ctaLink?: string;
+  dismissible: boolean;
+  expiresAt?: string; // ISO timestamp
+}

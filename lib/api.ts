@@ -6,6 +6,7 @@ import type {
   DailyPuzzlePayload,
   ShopCatalog
 } from './contracts';
+import type { UserStatus, Banner } from './types';
 
 // Debug logging helper - only logs in development
 function debugLog(message: string, ...args: unknown[]) {
@@ -348,4 +349,21 @@ export async function refundPurchase(purchaseId: string): Promise<{ ok: boolean 
   });
   
   return handleResponse<{ ok: boolean }>(response);
+}
+
+// User status and banners
+export async function getUserStatus(): Promise<UserStatus> {
+  const response = await fetch('/api/user/status', {
+    headers: createHeaders()
+  });
+  
+  return handleResponse<UserStatus>(response);
+}
+
+export async function getActiveBanners(): Promise<Banner[]> {
+  const response = await fetch('/api/banners', {
+    headers: createHeaders()
+  });
+  
+  return handleResponse<Banner[]>(response);
 }

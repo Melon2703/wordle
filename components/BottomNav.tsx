@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Calendar, Gamepad2, Trophy, HelpCircle, ShoppingCart, Settings } from 'lucide-react';
+import { CalendarCheck2, Zap, Trophy, CircleHelp, Store, Settings } from 'lucide-react';
 import { SettingsSheet } from './SettingsSheet';
 import clsx from 'clsx';
 
@@ -29,11 +29,11 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: '/daily', label: 'Ежедневная', icon: Calendar, showForAll: true },
-  { href: '/arcade', label: 'Аркада', icon: Gamepad2, showForAll: true },
+  { href: '/daily', label: 'Ежедневная', icon: CalendarCheck2, showForAll: true },
+  { href: '/arcade', label: 'Аркада', icon: Zap, showForAll: true },
   { href: '/leaders', label: 'Рейтинги', icon: Trophy, showForAll: true },
-  { href: '/help', label: 'Помощь', icon: HelpCircle, showForAll: true },
-  { href: '/shop', label: 'Магазин', icon: ShoppingCart, showForAll: false }
+  { href: '/help', label: 'Помощь', icon: CircleHelp, showForAll: true },
+  { href: '/shop', label: 'Магазин', icon: Store, showForAll: false }
 ];
 
 export function BottomNav() {
@@ -114,7 +114,7 @@ export function BottomNav() {
                 )}
                 aria-label={item.label}
               >
-                <IconComponent className="h-6 w-6" />
+                <IconComponent className="h-5 w-5" />
               </Link>
             );
           })}
@@ -130,7 +130,7 @@ export function BottomNav() {
               )}
               aria-label="Настройки"
             >
-              <Settings className="h-6 w-6" />
+              <Settings className="h-5 w-5" />
             </button>
           )}
         </div>
