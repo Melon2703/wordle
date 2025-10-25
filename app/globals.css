@@ -28,3 +28,66 @@ a {
 :root {
   color-scheme: light;
 }
+
+/* Design System - Typography */
+@layer components {
+  /* Page titles - largest headings for main page titles */
+  .heading-1 {
+    @apply text-3xl font-semibold text-[var(--text)] sm:text-4xl;
+  }
+
+  /* Section headings - for major sections within pages */
+  .heading-2 {
+    @apply text-xl font-semibold text-[var(--text)];
+  }
+
+  /* Card titles - for headings within cards/components */
+  .heading-3 {
+    @apply text-lg font-semibold text-[var(--text)];
+  }
+
+  /* Small headings - for subsections */
+  .heading-4 {
+    @apply text-sm font-semibold text-[var(--text)];
+  }
+
+  /* Body text - standard paragraph text */
+  .text-body {
+    @apply text-sm text-[var(--text)];
+  }
+
+  /* Caption text - small, muted text for metadata */
+  .text-caption {
+    @apply text-xs text-[var(--text)] opacity-70;
+  }
+
+  /* Design System - Layout Utilities */
+  .page-container {
+    @apply flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)] pb-20;
+  }
+
+  .section-container {
+    @apply flex flex-1 flex-col gap-4 px-4 py-6;
+  }
+
+  .section-gap {
+    @apply space-y-6;
+  }
+
+  .card-gap {
+    @apply space-y-3;
+  }
+
+  /* Design System - Interactive States */
+  .interactive-hover {
+    @apply transition-all duration-200 hover:shadow-md;
+  }
+
+  .interactive-press {
+    @apply active:scale-95 transition-transform duration-150;
+  }
+
+  .interactive-disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+}

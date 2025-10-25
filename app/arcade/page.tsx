@@ -8,6 +8,7 @@ import { PuzzleLoader } from '@/components/PuzzleLoader';
 import { ResultScreen } from '@/components/ResultScreen';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
+import { Button, Card, Heading, Text } from '@/components/ui';
 import { startArcade, completeArcadeSession, getDictionaryWords } from '@/lib/api';
 import { buildKeyboardState } from '@/lib/game/feedback';
 import { evaluateGuess, normalizeGuess, validateDictionary } from '@/lib/game/feedback.client';
@@ -106,16 +107,6 @@ export default function ArcadePage() {
     }
   };
 
-  const handleNewGame = (len: ArcadeStartResponse['length']) => {
-    setShowResult(false);
-    setSession(null);
-    setLines([]);
-    setCurrentGuess('');
-    setSessionStartTime(null);
-    setIsSubmitting(false);
-    handleStart(len);
-  };
-
   const handleKey = (letter: string) => {
     if (letter.length !== 1) {
       return;
@@ -196,8 +187,8 @@ export default function ArcadePage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">
-      <section className="flex flex-1 flex-col px-2 mx-auto w-full max-w-lg">
+    <main className="page-container">
+        <section className="flex flex-1 flex-col px-4 py-6 mx-auto w-full max-w-lg">
         {session ? (
           <>
             {/* Result Screen */}
@@ -208,7 +199,6 @@ export default function ArcadePage() {
                   attemptsUsed={lines.length}
                   mode="arcade"
                   timeMs={sessionStartTime ? Date.now() - sessionStartTime : undefined}
-                  onNewGame={handleNewGame}
                   length={length}
                   lines={lines}
                 />
@@ -233,23 +223,23 @@ export default function ArcadePage() {
               <>
                 <div className="flex-1" />
                 <div className="mb-4">
-                  <button
-                    type="button"
-                    disabled
-                    className="w-full rounded-xl bg-gray-300 px-4 py-3 text-sm font-semibold text-gray-500 cursor-not-allowed"
+                  <Button 
+                    fullWidth 
+                    disabled 
+                    className="bg-gray-300 text-gray-500 cursor-not-allowed"
                     title="Share functionality coming soon"
                   >
                     Поделиться результатом
-                  </button>
-                  <p className="text-xs text-slate-500 text-center mt-2">
+                  </Button>
+                  <Text variant="caption" className="text-center mt-2">
                     Функция поделиться будет доступна в следующих обновлениях
-                  </p>
+                  </Text>
                 </div>
               </>
             )}
 
             {/* Keyboard with animation */}
-            <div className={`transition-all duration-300 ${
+            <div className={`transition-all duration-300 -mx-4 ${
               showResult ? 'opacity-0 pointer-events-none h-0 overflow-hidden' : 'opacity-100'
             }`}>
               <KeyboardCyr 
@@ -266,41 +256,38 @@ export default function ArcadePage() {
           <>
             {/* Title and subtitle header - only shown when no session */}
             <div className="mb-6">
-              <h1 className="text-3xl font-semibold font-sans">Аркада</h1>
-              <p className="mt-2 text-lg font-sans">Неограниченные попытки и гибкая длина слов</p>
+              <Heading level={2}>Аркада</Heading>
+              <Text className="mt-2">Неограниченные попытки и гибкая длина слов</Text>
             </div>
 
-            <div className="rounded-3xl border border-dashed border-blue-200 bg-white px-4 py-10 text-center text-sm opacity-80">
-            {startArcadeMutation.isPending ? (
-              <div className="flex justify-center">
-                <PuzzleLoader length={activeLength ?? 5} />
-              </div>
-            ) : (
-              <>
-                <p className="mb-6">Выберите длину слова, чтобы начать новую игру</p>
-                
-                {/* Word length selector */}
+            <Card padding="lg" className="text-center">
+              {startArcadeMutation.isPending ? (
                 <div className="flex justify-center">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {availableLengths.map((len) => (
-                      <button
-                        key={len}
-                        type="button"
-                        onClick={() => handleStart(len)}
-                        className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                          len === activeLength 
-                            ? 'bg-blue-500 text-white' 
-                            : 'bg-blue-100 text-slate-800 hover:bg-blue-200'
-                        }`}
-                      >
-                        {len} букв
-                      </button>
-                    ))}
-                  </div>
+                  <PuzzleLoader length={activeLength ?? 5} />
                 </div>
-              </>
-            )}
-          </div>
+              ) : (
+                <>
+                  <Text className="mb-6">Выберите длину слова, чтобы начать новую игру</Text>
+                  
+                  {/* Word length selector */}
+                  <div className="flex justify-center">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {availableLengths.map((len) => (
+                        <Button
+                          key={len}
+                          onClick={() => handleStart(len)}
+                          variant={len === activeLength ? 'primary' : 'secondary'}
+                          size="sm"
+                          className="rounded-full"
+                        >
+                          {len} букв
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </Card>
           </>
         )}
       </section>

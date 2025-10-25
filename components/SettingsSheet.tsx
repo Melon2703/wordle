@@ -1,5 +1,7 @@
 'use client';
 
+import { Heading, Text } from '@/components/ui';
+
 interface SettingsState {
   highContrast: boolean;
   haptics: boolean;
@@ -28,7 +30,7 @@ export function SettingsSheet({ open, state, onChange, onClose }: SettingsSheetP
     <div className="fixed inset-0 z-40 flex items-end bg-black/30">
       <div className="w-full rounded-t-3xl bg-[var(--panel)] p-6 shadow-2xl">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[var(--text)]">Настройки</h2>
+          <Heading level={2}>Настройки</Heading>
           <button type="button" onClick={onClose} className="text-sm text-[var(--text)] opacity-70">
             Закрыть
           </button>
@@ -79,8 +81,8 @@ function ToggleRow({ label, description, active, onToggle }: ToggleRowProps) {
       className="flex w-full items-center justify-between rounded-2xl border border-[color:var(--tile-border)] bg-[var(--panel)] px-4 py-3 text-left"
     >
       <span>
-        <span className="block text-sm font-medium text-[var(--text)]">{label}</span>
-        <span className="mt-1 block text-xs text-[var(--text)] opacity-70">{description}</span>
+        <Text className="block font-medium">{label}</Text>
+        <Text variant="caption" className="mt-1 block">{description}</Text>
       </span>
       <span
         className={`inline-flex h-6 w-11 items-center rounded-full bg-[var(--key-bg)] p-1 transition ${active ? 'justify-end bg-[var(--accent)]' : 'justify-start'}`}

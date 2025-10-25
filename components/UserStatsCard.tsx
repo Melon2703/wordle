@@ -1,6 +1,7 @@
 'use client';
 
 import { Flame } from 'lucide-react';
+import { Card, Heading, Text } from '@/components/ui';
 
 interface UserStatsCardProps {
   rank?: number;          // User's rank in leaderboard (undefined if not ranked)
@@ -16,32 +17,32 @@ export function UserStatsCard({
   arcadeSolved
 }: UserStatsCardProps) {
   return (
-    <div className="rounded-2xl border border-blue-200 bg-white p-5 shadow-sm">
-      <h3 className="text-sm font-semibold text-slate-800 mb-4">Ваша статистика</h3>
-      <div className="space-y-3 text-sm">
+    <Card padding="md">
+      <Heading level={4} className="mb-4">Ваша статистика</Heading>
+      <div className="space-y-3">
         {/* Rank */}
         <div className="flex items-center justify-between">
-          <span className="text-slate-600">Место:</span>
-          <span className="font-medium text-slate-800">
+          <Text variant="caption">Место:</Text>
+          <Text className="font-medium">
             {rank ? `#${rank} / ${totalPlayers}` : 'Не в рейтинге'}
-          </span>
+          </Text>
         </div>
 
         {/* Streak */}
         <div className="flex items-center justify-between">
-          <span className="text-slate-600 flex items-center gap-1">
+          <Text variant="caption" className="flex items-center gap-1">
             Серия:
             <Flame className="w-4 h-4 text-orange-500" />
-          </span>
-          <span className="font-medium text-slate-800">{streak}</span>
+          </Text>
+          <Text className="font-medium">{streak}</Text>
         </div>
 
         {/* Arcade puzzles solved */}
         <div className="flex items-center justify-between">
-          <span className="text-slate-600">Аркада решено:</span>
-          <span className="font-medium text-slate-800">{arcadeSolved}</span>
+          <Text variant="caption">Аркада решено:</Text>
+          <Text className="font-medium">{arcadeSolved}</Text>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

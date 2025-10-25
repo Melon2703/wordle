@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { Banner } from '@/components/Banner';
 import { RulesSheet } from '@/components/RulesSheet';
+import { Button, Card, Heading, Text } from '@/components/ui';
 import { getUserStatus, getActiveBanners, getDailyPuzzle } from '@/lib/api';
 import { CircleDashed, CheckCircle2, XCircle, Play, Flame, Clock } from 'lucide-react';
 
@@ -122,7 +123,6 @@ export default function HomePage() {
 
   // Determine smart badges
   const isFirstTime = userStatus?.streak === 0 && userStatus?.dailyStatus === 'not_started';
-  const justCompletedDaily = userStatus?.dailyStatus === 'won';
   const isNearMidnight = userStatus?.nextPuzzleAt ? 
     new Date(userStatus.nextPuzzleAt).getTime() - Date.now() < 30 * 60 * 1000 : false;
 
@@ -148,10 +148,10 @@ export default function HomePage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col bg-blue-50 px-4 pb-24 pt-12 text-slate-800">
+    <main className="page-container px-4 pt-12">
       {/* Banner */}
       {activeBanners.length > 0 && (
-        <div className="mb-6 space-y-3">
+        <div className="mb-6 card-gap">
           {activeBanners.map((banner) => (
             <Banner
               key={banner.id}
@@ -164,97 +164,82 @@ export default function HomePage() {
 
       {/* Header */}
       <div className="mb-8 text-center">
-        <h1 className="text-3xl font-semibold sm:text-4xl">Выберите режим</h1>
+        <Heading level={1}>Выберите режим</Heading>
       </div>
 
       {/* Primary Cards */}
-      <section className="space-y-6">
+      <section className="section-gap">
         {/* Daily Card */}
         <Link
           href="/daily"
-          className={`block rounded-2xl border border-blue-200 bg-white p-8 shadow-sm transition-all duration-200 hover:shadow-md ${
-            prefersReducedMotion ? '' : 'hover:-translate-y-0.5'
-          } ${
+          className={`block ${prefersReducedMotion ? '' : 'hover:-translate-y-0.5'} ${
             isFirstTime ? 'ring-2 ring-blue-300 ring-opacity-50' : ''
           }`}
           aria-label="Ежедневная загадка - одна загадка в день"
         >
-          <div className="text-center space-y-4">
-            <div>
-              <h2 className="text-xl font-semibold">Ежедневная загадка</h2>
-              <p className="mt-2 text-slate-600">Одна загадка в день</p>
-            </div>
-            
-            {/* Status Row */}
-            {!statusLoading && userStatus && (
-              <div className="flex items-center justify-center gap-4 text-xs text-slate-500">
-                {/* Status */}
-                <div className="flex items-center gap-1">
-                  {getStatusIcon(userStatus.dailyStatus)}
-                  <span>{getStatusText(userStatus.dailyStatus)}</span>
-                </div>
-                
-                {/* Streak */}
-                <div className="flex items-center gap-1">
-                  <Flame className="w-4 h-4 text-orange-500" />
-                  <span>{userStatus.streak}</span>
-                </div>
-                
-                {/* Countdown */}
-                <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  <span>{timeUntilNext}</span>
-                </div>
+          <Card padding="lg" interactive className="text-center">
+            <div className="space-y-4">
+              <div>
+                <Heading level={2}>Ежедневная загадка</Heading>
+                <Text className="mt-2">Одна загадка в день</Text>
               </div>
-            )}
             
-            {isNearMidnight && (
-              <div className="inline-block rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700">
-                Скоро!
-              </div>
-            )}
-            <div className="w-full rounded-lg bg-blue-500 px-6 py-3 text-sm font-medium text-white">
-              Играть
+              {/* Status Row */}
+              {!statusLoading && userStatus && (
+                <div className="flex items-center justify-center gap-4 text-caption">
+                  {/* Status */}
+                  <div className="flex items-center gap-1">
+                    {getStatusIcon(userStatus.dailyStatus)}
+                    <span>{getStatusText(userStatus.dailyStatus)}</span>
+                  </div>
+                  
+                  {/* Streak */}
+                  <div className="flex items-center gap-1">
+                    <Flame className="w-4 h-4 text-orange-500" />
+                    <span>{userStatus.streak}</span>
+                  </div>
+                  
+                  {/* Countdown */}
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    <span>{timeUntilNext}</span>
+                  </div>
+                </div>
+              )}
+              
+              {isNearMidnight && (
+                <div className="inline-block rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700">
+                  Скоро!
+                </div>
+              )}
+              <Button fullWidth>Играть</Button>
             </div>
-          </div>
+          </Card>
         </Link>
 
         {/* Arcade Card */}
         <Link
           href="/arcade"
-          className={`block rounded-2xl border border-blue-200 bg-white p-8 shadow-sm transition-all duration-200 hover:shadow-md ${
-            prefersReducedMotion ? '' : 'hover:-translate-y-0.5'
-          } ${
-            justCompletedDaily ? 'ring-2 ring-green-300 ring-opacity-50' : ''
-          }`}
+          className={`block ${prefersReducedMotion ? '' : 'hover:-translate-y-0.5'}`}
           aria-label="Аркада - тренируйтесь без ограничений"
         >
-          <div className="text-center space-y-4">
-            <div>
-              <h2 className="text-xl font-semibold">Аркада</h2>
-              <p className="mt-2 text-slate-600">Тренируйтесь без ограничений</p>
-            </div>
-            {justCompletedDaily && (
-              <div className="inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                Попробуйте!
+          <Card padding="lg" interactive className="text-center">
+            <div className="space-y-4">
+              <div>
+                <Heading level={2}>Аркада</Heading>
+                <Text className="mt-2">Тренируйтесь без ограничений</Text>
               </div>
-            )}
-            <div className="w-full rounded-lg bg-blue-500 px-6 py-3 text-sm font-medium text-white">
-              Открыть аркаду
+              <Button fullWidth>Открыть аркаду</Button>
             </div>
-          </div>
+          </Card>
         </Link>
       </section>
 
       {/* Rules Button */}
       <div className="mt-16 text-center">
-        <button
-          type="button"
-          onClick={handleRulesClick}
-          className="rounded-lg border border-blue-300 bg-white px-6 py-3 text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors"
-        >
+        <Button variant="secondary" onClick={handleRulesClick}>
           Правила
-        </button>
+        </Button>
       </div>
 
       {/* Rules Sheet */}
