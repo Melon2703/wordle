@@ -64,7 +64,9 @@ _Version: 1.0 • Updated: 2025-10-23 12:06 UTC_
 **0.4 RU orthography tips (compact)**
 - ё ≠ е (answers distinct; input may allow treating ё as е if enabled).  
 - й ≠ и; ь/ъ возможны по словарю.  
-- Button: “**Понятно**” (→ Home).
+- **Arcade**: wordlist downloads transparently from Storage on first play; cached in memory.
+- **Daily**: server validates (no download needed).
+- Button: "**Понятно**" (→ Home).
 
 **Completion:** Persist preferences → **Home**. Skippable elements remembered.
 

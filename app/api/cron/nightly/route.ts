@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServiceClient } from '../../../../lib/db/client';
+import { loadPuzzleAnswers, loadUsedWords, updateUsedWords } from '../../../../lib/dict/loader';
 
 export const runtime = 'nodejs';
 
@@ -36,39 +37,66 @@ export async function GET(): Promise<Response> {
       .single();
     
     if (!existingPuzzle) {
-      // Create tomorrow's daily puzzle - query database directly for random 5-letter solution
-      const { data: solutionWords, error: wordError } = await client
-        .from('dictionary_words')
-        .select('word_id, text_norm')
-        .eq('is_solution', true)
-        .eq('len', 5)
-        .limit(1000);
+      // Load puzzle answers and used words from Storage
+      const [puzzleAnswers, usedWords] = await Promise.all([
+        loadPuzzleAnswers(),
+        loadUsedWords()
+      ]);
       
-      if (wordError || !solutionWords || solutionWords.length === 0) {
-        console.error('No 5-letter solution words found for daily puzzle');
-        return NextResponse.json(
-          { error: 'No words available for daily puzzle' },
-          { status: 500 }
-        );
-      }
+      // Filter out already used words
+      const availableWords = puzzleAnswers.filter(word => !usedWords.has(word));
       
-      const randomAnswer = solutionWords[Math.floor(Math.random() * solutionWords.length)];
-      
-      await client
-        .from('puzzles')
-        .insert({
-          mode: 'daily',
+      if (availableWords.length === 0) {
+        // Reset cycle: clear used words and use all puzzle answers
+        console.log('All puzzle words used, resetting cycle');
+        await updateUsedWords([]);
+        const randomAnswer = puzzleAnswers[Math.floor(Math.random() * puzzleAnswers.length)];
+        
+        // Create puzzle with solution_text directly
+        await client
+          .from('puzzles')
+          .insert({
+            mode: 'daily',
+            date: tomorrowStr,
+            letters: 5,
+            solution_text: randomAnswer,
+            status: 'published',
+            seed: `daily-${tomorrowStr}`
+          });
+        
+        // Mark this word as used
+        await updateUsedWords([randomAnswer]);
+        
+        console.log('Created tomorrow\'s puzzle (cycle reset):', {
           date: tomorrowStr,
-          letters: 5,
-          solution_word_id: randomAnswer.word_id,
-          status: 'published',
-          seed: `daily-${tomorrowStr}`
+          answer: randomAnswer
         });
-      
-      console.log('Created tomorrow\'s puzzle:', {
-        date: tomorrowStr,
-        answer: randomAnswer.text_norm
-      });
+      } else {
+        // Pick random word from available words
+        const randomAnswer = availableWords[Math.floor(Math.random() * availableWords.length)];
+        
+        // Create puzzle with solution_text directly
+        await client
+          .from('puzzles')
+          .insert({
+            mode: 'daily',
+            date: tomorrowStr,
+            letters: 5,
+            solution_text: randomAnswer,
+            status: 'published',
+            seed: `daily-${tomorrowStr}`
+          });
+        
+        // Mark this word as used
+        const newUsedWords = Array.from(usedWords).concat(randomAnswer);
+        await updateUsedWords(newUsedWords);
+        
+        console.log('Created tomorrow\'s puzzle:', {
+          date: tomorrowStr,
+          answer: randomAnswer,
+          remainingWords: availableWords.length - 1
+        });
+      }
     }
     
     // Refresh leaderboard materialized view

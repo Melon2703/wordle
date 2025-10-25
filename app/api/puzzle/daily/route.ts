@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     );
     
     // Get today's puzzle
-    const { puzzle } = await getTodayPuzzle(client);
+    const puzzle = await getTodayPuzzle(client);
     
     // Check if user has an existing session
     const { data: session } = await client

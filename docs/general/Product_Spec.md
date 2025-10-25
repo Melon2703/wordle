@@ -122,15 +122,18 @@
 ## 6) Content & Dictionaries
 
 ### 6.1 Lists
-- **Answer List:** curated, modern, common vocabulary; exclude archaic/obscure/proper nouns.  
-- **Allowed Guesses:** broader dictionary to reduce “invalid” frustration.
+- **Answer List (~200 curated):** `for-puzzles.txt` in Supabase Storage - curated, modern, common vocabulary; exclude archaic/obscure/proper nouns.  
+- **Allowed Guesses (~3k):** `for-guesses.txt` in Supabase Storage - broader dictionary to reduce "invalid" frustration.
+- **Used Daily Words:** `daily-used-words.txt` in Supabase Storage - server-managed tracking to prevent duplicate daily puzzles.
 
 ### 6.2 Curation workflow
 - Player reports → review queue → accept/deny with notes.  
 - Metrics: invalid guess rate, dispute rate, difficulty drift.
+- Wordlists updated via Storage uploads, not database; changes take effect on next cache refresh.
+- Normalization: ё→е for validation; answers preserve correct orthography in `solution_text`.
 
 ### 6.3 Puzzle generation
-- **Daily:** deterministic seed by date; one answer globally (single canonical timezone).  
+- **Daily:** picks from unused words in `for-puzzles.txt`; tracks used words in `daily-used-words.txt`; resets cycle when all 200 used.  
 - **Arcade:** random or seeded by challenge; optional difficulty bands.
 
 ---

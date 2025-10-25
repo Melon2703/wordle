@@ -58,48 +58,14 @@ export interface Database {
           created_at?: string;
         };
       };
-      dictionary_words: {
-        Row: {
-          word_id: string;
-          text: string;
-          text_norm: string;
-          len: number;
-          is_solution: boolean;
-          is_allowed_guess: boolean;
-          flags: Record<string, unknown>;
-          source: string;
-          created_at: string;
-        };
-        Insert: {
-          word_id?: string;
-          text: string;
-          text_norm: string;
-          len: number;
-          is_solution?: boolean;
-          is_allowed_guess?: boolean;
-          flags?: Record<string, unknown>;
-          source?: string;
-          created_at?: string;
-        };
-        Update: {
-          word_id?: string;
-          text?: string;
-          text_norm?: string;
-          len?: number;
-          is_solution?: boolean;
-          is_allowed_guess?: boolean;
-          flags?: Record<string, unknown>;
-          source?: string;
-          created_at?: string;
-        };
-      };
       puzzles: {
         Row: {
           puzzle_id: string;
           mode: 'daily' | 'arcade';
           date: string | null;
           letters: number;
-          solution_word_id: string | null;
+          solution_text: string;
+          solution_norm: string;
           difficulty: number;
           ruleset_version: number;
           status: 'draft' | 'published' | 'retired';
@@ -111,7 +77,8 @@ export interface Database {
           mode: 'daily' | 'arcade';
           date?: string | null;
           letters: number;
-          solution_word_id?: string | null;
+          solution_text: string;
+          solution_norm: string;
           difficulty?: number;
           ruleset_version?: number;
           status?: 'draft' | 'published' | 'retired';
@@ -123,7 +90,8 @@ export interface Database {
           mode?: 'daily' | 'arcade';
           date?: string | null;
           letters?: number;
-          solution_word_id?: string | null;
+          solution_text?: string;
+          solution_norm?: string;
           difficulty?: number;
           ruleset_version?: number;
           status?: 'draft' | 'published' | 'retired';

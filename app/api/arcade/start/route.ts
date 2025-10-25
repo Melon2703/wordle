@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuthContext } from '../../../../lib/auth/validateInitData';
 import { getServiceClient } from '../../../../lib/db/client';
 import { getOrCreateProfile } from '../../../../lib/db/queries';
+import { loadPuzzleAnswers } from '../../../../lib/dict/loader';
 import type { ArcadeStartResponse } from '../../../../lib/contracts';
 
 export const runtime = 'nodejs';
@@ -31,15 +32,11 @@ export async function POST(request: Request) {
       auth.parsed.user?.last_name
     );
     
-    // Query database directly for random solution word of specified length
-    const { data: solutionWords, error: wordError } = await client
-      .from('dictionary_words')
-      .select('word_id, text_norm')
-      .eq('is_solution', true)
-      .eq('len', length)
-      .limit(1000); // Reasonable limit to avoid loading too many words
+    // Load puzzle answers from Storage and filter by length
+    const puzzleAnswers = await loadPuzzleAnswers();
+    const wordsOfLength = puzzleAnswers.filter(word => word.length === length);
     
-    if (wordError || !solutionWords || solutionWords.length === 0) {
+    if (wordsOfLength.length === 0) {
       return NextResponse.json(
         { error: 'No words available for this length' },
         { status: 400 }
@@ -47,7 +44,7 @@ export async function POST(request: Request) {
     }
     
     // Pick random word from the results
-    const randomWord = solutionWords[Math.floor(Math.random() * solutionWords.length)];
+    const randomWord = wordsOfLength[Math.floor(Math.random() * wordsOfLength.length)];
     
     // Create arcade puzzle
     const { data: puzzle, error: puzzleError } = await client
@@ -55,7 +52,7 @@ export async function POST(request: Request) {
       .insert({
         mode: 'arcade',
         letters: length,
-        solution_word_id: randomWord.word_id,
+        solution_text: randomWord,
         status: 'published',
         seed: `arcade-${Date.now()}`
       })
@@ -95,7 +92,7 @@ export async function POST(request: Request) {
       length: length as 4 | 5 | 6,
       maxAttempts: length + 1, // Allow one extra attempt for arcade
       serverNow: new Date().toISOString(),
-      solution: randomWord.text_norm
+      solution: randomWord.toLowerCase().replace(/ё/g, 'е') // normalized for client validation
     };
     
     return NextResponse.json(response);

@@ -41,7 +41,7 @@ export function evaluateGuess(guess: string, answer: string): TileFeedback[] {
 
   return letters.map((letter, index) => ({
     index,
-    letter,
+    letter: letter.toUpperCase(), // why: uppercase for UI display
     state: states[index]
   }));
 }
@@ -105,7 +105,7 @@ export function validateHardMode(context: HardModeContext): void {
 }
 
 export function validateDictionary(word: string, dictionary: Set<string>): boolean {
-  // why: normalize word to match server logic in /api/dict/check (uppercase, trim)
-  const normalizedWord = word.trim().toUpperCase();
+  // why: normalize word to lowercase to match Storage wordlist format
+  const normalizedWord = word.trim().toLowerCase();
   return dictionary.has(normalizedWord);
 }
