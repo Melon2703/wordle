@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { Banner } from '@/components/Banner';
+import { RulesSheet } from '@/components/RulesSheet';
 import { getUserStatus, getActiveBanners, getDailyPuzzle } from '@/lib/api';
 import { CircleDashed, CheckCircle2, XCircle, Play, Flame, Clock } from 'lucide-react';
 
@@ -11,6 +12,8 @@ export default function HomePage() {
   const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set());
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [timeUntilNext, setTimeUntilNext] = useState<string>('');
+  const [rulesSheetOpen, setRulesSheetOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Check for reduced motion preference
   useEffect(() => {
@@ -33,6 +36,15 @@ export default function HomePage() {
       } catch {
         // Ignore invalid JSON
       }
+    }
+  }, []);
+
+  // Check for onboarding completion
+  useEffect(() => {
+    const onboardingCompleted = localStorage.getItem('wordle-onboarding-completed');
+    if (!onboardingCompleted) {
+      setShowOnboarding(true);
+      setRulesSheetOpen(true);
     }
   }, []);
 
@@ -93,6 +105,16 @@ export default function HomePage() {
     newDismissed.add(bannerId);
     setDismissedBanners(newDismissed);
     localStorage.setItem('dismissed-banners', JSON.stringify([...newDismissed]));
+  };
+
+  const handleRulesClick = () => {
+    setShowOnboarding(false);
+    setRulesSheetOpen(true);
+  };
+
+  const handleRulesSheetClose = () => {
+    setRulesSheetOpen(false);
+    setShowOnboarding(false);
   };
 
   // Filter out dismissed banners
@@ -224,15 +246,23 @@ export default function HomePage() {
         </Link>
       </section>
 
-      {/* Footer Link */}
+      {/* Rules Button */}
       <div className="mt-16 text-center">
-        <Link
-          href="/help"
-          className="text-sm font-medium text-blue-500 underline-offset-4 hover:underline"
+        <button
+          type="button"
+          onClick={handleRulesClick}
+          className="rounded-lg border border-blue-300 bg-white px-6 py-3 text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors"
         >
-          Как играть и подсказки по орфографии
-        </Link>
+          Правила
+        </button>
       </div>
+
+      {/* Rules Sheet */}
+      <RulesSheet
+        open={rulesSheetOpen}
+        onClose={handleRulesSheetClose}
+        showOnboardingButton={showOnboarding}
+      />
     </main>
   );
 }

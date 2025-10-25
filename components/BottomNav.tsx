@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { CalendarCheck2, Zap, Trophy, CircleHelp, Store, Settings } from 'lucide-react';
 import { SettingsSheet } from './SettingsSheet';
+import { RulesSheet } from './RulesSheet';
 import clsx from 'clsx';
 
 interface SettingsState {
@@ -22,7 +23,7 @@ const initialSettings: SettingsState = {
 };
 
 interface NavItem {
-  href: '/daily' | '/arcade' | '/leaders' | '/help' | '/shop';
+  href: '/daily' | '/arcade' | '/leaders' | '/shop';
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   showForAll?: boolean;
@@ -32,13 +33,13 @@ const navItems: NavItem[] = [
   { href: '/daily', label: 'Ежедневная', icon: CalendarCheck2, showForAll: true },
   { href: '/arcade', label: 'Аркада', icon: Zap, showForAll: true },
   { href: '/leaders', label: 'Рейтинги', icon: Trophy, showForAll: true },
-  { href: '/help', label: 'Помощь', icon: CircleHelp, showForAll: true },
   { href: '/shop', label: 'Магазин', icon: Store, showForAll: false }
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [rulesSheetOpen, setRulesSheetOpen] = useState(false);
   const [settings, setSettings] = useState<SettingsState>(initialSettings);
   const [showShop, setShowShop] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -91,6 +92,10 @@ export function BottomNav() {
     setSettingsOpen(true);
   };
 
+  const handleRulesClick = () => {
+    setRulesSheetOpen(true);
+  };
+
   const visibleItems = navItems.filter(item => 
     item.showForAll || (item.href === '/shop' && showShop)
   );
@@ -119,6 +124,19 @@ export function BottomNav() {
             );
           })}
           
+          {/* Rules button */}
+          <button
+            type="button"
+            onClick={handleRulesClick}
+            className={clsx(
+              'flex h-12 w-12 items-center justify-center rounded-lg transition-colors',
+              'hover:bg-blue-50'
+            )}
+            aria-label="Правила"
+          >
+            <CircleHelp className="h-5 w-5" />
+          </button>
+          
           {/* Settings button - only show for specific user */}
           {showSettings && (
             <button
@@ -141,6 +159,12 @@ export function BottomNav() {
         state={settings}
         onChange={updateSettings}
         onClose={() => setSettingsOpen(false)}
+      />
+      
+      <RulesSheet
+        open={rulesSheetOpen}
+        onClose={() => setRulesSheetOpen(false)}
+        showOnboardingButton={false}
       />
     </>
   );
