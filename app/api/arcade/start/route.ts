@@ -24,7 +24,13 @@ export async function POST(request: Request) {
     }
     
     // Get or create user profile
-    const profile = await getOrCreateProfile(client, parseInt(auth.userId), auth.parsed.user?.username);
+    const profile = await getOrCreateProfile(
+      client, 
+      parseInt(auth.userId), 
+      auth.parsed.user?.username,
+      auth.parsed.user?.first_name,
+      auth.parsed.user?.last_name
+    );
     
     // Load dictionary
     const dictionary = await loadDictionary();

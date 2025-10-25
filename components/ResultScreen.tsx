@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { GuessLine } from '@/lib/contracts';
 import { PuzzleGrid } from './PuzzleGrid';
+import { RisingStar } from './FiringStarAnimations';
 
 interface ResultScreenProps {
   status: 'won' | 'lost';
@@ -31,7 +32,6 @@ export function ResultScreen({
   const [selectedLength, setSelectedLength] = useState<4 | 5 | 6 | 7>(5);
 
   const resultCopy = status === 'won' ? 'Победа!' : 'Попробуйте снова';
-  const resultIcon = status === 'won' ? '⭐' : '💭';
   
   const formatTime = (ms: number) => {
     const seconds = Math.round(ms / 1000);
@@ -51,8 +51,12 @@ export function ResultScreen({
     <div className="w-full max-w-sm mx-auto mb-8 mt-8">
       {/* Result Header */}
       <div className="text-center mb-5">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500">
-          <span className="text-2xl">{resultIcon}</span>
+        <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center">
+          {status === 'won' ? (
+            <RisingStar size={64} />
+          ) : (
+            <span className="text-2xl">💭</span>
+          )}
         </div>
         <h2 className="text-2xl font-bold text-slate-800 font-sans">{resultCopy}</h2>
         {status === 'lost' && mode === 'arcade' && (

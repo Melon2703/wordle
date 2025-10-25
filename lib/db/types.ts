@@ -7,6 +7,8 @@ export interface Database {
           profile_id: string;
           telegram_id: number;
           username: string | null;
+          first_name: string | null;
+          last_name: string | null;
           locale: string;
           tz: string | null;
           colorblind_mode: boolean;
@@ -23,6 +25,8 @@ export interface Database {
           profile_id?: string;
           telegram_id: number;
           username?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
           locale?: string;
           tz?: string | null;
           colorblind_mode?: boolean;
@@ -39,6 +43,8 @@ export interface Database {
           profile_id?: string;
           telegram_id?: number;
           username?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
           locale?: string;
           tz?: string | null;
           colorblind_mode?: boolean;

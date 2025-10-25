@@ -63,6 +63,7 @@ export interface DailyBoardEntry {
   timeMs: number;
   country?: string;
   badges?: string[];
+  profileUrl?: string;
 }
 
 export interface DailyLeaderboard {

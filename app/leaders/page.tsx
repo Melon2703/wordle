@@ -1,10 +1,16 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { getDailyPuzzle, getDailyLeaderboard } from '@/lib/api';
+import { getDailyPuzzle, getDailyLeaderboard, openUserProfile } from '@/lib/api';
 import { LoadingFallback } from '@/components/LoadingFallback';
 
 export default function LeadersPage() {
+  // Helper function to extract telegram_id from profileUrl
+  const extractTelegramId = (profileUrl: string): string | null => {
+    const match = profileUrl.match(/https:\/\/t\.me\/user\?id=(\d+)/);
+    return match ? match[1] : null;
+  };
+
   // First get the daily puzzle to get the puzzle ID
   const { data: dailyPuzzle, isLoading: puzzleLoading } = useQuery({ 
     queryKey: ['puzzle', 'daily'], 
@@ -37,7 +43,21 @@ export default function LeadersPage() {
             >
               <div className="flex items-center gap-3">
                 <span className="text-xs font-semibold opacity-70">#{entry.rank}</span>
-                <span className="font-medium">{entry.displayName}</span>
+                {entry.profileUrl ? (
+                  <button 
+                    onClick={() => {
+                      const telegramId = extractTelegramId(entry.profileUrl!);
+                      if (telegramId) {
+                        openUserProfile(telegramId, entry.displayName);
+                      }
+                    }}
+                    className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer bg-transparent border-none p-0 text-left"
+                  >
+                    {entry.displayName}
+                  </button>
+                ) : (
+                  <span className="font-medium">{entry.displayName}</span>
+                )}
               </div>
               <div className="text-right text-xs opacity-70">
                 <div>{entry.attempts} попытки</div>

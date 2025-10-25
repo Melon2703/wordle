@@ -20,6 +20,16 @@ interface TelegramWebApp {
   version?: string;
   platform?: string;
   ready?: boolean;
+  showPopup?: (params: {
+    title?: string;
+    message: string;
+    buttons?: Array<{
+      id?: string;
+      type?: 'default' | 'ok' | 'close' | 'cancel' | 'destructive';
+      text?: string;
+    }>;
+  }, callback?: (buttonId: string) => void) => void;
+  openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
 }
 
 interface TelegramWindow {
@@ -29,6 +39,36 @@ interface TelegramWindow {
   tg?: {
     WebApp?: TelegramWebApp;
   };
+}
+
+// Helper function to open user profile with confirmation
+export async function openUserProfile(telegramId: string, displayName: string): Promise<void> {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const tg = (window as TelegramWindow).Telegram?.WebApp;
+  if (!tg?.showPopup || !tg?.openLink) {
+    return;
+  }
+
+  try {
+    tg.showPopup({
+      title: 'Открыть профиль?',
+      message: `Вы хотите открыть профиль пользователя ${displayName}?`,
+      buttons: [
+        { id: 'cancel', type: 'cancel', text: 'Отмена' },
+        { id: 'open', type: 'default', text: 'Открыть' }
+      ]
+    }, (buttonId) => {
+      if (buttonId === 'open') {
+        const profileUrl = `https://t.me/user?id=${telegramId}`;
+        tg.openLink?.(profileUrl);
+      }
+    });
+  } catch (error) {
+    console.error('Error showing popup:', error);
+  }
 }
 
 // Helper to get Telegram init data from window with comprehensive detection

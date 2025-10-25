@@ -557,6 +557,10 @@ components:
           items:
             type: string
           nullable: true
+        profileUrl:
+          type: string
+          nullable: true
+          description: Telegram profile URL for clickable usernames
       required: [rank, userId, displayName, attempts, timeMs]
       additionalProperties: false
     DailyLeaderboard:
