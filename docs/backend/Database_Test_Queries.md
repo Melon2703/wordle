@@ -87,4 +87,3 @@ INSERT INTO public.entitlements (
   now()
 );
 ```
-

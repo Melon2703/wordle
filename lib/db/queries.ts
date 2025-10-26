@@ -461,20 +461,11 @@ export async function getSessionGuesses(
   client: Client,
   sessionId: string
 ): Promise<Database['public']['Tables']['guesses']['Row'][]> {
-  console.log('🔍 getSessionGuesses called with session_id:', sessionId);
-  
   const { data, error } = await client
     .from('guesses')
     .select('*')
     .eq('session_id', sessionId)
     .order('guess_index', { ascending: true });
-
-  console.log('📊 getSessionGuesses result:', {
-    sessionId,
-    count: data?.length || 0,
-    hasError: !!error,
-    error: error
-  });
 
   if (error) {
     throw new Error('Failed to fetch guesses');
@@ -509,21 +500,34 @@ export async function getIncompleteArcadeSession(
   guesses: Database['public']['Tables']['guesses']['Row'][];
 } | null> {
   // Find the most recent incomplete arcade session
-  const { data: session, error: sessionError } = await client
+  // why: use array-based query instead of .single() to avoid Supabase phantom data bug
+  const { data: sessions, error: sessionError } = await client
     .from('sessions')
     .select('*')
     .eq('profile_id', profileId)
     .eq('mode', 'arcade')
     .is('result', null)
     .order('started_at', { ascending: false })
-    .limit(1)
-    .single();
+    .limit(1);
 
-  if (sessionError && sessionError.code !== 'PGRST116') {
+  if (sessionError) {
     throw new Error(`Failed to find incomplete session: ${sessionError.message}`);
   }
 
+  // Validate array and get first element
+  const session = sessions && sessions.length > 0 ? sessions[0] : null;
+
   if (!session) {
+    return null;
+  }
+
+  // Verify the session belongs to this profile (security check)
+  if (session.profile_id !== profileId) {
+    console.error('Security: session profile_id mismatch', {
+      sessionId: session.session_id,
+      expectedProfileId: profileId,
+      actualProfileId: session.profile_id
+    });
     return null;
   }
 
@@ -535,10 +539,11 @@ export async function getIncompleteArcadeSession(
     .single();
 
   if (puzzleError || !puzzle) {
+    console.error('Orphaned session detected - puzzle not found:', session.puzzle_id);
     throw new Error('Failed to fetch puzzle for session');
   }
 
-  // Get all guesses for this session (use the working function)
+  // Get all guesses for this session
   const guesses = await getSessionGuesses(client, session.session_id);
 
   return {

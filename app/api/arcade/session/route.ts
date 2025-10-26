@@ -23,12 +23,6 @@ export async function GET(request: Request) {
     // Check for incomplete arcade session
     const incompleteSession = await getIncompleteArcadeSession(client, profile.profile_id);
     
-    console.log('📋 Incomplete session check result:', {
-      found: !!incompleteSession,
-      sessionId: incompleteSession?.session.session_id,
-      guessesCount: incompleteSession?.guesses.length || 0
-    });
-    
     if (!incompleteSession) {
       return NextResponse.json({
         hasIncomplete: false
@@ -37,11 +31,14 @@ export async function GET(request: Request) {
     
     const { session, puzzle, guesses } = incompleteSession;
     
-    console.log('📦 Building response with:', {
-      sessionId: session.session_id,
-      guessCount: guesses.length,
-      guessIndices: guesses.map(g => g.guess_index)
-    });
+    // Validate that puzzle exists and has required data
+    if (!puzzle || !puzzle.solution_norm) {
+      console.error('Invalid puzzle data for session:', session.session_id);
+      return NextResponse.json(
+        { error: 'Invalid session data', hasIncomplete: false },
+        { status: 500 }
+      );
+    }
     
     // Convert guesses to GuessLine format
     const lines: GuessLine[] = guesses.map(guess => ({
@@ -79,6 +76,12 @@ export async function GET(request: Request) {
     
   } catch (error) {
     console.error('Arcade session GET error:', error);
+    // If it's an orphaned session error, return hasIncomplete: false instead of 500
+    if (error instanceof Error && error.message.includes('Failed to fetch puzzle for session')) {
+      return NextResponse.json({
+        hasIncomplete: false
+      } as ArcadeSessionCheckResponse);
+    }
     return NextResponse.json(
       { error: 'Failed to check arcade session', hasIncomplete: false },
       { status: 500 }

@@ -165,6 +165,16 @@ export interface ArcadeHintResponse {
   entitlementsRemaining: number;
 }
 
+export interface ArcadeStatusResponse {
+  isArcadeAvailable: boolean;
+  newGameEntitlements: number;
+}
+
+export interface ArcadeUnlockResponse {
+  ok: boolean;
+  isArcadeAvailable: boolean;
+}
+
 export interface ArcadeSessionCheckResponse {
   hasIncomplete: boolean;
   session?: ArcadeStartResponse;

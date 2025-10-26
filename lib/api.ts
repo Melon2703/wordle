@@ -312,6 +312,35 @@ export async function checkArcadeSession(): Promise<ArcadeSessionCheckResponse> 
   return handleResponse<ArcadeSessionCheckResponse>(response);
 }
 
+export async function getArcadeStatus(): Promise<{
+  isArcadeAvailable: boolean;
+  newGameEntitlements: number;
+}> {
+  const response = await fetch('/api/arcade/status', {
+    headers: createHeaders()
+  });
+  
+  return handleResponse<{
+    isArcadeAvailable: boolean;
+    newGameEntitlements: number;
+  }>(response);
+}
+
+export async function unlockArcade(): Promise<{
+  ok: boolean;
+  isArcadeAvailable: boolean;
+}> {
+  const response = await fetch('/api/arcade/unlock', {
+    method: 'POST',
+    headers: createHeaders()
+  });
+  
+  return handleResponse<{
+    ok: boolean;
+    isArcadeAvailable: boolean;
+  }>(response);
+}
+
 export async function recordArcadeGuess(
   sessionId: string,
   guessIndex: number,

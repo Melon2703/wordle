@@ -10,7 +10,7 @@ import { ShareButton } from '@/components/ShareButton';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { Button, Card, Heading, Text } from '@/components/ui';
-import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess } from '@/lib/api';
+import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess, getArcadeStatus, unlockArcade } from '@/lib/api';
 import { HintModal } from '@/components/HintModal';
 import { TopCenterIcon } from '@/components/TopCenterIcon';
 import { buildKeyboardState } from '@/lib/game/feedback';
@@ -33,6 +33,22 @@ export default function ArcadePage() {
   const [isHintModalOpen, setIsHintModalOpen] = useState(false);
   const [hintEntitlementsRemaining, setHintEntitlementsRemaining] = useState(0);
   const [isLoadingHint, setIsLoadingHint] = useState(false);
+  const [isArcadeAvailable, setIsArcadeAvailable] = useState(true);
+  const [newGameEntitlements, setNewGameEntitlements] = useState(0);
+  const [isUnlocking, setIsUnlocking] = useState(false);
+  const [isConfirmingUnlock, setIsConfirmingUnlock] = useState(false);
+
+  // Check arcade availability on mount
+  useEffect(() => {
+    getArcadeStatus()
+      .then(status => {
+        setIsArcadeAvailable(status.isArcadeAvailable);
+        setNewGameEntitlements(status.newGameEntitlements);
+      })
+      .catch(error => {
+        console.error('Failed to get arcade status:', error);
+      });
+  }, []);
 
   // Check Telegram user ID to determine available word lengths
   useEffect(() => {
@@ -111,32 +127,50 @@ export default function ArcadePage() {
   // Restore incomplete session if found
   useEffect(() => {
     if (incompleteSession?.hasIncomplete && incompleteSession.session && incompleteSession.lines) {
-      setSession(incompleteSession.session);
-      setLines(incompleteSession.lines);
-      setHintEntitlementsRemaining(incompleteSession.session.hintEntitlementsAvailable);
-      
-      // Set session start time
-      if (incompleteSession.startedAt) {
-        const startedAtMs = new Date(incompleteSession.startedAt).getTime();
-        const elapsedMs = Date.now() - startedAtMs;
-        setSessionStartTime(Date.now() - elapsedMs);
-      } else {
-        setSessionStartTime(Date.now());
-      }
-      
-      // Set active length
-      setActiveLength(incompleteSession.session.length);
-      
-      // Fetch dictionary if not cached
-      if (!dictionaryCache.has(incompleteSession.session.length)) {
-        getDictionaryWords(incompleteSession.session.length)
-          .then(dictionary => {
-            setDictionaryCache(prev => new Map(prev).set(incompleteSession.session!.length, dictionary));
-          })
-          .catch(error => {
-            console.error('Failed to load dictionary:', error);
-            toast.notify('Не удалось загрузить словарь. Проверка слов недоступна.');
-          });
+      try {
+        // Validate session data
+        if (!incompleteSession.session.solution || !incompleteSession.session.sessionId) {
+          console.error('Invalid session data detected');
+          toast.notify('Не удалось восстановить игру. Начните новую.');
+          return;
+        }
+        
+        setSession(incompleteSession.session);
+        setLines(incompleteSession.lines);
+        setHintEntitlementsRemaining(incompleteSession.session.hintEntitlementsAvailable);
+        
+        // Set session start time
+        if (incompleteSession.startedAt) {
+          const startedAtMs = new Date(incompleteSession.startedAt).getTime();
+          const elapsedMs = Date.now() - startedAtMs;
+          setSessionStartTime(Date.now() - elapsedMs);
+        } else {
+          setSessionStartTime(Date.now());
+        }
+        
+        // Set active length
+        setActiveLength(incompleteSession.session.length);
+        
+        // Fetch dictionary if not cached
+        if (!dictionaryCache.has(incompleteSession.session.length)) {
+          getDictionaryWords(incompleteSession.session.length)
+            .then(dictionary => {
+              setDictionaryCache(prev => new Map(prev).set(incompleteSession.session!.length, dictionary));
+            })
+            .catch(error => {
+              console.error('Failed to load dictionary:', error);
+              toast.notify('Не удалось загрузить словарь. Проверка слов недоступна.');
+            });
+        }
+        
+      } catch (error) {
+        console.error('Error restoring session:', error);
+        toast.notify('Ошибка при восстановлении игры. Начните новую.');
+        // Clear the invalid session state
+        setSession(null);
+        setLines([]);
+        setSessionStartTime(null);
+        setActiveLength(null);
       }
     }
   }, [incompleteSession, dictionaryCache, toast]);
@@ -165,6 +199,26 @@ export default function ArcadePage() {
     } finally {
       setIsLoadingHint(false);
     }
+  };
+
+  const handleUnlockArcade = async () => {
+    setIsConfirmingUnlock(false);
+    setIsUnlocking(true);
+    try {
+      await unlockArcade();
+      setIsArcadeAvailable(true);
+      setNewGameEntitlements(prev => prev - 1);
+      toast.notify('Аркада разблокирована!');
+    } catch (error) {
+      console.error('Failed to unlock arcade:', error);
+      toast.notify('Не удалось разблокировать аркаду');
+    } finally {
+      setIsUnlocking(false);
+    }
+  };
+
+  const handleBuyGames = () => {
+    window.location.href = '/shop';
   };
 
   const handleStart = async (len: ArcadeStartResponse['length']) => {
@@ -374,6 +428,53 @@ export default function ArcadePage() {
                 <div className="flex justify-center">
                   <PuzzleLoader length={activeLength ?? 5} />
                 </div>
+              ) : !isArcadeAvailable ? (
+                <>
+                  <Heading level={3} className="mb-4">Аркада недоступна</Heading>
+                  <Text className="mb-6">Аркада доступна раз в день. Используйте дополнительную игру?</Text>
+                  
+                  {newGameEntitlements > 0 ? (
+                    <>
+                      {!isConfirmingUnlock ? (
+                        <Button
+                          fullWidth
+                          variant="primary"
+                          onClick={() => setIsConfirmingUnlock(true)}
+                          disabled={isUnlocking}
+                        >
+                          {isUnlocking ? 'Загрузка...' : `Использовать игру (${newGameEntitlements} шт.)`}
+                        </Button>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="secondary"
+                            onClick={() => setIsConfirmingUnlock(false)}
+                            className="flex-1"
+                            disabled={isUnlocking}
+                          >
+                            Отмена
+                          </Button>
+                          <Button
+                            variant="primary"
+                            onClick={handleUnlockArcade}
+                            disabled={isUnlocking}
+                            className="flex-1"
+                          >
+                            {isUnlocking ? 'Загрузка...' : 'Подтвердить'}
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <Button
+                      fullWidth
+                      variant="primary"
+                      onClick={handleBuyGames}
+                    >
+                      Купить игры
+                    </Button>
+                  )}
+                </>
               ) : (
                 <>
                   <Text className="mb-6">Выберите длину слова, чтобы начать новую игру</Text>

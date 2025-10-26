@@ -16,6 +16,7 @@ export interface Database {
           streak_current: number;
           streak_max: number;
           last_daily_played_at: string | null;
+          is_arcade_available: boolean;
           is_banned: boolean;
           ban_reason: string | null;
           ban_expires_at: string | null;
@@ -34,6 +35,7 @@ export interface Database {
           streak_current?: number;
           streak_max?: number;
           last_daily_played_at?: string | null;
+          is_arcade_available?: boolean;
           is_banned?: boolean;
           ban_reason?: string | null;
           ban_expires_at?: string | null;
@@ -52,6 +54,7 @@ export interface Database {
           streak_current?: number;
           streak_max?: number;
           last_daily_played_at?: string | null;
+          is_arcade_available?: boolean;
           is_banned?: boolean;
           ban_reason?: string | null;
           ban_expires_at?: string | null;

@@ -102,6 +102,13 @@ export async function GET(): Promise<Response> {
     // Refresh leaderboard materialized view
     await client.rpc('refresh_leaderboard_materialized_view');
     
+    // Reset arcade availability for all users
+    await client
+      .from('profiles')
+      .update({ is_arcade_available: true });
+    
+    console.log('Reset arcade availability for all users');
+    
     console.log('Nightly rollover completed successfully');
     
     return NextResponse.json({ 

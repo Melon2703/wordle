@@ -32,6 +32,40 @@ export async function POST(request: Request) {
       auth.parsed.user?.last_name
     );
     
+    // Clean up any orphaned arcade sessions (sessions where puzzle doesn't exist)
+    const { data: incompleteSessions } = await client
+      .from('sessions')
+      .select('session_id, puzzle_id')
+      .eq('profile_id', profile.profile_id)
+      .eq('mode', 'arcade')
+      .is('result', null);
+    
+    if (incompleteSessions && incompleteSessions.length > 0) {
+      for (const sess of incompleteSessions) {
+        // Check if puzzle exists
+        const { data: puzzleExists } = await client
+          .from('puzzles')
+          .select('puzzle_id')
+          .eq('puzzle_id', sess.puzzle_id)
+          .single();
+        
+        if (!puzzleExists) {
+          console.log('Cleaning up orphaned session:', sess.session_id);
+          // Delete the orphaned session
+          await client
+            .from('sessions')
+            .delete()
+            .eq('session_id', sess.session_id);
+          
+          // Also delete associated guesses
+          await client
+            .from('guesses')
+            .delete()
+            .eq('session_id', sess.session_id);
+        }
+      }
+    }
+    
     // Load puzzle answers from Storage and filter by length
     const puzzleAnswers = await loadPuzzleAnswers();
     const wordsOfLength = puzzleAnswers.filter(word => word.length === length);
@@ -95,6 +129,12 @@ export async function POST(request: Request) {
       .eq('product_id', 'arcade_hint');
     
     const hintEntitlementsAvailable = entitlementsCount || 0;
+    
+    // Set arcade available to false (user used their daily game)
+    await client
+      .from('profiles')
+      .update({ is_arcade_available: false })
+      .eq('profile_id', profile.profile_id);
     
     const response: ArcadeStartResponse = {
       puzzleId: puzzle.puzzle_id,
