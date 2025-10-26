@@ -1,8 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { Resvg } from '@resvg/resvg-js';
+import sharp from 'sharp';
 import type { GuessLine } from '@/lib/contracts';
-// why: Generate shareable PNG cards for Telegram using resvg (serverless-compatible)
+// why: Generate shareable PNG cards for Telegram using sharp (serverless-compatible)
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -78,12 +78,10 @@ export async function GET(request: NextRequest) {
       </svg>
     `.trim();
 
-    // Convert SVG to PNG using resvg
-    const resvg = new Resvg(svg, {
-      background: '#ffffff',
-    });
-    const pngData = resvg.render();
-    const pngBuffer = pngData.asPng();
+    // Convert SVG to PNG using sharp
+    const pngBuffer = await sharp(Buffer.from(svg))
+      .png()
+      .toBuffer();
 
     return new NextResponse(pngBuffer, {
       headers: {
