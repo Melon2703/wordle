@@ -184,22 +184,11 @@ export default function DailyPage() {
 
         {/* Share Button - only show when game is completed */}
         {isGameCompleted && (
-          <>
-            <div className="flex-1" />
-            <div className="mb-4">
-              <Button 
-                fullWidth 
-                disabled 
-                className="bg-gray-300 text-gray-500 cursor-not-allowed"
-                title="Share functionality coming soon"
-              >
-                Поделиться результатом
-              </Button>
-              <p className="text-caption text-center mt-2">
-                Функция поделиться будет доступна в следующих обновлениях
-              </p>
-            </div>
-          </>
+          <div className="mt-auto">
+            <Button fullWidth disabled>
+              Поделиться результатом
+            </Button>
+          </div>
         )}
 
         {/* Keyboard with animation */}

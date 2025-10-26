@@ -62,12 +62,12 @@ a {
   }
 
   /* Design System - Layout Utilities */
-  .page-container {
-    @apply flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)] pb-20;
-  }
+      .page-container {
+        @apply flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)] pb-20 pt-12;
+      }
 
   .section-container {
-    @apply flex flex-1 flex-col gap-4 px-4 py-6;
+    @apply flex flex-1 flex-col gap-4 px-4;
   }
 
   .section-gap {

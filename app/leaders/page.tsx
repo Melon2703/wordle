@@ -5,6 +5,7 @@ import { getDailyPuzzle, getDailyLeaderboard, openUserProfile, getUserStatus } f
 import { LoadingFallback } from '@/components/LoadingFallback';
 import { UserStatsCard } from '@/components/UserStatsCard';
 import { Card, Heading, Text } from '@/components/ui';
+import { Target, Clock } from 'lucide-react';
 
 export default function LeadersPage() {
   // Helper function to extract telegram_id from profileUrl
@@ -54,7 +55,6 @@ export default function LeadersPage() {
         {userStatus && (
           <UserStatsCard
             rank={userRankNumber}
-            totalPlayers={leaderboard?.entries.length || 0}
             streak={userStatus.streak}
             arcadeSolved={userStatus.arcadeSolved}
           />
@@ -83,9 +83,15 @@ export default function LeadersPage() {
                     <Text className="font-medium">{entry.displayName}</Text>
                   )}
                 </div>
-                <div className="text-right">
-                  <Text variant="caption">{entry.attempts} попытки</Text>
-                  <Text variant="caption">{Math.round(entry.timeMs / 1000)} с</Text>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    <Target className="w-4 h-4 opacity-70" />
+                    <Text variant="caption">{entry.attempts}</Text>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4 opacity-70" />
+                    <Text variant="caption">{Math.round(entry.timeMs / 1000)} с</Text>
+                  </div>
                 </div>
               </div>
             </Card>

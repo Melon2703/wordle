@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { Banner } from '@/components/Banner';
-import { RulesSheet } from '@/components/RulesSheet';
 import { Button, Card, Heading, Text } from '@/components/ui';
 import { getUserStatus, getActiveBanners, getDailyPuzzle } from '@/lib/api';
 import { CircleDashed, CheckCircle2, XCircle, Play, Flame, Clock } from 'lucide-react';
@@ -13,8 +12,6 @@ export default function HomePage() {
   const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set());
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [timeUntilNext, setTimeUntilNext] = useState<string>('');
-  const [rulesSheetOpen, setRulesSheetOpen] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Check for reduced motion preference
   useEffect(() => {
@@ -44,8 +41,7 @@ export default function HomePage() {
   useEffect(() => {
     const onboardingCompleted = localStorage.getItem('wordle-onboarding-completed');
     if (!onboardingCompleted) {
-      setShowOnboarding(true);
-      setRulesSheetOpen(true);
+      // Onboarding will be handled by TopRightIcons component
     }
   }, []);
 
@@ -108,15 +104,6 @@ export default function HomePage() {
     localStorage.setItem('dismissed-banners', JSON.stringify([...newDismissed]));
   };
 
-  const handleRulesClick = () => {
-    setShowOnboarding(false);
-    setRulesSheetOpen(true);
-  };
-
-  const handleRulesSheetClose = () => {
-    setRulesSheetOpen(false);
-    setShowOnboarding(false);
-  };
 
   // Filter out dismissed banners
   const activeBanners = banners.filter(banner => !dismissedBanners.has(banner.id));
@@ -148,7 +135,7 @@ export default function HomePage() {
   };
 
   return (
-    <main className="page-container px-4 pt-12">
+    <main className="page-container px-4 pt-20">
       {/* Banner */}
       {activeBanners.length > 0 && (
         <div className="mb-6 card-gap">
@@ -234,20 +221,6 @@ export default function HomePage() {
           </Card>
         </Link>
       </section>
-
-      {/* Rules Button */}
-      <div className="mt-16 text-center">
-        <Button variant="secondary" onClick={handleRulesClick}>
-          Правила
-        </Button>
-      </div>
-
-      {/* Rules Sheet */}
-      <RulesSheet
-        open={rulesSheetOpen}
-        onClose={handleRulesSheetClose}
-        showOnboardingButton={showOnboarding}
-      />
     </main>
   );
 }

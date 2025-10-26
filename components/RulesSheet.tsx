@@ -22,7 +22,7 @@ export function RulesSheet({ open, onClose, showOnboardingButton = false }: Rule
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end bg-black/30">
+    <div className="fixed inset-0 z-[60] flex items-end bg-black/30 pointer-events-auto">
       <div className="w-full rounded-t-3xl bg-[var(--panel)] p-6 shadow-2xl">
         <div className="flex items-center justify-between">
           <Heading level={2}>Как играть</Heading>

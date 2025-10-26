@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
 import { PuzzleLoader } from '@/components/PuzzleLoader';
@@ -93,6 +93,13 @@ export default function ArcadePage() {
       feedback
     };
   };
+
+  // Get user status for arcade solved count
+  const { data: userStatus } = useQuery({
+    queryKey: ['user', 'status'],
+    queryFn: () => fetch('/api/user/status').then(res => res.json()),
+    staleTime: 30 * 1000,
+  });
 
   const keyboardState = buildKeyboardState(lines);
   const length = session?.length ?? activeLength ?? 5; // Default to 5 for UI purposes when no selection
@@ -188,7 +195,7 @@ export default function ArcadePage() {
 
   return (
     <main className="page-container">
-        <section className="flex flex-1 flex-col px-4 py-6 mx-auto w-full max-w-lg">
+        <section className="flex flex-1 flex-col px-4 mx-auto w-full max-w-lg">
         {session ? (
           <>
             {/* Result Screen */}
@@ -199,6 +206,7 @@ export default function ArcadePage() {
                   attemptsUsed={lines.length}
                   mode="arcade"
                   timeMs={sessionStartTime ? Date.now() - sessionStartTime : undefined}
+                  arcadeSolved={userStatus?.arcadeSolved}
                   length={length}
                   lines={lines}
                 />
@@ -218,25 +226,21 @@ export default function ArcadePage() {
 
             {!showResult && <div className="flex-1" />}
 
-            {/* Share Button - only show when game is completed */}
+            {/* Arcade Result Buttons - positioned at bottom above nav */}
             {showResult && (
-              <>
-                <div className="flex-1" />
-                <div className="mb-4">
-                  <Button 
-                    fullWidth 
-                    disabled 
-                    className="bg-gray-300 text-gray-500 cursor-not-allowed"
-                    title="Share functionality coming soon"
-                  >
+              <div className="mt-auto">
+                <div className="grid grid-cols-2 gap-3">
+                  <Button fullWidth onClick={() => window.location.href = '/arcade'}>
+                    Новая игра
+                  </Button>
+                  <Button fullWidth disabled>
                     Поделиться результатом
                   </Button>
-                  <Text variant="caption" className="text-center mt-2">
-                    Функция поделиться будет доступна в следующих обновлениях
-                  </Text>
                 </div>
-              </>
+              </div>
             )}
+
+            {/* Share Button - only show when game is completed */}
 
             {/* Keyboard with animation */}
             <div className={`transition-all duration-300 -mx-4 ${

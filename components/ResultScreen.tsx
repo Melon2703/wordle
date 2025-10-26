@@ -1,11 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import type { GuessLine } from '@/lib/contracts';
 import { PuzzleGrid } from './PuzzleGrid';
 import { RisingStar } from './FiringStarAnimations';
-import { Button, Card, Heading, Text } from '@/components/ui';
-import { Flame } from 'lucide-react';
+import { Card, Heading, Text } from '@/components/ui';
 
 interface ResultScreenProps {
   status: 'won' | 'lost';
@@ -14,6 +12,7 @@ interface ResultScreenProps {
   mode: 'daily' | 'arcade';
   timeMs?: number;
   streak?: number;
+  arcadeSolved?: number;
   // Grid props
   length: number;
   lines: GuessLine[];
@@ -26,6 +25,7 @@ export function ResultScreen({
   mode, 
   timeMs, 
   streak,
+  arcadeSolved,
   length,
   lines
 }: ResultScreenProps) {
@@ -63,27 +63,28 @@ export function ResultScreen({
 
       {/* Statistics Section */}
       <Card padding="md" className="mb-6">
-        <Heading level={4} className="mb-4">Статистика</Heading>
-        <div className="space-y-3">
-          <div className="flex justify-between items-center">
-            <Text variant="caption">Попыток использовано:</Text>
-            <Text className="font-medium">{attemptsUsed}</Text>
+        <div className="grid grid-cols-3 gap-4">
+          {/* Попытки */}
+          <div className="text-center">
+            <Text variant="caption" className="block mb-1">Попытки</Text>
+            <Text className="font-semibold text-lg">{attemptsUsed}</Text>
           </div>
-          {timeMs && (
-            <div className="flex justify-between items-center">
-              <Text variant="caption">Время:</Text>
-              <Text className="font-medium">{formatTime(timeMs)}</Text>
-            </div>
-          )}
-          {mode === 'daily' && streak !== undefined && (
-            <div className="flex justify-between items-center">
-              <Text variant="caption" className="flex items-center gap-1">
-                Серия:
-                <Flame className="w-4 h-4 text-orange-500" />
-              </Text>
-              <Text className="font-medium">{streak}</Text>
-            </div>
-          )}
+          
+          {/* Время */}
+          <div className="text-center">
+            <Text variant="caption" className="block mb-1">Время</Text>
+            <Text className="font-semibold text-lg">{timeMs ? formatTime(timeMs) : '-'}</Text>
+          </div>
+          
+          {/* Серия (daily) or Аркад решено (arcade) */}
+          <div className="text-center">
+            <Text variant="caption" className="block mb-1">
+              {mode === 'daily' ? 'Серия' : 'Аркад решено'}
+            </Text>
+            <Text className="font-semibold text-lg">
+              {mode === 'daily' ? (streak ?? '-') : (arcadeSolved ?? '-')}
+            </Text>
+          </div>
         </div>
       </Card>
 
@@ -98,25 +99,6 @@ export function ResultScreen({
           />
         </div>
       </div>
-
-      {/* Arcade New Game Button */}
-      {mode === 'arcade' && (
-        <div className="mt-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Link href="/arcade">
-              <Button fullWidth size="sm">
-                Новая игра
-              </Button>
-            </Link>
-            <Button fullWidth size="sm" disabled>
-              Поделиться результатом
-            </Button>
-          </div>
-          <Text variant="caption" className="text-center mt-2">
-            Функция поделиться будет доступна в следующих обновлениях
-          </Text>
-        </div>
-      )}
     </div>
   );
 }

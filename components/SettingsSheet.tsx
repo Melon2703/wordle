@@ -1,6 +1,7 @@
 'use client';
 
 import { Heading, Text } from '@/components/ui';
+import { X } from 'lucide-react';
 
 interface SettingsState {
   highContrast: boolean;
@@ -27,12 +28,17 @@ export function SettingsSheet({ open, state, onChange, onClose }: SettingsSheetP
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end bg-black/30">
+    <div className="fixed inset-0 z-[60] flex items-end bg-black/30 pointer-events-auto">
       <div className="w-full rounded-t-3xl bg-[var(--panel)] p-6 shadow-2xl">
         <div className="flex items-center justify-between">
           <Heading level={2}>Настройки</Heading>
-          <button type="button" onClick={onClose} className="text-sm text-[var(--text)] opacity-70">
-            Закрыть
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+            aria-label="Закрыть"
+          >
+            <X className="h-5 w-5 text-[var(--text)]" />
           </button>
         </div>
         <div className="mt-4 space-y-4">
