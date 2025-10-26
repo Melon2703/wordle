@@ -1,8 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import puppeteer from 'puppeteer';
+import { Resvg } from '@resvg/resvg-js';
 import type { GuessLine } from '@/lib/contracts';
-// why: Generate shareable PNG cards for Telegram (convert SVG to PNG)
+// why: Generate shareable PNG cards for Telegram using resvg (serverless-compatible)
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
     const gridStartX = (800 - gridWidth) / 2;
     const gridStartY = (418 - gridHeight) / 2;
 
+    // Generate grid squares as SVG elements
     let gridSquares = '';
     
     if (lines.length > 0) {
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Generate SVG with only centered grid
+    // Generate SVG string
     const svg = `
       <svg width="800" height="418" xmlns="http://www.w3.org/2000/svg">
         <rect width="800" height="418" fill="#ffffff"/>
@@ -77,33 +78,19 @@ export async function GET(request: NextRequest) {
       </svg>
     `.trim();
 
-    // Convert SVG to PNG using Puppeteer
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    // Convert SVG to PNG using resvg
+    const resvg = new Resvg(svg, {
+      background: '#ffffff',
     });
+    const pngData = resvg.render();
+    const pngBuffer = pngData.asPng();
 
-    try {
-      const page = await browser.newPage();
-      await page.setViewport({ width: 800, height: 418 });
-      await page.setContent(svg, { waitUntil: 'networkidle0' });
-      
-      const pngBuffer = await page.screenshot({
-        type: 'png',
-        omitBackground: false,
-      });
-
-      await browser.close();
-
-      return new NextResponse(pngBuffer as Buffer, {
-        headers: {
-          'Content-Type': 'image/png',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-        },
-      });
-    } finally {
-      await browser.close();
-    }
+    return new NextResponse(pngBuffer, {
+      headers: {
+        'Content-Type': 'image/png',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+    });
   } catch (error) {
     console.error('Card generation failed:', error);
     return NextResponse.json({ error: 'Failed to generate card' }, { status: 500 });
