@@ -149,11 +149,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="mb-8 text-center">
-        <Heading level={1}>Выберите режим</Heading>
-      </div>
-
       {/* Primary Cards */}
       <section className="section-gap">
         {/* Daily Card */}
@@ -199,7 +194,9 @@ export default function HomePage() {
                   Скоро!
                 </div>
               )}
-              <Button fullWidth>Играть</Button>
+              <Button fullWidth>
+                {userStatus?.dailyStatus === 'won' || userStatus?.dailyStatus === 'lost' ? 'Открыть' : 'Играть'}
+              </Button>
             </div>
           </Card>
         </Link>
@@ -216,7 +213,7 @@ export default function HomePage() {
                 <Heading level={2}>Аркада</Heading>
                 <Text className="mt-2">Тренируйтесь без ограничений</Text>
               </div>
-              <Button fullWidth>Открыть аркаду</Button>
+              <Button fullWidth>Играть</Button>
             </div>
           </Card>
         </Link>

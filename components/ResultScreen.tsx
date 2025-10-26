@@ -29,7 +29,7 @@ export function ResultScreen({
   length,
   lines
 }: ResultScreenProps) {
-  const resultCopy = status === 'won' ? 'Победа!' : 'Попробуйте снова';
+  const resultCopy = status === 'won' ? 'Победа!' : 'Получится в следующий раз!';
   
   const formatTime = (ms: number) => {
     const seconds = Math.round(ms / 1000);
@@ -40,24 +40,29 @@ export function ResultScreen({
   };
 
   return (
-    <div className="w-full max-w-sm mx-auto mb-8 mt-8">
+    <div className="w-full max-w-sm mx-auto mb-8">
       {/* Result Header */}
       <div className="text-center mb-5">
-        <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center">
-          {status === 'won' ? (
+        {status === 'won' ? (
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center">
             <RisingStar size={64} />
-          ) : (
-            <span className="text-2xl">💭</span>
-          )}
-        </div>
+          </div>
+        ) : (
+          // For loss: show answer block instead of icon (same size as star)
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center">
+            <div className="px-3 py-2 bg-slate-100 rounded-lg text-center">
+              <Text className="text-[10px] text-slate-600 block leading-tight mb-0.5">Слово дня</Text>
+              <Text className="font-bold text-sm text-slate-800 uppercase leading-tight">{answer}</Text>
+            </div>
+          </div>
+        )}
+        
         <Heading level={2}>{resultCopy}</Heading>
+        
         {status === 'lost' && mode === 'arcade' && (
           <Text className="mt-2">
             Можете потренироваться в режиме Аркада.
           </Text>
-        )}
-        {status === 'lost' && answer && (
-          <Text className="mt-3">Сегодняшнее слово: {answer}</Text>
         )}
       </div>
 

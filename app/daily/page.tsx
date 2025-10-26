@@ -159,7 +159,7 @@ export default function DailyPage() {
             <ResultScreen
               status={data?.yourState.status === 'won' ? 'won' : 'lost'}
               attemptsUsed={lines.length}
-              answer={undefined}
+              answer={data?.answer}
               mode="daily"
               timeMs={data?.yourState.timeMs}
               streak={userStatus?.streak}

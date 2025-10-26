@@ -69,22 +69,22 @@ export function RulesSheet({ open, onClose, showOnboardingButton = false }: Rule
             <div>
               <div className="flex gap-1 mb-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-md border border-blue-200 bg-white text-lg font-semibold text-slate-800 opacity-60">
-                  К
+                  Р
                 </div>
                 <div className="flex h-10 w-10 items-center justify-center rounded-md border border-blue-200 bg-yellow-400 text-lg font-semibold text-slate-800">
-                  Р
+                  А
+                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-md border border-blue-200 bg-white text-lg font-semibold text-slate-800 opacity-60">
+                  М
+                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-md border border-blue-200 bg-white text-lg font-semibold text-slate-800 opacity-60">
+                  К
                 </div>
                 <div className="flex h-10 w-10 items-center justify-center rounded-md border border-blue-200 bg-white text-lg font-semibold text-slate-800 opacity-60">
                   А
                 </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-md border border-blue-200 bg-white text-lg font-semibold text-slate-800 opacity-60">
-                  С
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-md border border-blue-200 bg-white text-lg font-semibold text-slate-800 opacity-60">
-                  К
-                </div>
               </div>
-              <Text variant="caption"><span className="font-bold">Р</span> находится в слове, но в неправильной позиции</Text>
+              <Text variant="caption"><span className="font-bold">А</span> находится в слове, но в неправильной позиции</Text>
             </div>
 
             <div>
@@ -93,19 +93,19 @@ export function RulesSheet({ open, onClose, showOnboardingButton = false }: Rule
                   М
                 </div>
                 <div className="flex h-10 w-10 items-center justify-center rounded-md border border-blue-200 bg-white text-lg font-semibold text-slate-800 opacity-60">
-                  О
+                  Е
                 </div>
                 <div className="flex h-10 w-10 items-center justify-center rounded-md border border-blue-200 bg-white text-lg font-semibold text-slate-800 opacity-60">
                   С
                 </div>
                 <div className="flex h-10 w-10 items-center justify-center rounded-md border border-blue-200 bg-gray-300 text-lg font-semibold text-slate-800 opacity-80">
-                  К
+                  Т
                 </div>
                 <div className="flex h-10 w-10 items-center justify-center rounded-md border border-blue-200 bg-white text-lg font-semibold text-slate-800 opacity-60">
-                  А
+                  О
                 </div>
               </div>
-              <Text variant="caption"><span className="font-bold">К</span> не находится в слове ни в какой позиции</Text>
+              <Text variant="caption"><span className="font-bold">Т</span> не находится в слове ни в какой позиции</Text>
             </div>
           </div>
         </div>

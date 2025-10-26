@@ -15,7 +15,7 @@ export function ResultModal({ open, status, attemptsUsed, answer, onClose }: Res
     return null;
   }
 
-  const resultCopy = status === 'won' ? 'Победа!' : 'Попробуйте снова';
+  const resultCopy = status === 'won' ? 'Победа!' : 'Получится в следующий раз!';
 
   return (
     <div
@@ -25,22 +25,27 @@ export function ResultModal({ open, status, attemptsUsed, answer, onClose }: Res
     >
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center">
-            {status === 'won' ? (
+          {status === 'won' ? (
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center">
               <RisingStar size={64} />
-            ) : (
-              <span className="text-2xl">💭</span>
-            )}
-          </div>
-              <h2 className="text-2xl font-bold text-slate-800 font-sans">{resultCopy}</h2>
+            </div>
+          ) : (
+            // For loss: show answer block instead of icon (same size as star)
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center">
+              <div className="px-3 py-2 bg-slate-100 rounded-lg text-center">
+                <p className="text-[10px] text-slate-600 font-sans leading-tight mb-0.5">Слово дня</p>
+                <p className="font-bold text-sm text-slate-800 uppercase font-sans leading-tight">{answer}</p>
+              </div>
+            </div>
+          )}
+          
+          <h2 className="text-2xl font-bold text-slate-800 font-sans">{resultCopy}</h2>
+          
           <p className="mt-2 text-sm text-slate-600 font-sans">
             {status === 'won'
               ? `Решено за ${attemptsUsed} попыток.`
               : 'Можете потренироваться в режиме Аркада.'}
           </p>
-          {status === 'lost' && answer ? (
-                <p className="mt-3 text-sm text-slate-600 font-sans">Сегодняшнее слово: {answer}</p>
-          ) : null}
         </div>
         <button
           type="button"

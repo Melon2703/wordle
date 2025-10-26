@@ -170,7 +170,7 @@ export async function POST(request: Request) {
       await updateSessionResult(
         client,
         session.session_id,
-        isWin ? 'win' : 'lost',
+        isWin ? 'win' : 'lose',
         newAttemptsUsed,
         timeMs
       );

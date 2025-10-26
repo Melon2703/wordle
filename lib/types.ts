@@ -23,6 +23,7 @@ export interface DailyPuzzlePayload {
   expiresAt: string;
   keyboard: 'ru';
   hardModeAvailable: boolean;
+  answer?: string; // Include solution text when game is complete (for losses)
   yourState: {
     status: 'playing' | 'won' | 'lost';
     attemptsUsed: number;
