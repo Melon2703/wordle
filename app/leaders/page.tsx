@@ -8,9 +8,9 @@ import { Card, Heading, Text } from '@/components/ui';
 import { Target, Clock } from 'lucide-react';
 
 export default function LeadersPage() {
-  // Helper function to extract telegram_id from profileUrl
-  const extractTelegramId = (profileUrl: string): string | null => {
-    const match = profileUrl.match(/https:\/\/t\.me\/user\?id=(\d+)/);
+  // Helper function to extract username from profileUrl
+  const extractUsername = (profileUrl: string): string | null => {
+    const match = profileUrl.match(/https:\/\/t\.me\/(.+)/);
     return match ? match[1] : null;
   };
 
@@ -70,9 +70,9 @@ export default function LeadersPage() {
                   {entry.profileUrl ? (
                     <button 
                       onClick={() => {
-                        const telegramId = extractTelegramId(entry.profileUrl!);
-                        if (telegramId) {
-                          openUserProfile(telegramId, entry.displayName);
+                        const username = extractUsername(entry.profileUrl!);
+                        if (username) {
+                          openUserProfile(username, entry.displayName);
                         }
                       }}
                       className="font-medium text-[var(--accent)] hover:text-blue-800 hover:underline cursor-pointer bg-transparent border-none p-0 text-left"

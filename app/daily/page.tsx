@@ -6,6 +6,7 @@ import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
 import { LoadingFallback } from '@/components/LoadingFallback';
 import { ResultScreen } from '@/components/ResultScreen';
+import { ShareButton } from '@/components/ShareButton';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { Button } from '@/components/ui';
@@ -183,11 +184,17 @@ export default function DailyPage() {
         {!isGameCompleted && <div className="flex-1" />}
 
         {/* Share Button - only show when game is completed */}
-        {isGameCompleted && (
+        {isGameCompleted && data && data.yourState.status !== 'playing' && (
           <div className="mt-auto">
-            <Button fullWidth disabled>
-              Поделиться результатом
-            </Button>
+            <ShareButton
+              mode="daily"
+              puzzleId={data.puzzleId}
+              status={data.yourState.status}
+              attemptsUsed={lines.length}
+              timeMs={data.yourState.timeMs}
+              lines={lines}
+              streak={userStatus?.streak}
+            />
           </div>
         )}
 

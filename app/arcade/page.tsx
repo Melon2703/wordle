@@ -6,6 +6,7 @@ import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
 import { PuzzleLoader } from '@/components/PuzzleLoader';
 import { ResultScreen } from '@/components/ResultScreen';
+import { ShareButton } from '@/components/ShareButton';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { Button, Card, Heading, Text } from '@/components/ui';
@@ -227,15 +228,21 @@ export default function ArcadePage() {
             {!showResult && <div className="flex-1" />}
 
             {/* Arcade Result Buttons - positioned at bottom above nav */}
-            {showResult && (
+            {showResult && session && (
               <div className="mt-auto">
                 <div className="grid grid-cols-2 gap-3">
                   <Button fullWidth onClick={() => window.location.href = '/arcade'}>
                     Новая игра
                   </Button>
-                  <Button fullWidth disabled>
-                    Поделиться результатом
-                  </Button>
+                  <ShareButton
+                    mode="arcade"
+                    puzzleId={session.puzzleId}
+                    status={lines.length > 0 && lines[lines.length - 1].feedback.every(f => f.state === 'correct') ? 'won' : 'lost'}
+                    attemptsUsed={lines.length}
+                    timeMs={sessionStartTime ? Date.now() - sessionStartTime : undefined}
+                    lines={lines}
+                    arcadeSolved={userStatus?.arcadeSolved}
+                  />
                 </div>
               </div>
             )}

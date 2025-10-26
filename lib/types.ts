@@ -115,3 +115,34 @@ export interface Banner {
   dismissible: boolean;
   expiresAt?: string; // ISO timestamp
 }
+
+// Share feature types
+export interface SharePayload {
+  v: 1;
+  mode: 'daily' | 'arcade';
+  date?: string; // YYYY-MM-DD for daily
+  ref: string; // sharer's profile_id or telegram_id
+  attempts: number;
+  timeMs?: number;
+  status: 'won' | 'lost';
+  streak?: number;
+  arcadeSolved?: number;
+  length: number;
+  lines: GuessLine[]; // for grid rendering
+}
+
+export interface PrepareShareRequest {
+  mode: 'daily' | 'arcade';
+  puzzleId: string;
+  status: 'won' | 'lost';
+  attemptsUsed: number;
+  timeMs?: number;
+  lines: GuessLine[];
+  streak?: number;
+  arcadeSolved?: number;
+}
+
+export interface PrepareShareResponse {
+  ok: boolean;
+  preparedMessageId: string;
+}

@@ -171,10 +171,11 @@ export async function fetchDailyLeaderboard(
     
     if (profile.username) {
       displayName = `@${profile.username}`;
-      profileUrl = `https://t.me/user?id=${profile.telegram_id}`;
+      // Only set profileUrl if username exists (username-based links work; ID-based don't)
+      profileUrl = `https://t.me/${profile.username}`;
     } else if (profile.first_name) {
       displayName = profile.first_name;
-      profileUrl = `https://t.me/user?id=${profile.telegram_id}`;
+      // No profileUrl for users without username (not clickable)
     }
     
     return {
