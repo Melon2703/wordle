@@ -5,7 +5,9 @@ const requiredKeys = [
   'WEBHOOK_SECRET_PATH'
 ] satisfies Array<keyof NodeJS.ProcessEnv>;
 
-const optionalKeys = [] satisfies Array<keyof NodeJS.ProcessEnv>;
+const optionalKeys = [
+  'USE_MOCK_AUTH'
+] satisfies Array<keyof NodeJS.ProcessEnv>;
 
 let cache: Record<string, string | undefined> | null = null;
 

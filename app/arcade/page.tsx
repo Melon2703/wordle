@@ -10,7 +10,9 @@ import { ShareButton } from '@/components/ShareButton';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { Button, Card, Heading, Text } from '@/components/ui';
-import { startArcade, completeArcadeSession, getDictionaryWords } from '@/lib/api';
+import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess } from '@/lib/api';
+import { HintModal } from '@/components/HintModal';
+import { TopCenterIcon } from '@/components/TopCenterIcon';
 import { buildKeyboardState } from '@/lib/game/feedback';
 import { evaluateGuess, normalizeGuess, validateDictionary } from '@/lib/game/feedback.client';
 import type { ArcadeStartResponse, GuessLine } from '@/lib/contracts';
@@ -28,6 +30,9 @@ export default function ArcadePage() {
   const [dictionaryCache, setDictionaryCache] = useState<Map<number, Set<string>>>(new Map());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableLengths, setAvailableLengths] = useState<Array<ArcadeStartResponse['length']>>([5]);
+  const [isHintModalOpen, setIsHintModalOpen] = useState(false);
+  const [hintEntitlementsRemaining, setHintEntitlementsRemaining] = useState(0);
+  const [isLoadingHint, setIsLoadingHint] = useState(false);
 
   // Check Telegram user ID to determine available word lengths
   useEffect(() => {
@@ -54,6 +59,7 @@ export default function ArcadePage() {
     mutationFn: (len: ArcadeStartResponse['length']) => startArcade(len, false),
     onSuccess: async (sessionData) => {
       setSession(sessionData);
+      setHintEntitlementsRemaining(sessionData.hintEntitlementsAvailable);
       setLines([]);
       setCurrentGuess('');
       setSessionStartTime(Date.now());
@@ -95,6 +101,46 @@ export default function ArcadePage() {
     };
   };
 
+  // Check for incomplete arcade session on mount
+  const { data: incompleteSession } = useQuery({
+    queryKey: ['arcade', 'incomplete-session'],
+    queryFn: checkArcadeSession,
+    staleTime: 30 * 1000,
+  });
+
+  // Restore incomplete session if found
+  useEffect(() => {
+    if (incompleteSession?.hasIncomplete && incompleteSession.session && incompleteSession.lines) {
+      setSession(incompleteSession.session);
+      setLines(incompleteSession.lines);
+      setHintEntitlementsRemaining(incompleteSession.session.hintEntitlementsAvailable);
+      
+      // Set session start time
+      if (incompleteSession.startedAt) {
+        const startedAtMs = new Date(incompleteSession.startedAt).getTime();
+        const elapsedMs = Date.now() - startedAtMs;
+        setSessionStartTime(Date.now() - elapsedMs);
+      } else {
+        setSessionStartTime(Date.now());
+      }
+      
+      // Set active length
+      setActiveLength(incompleteSession.session.length);
+      
+      // Fetch dictionary if not cached
+      if (!dictionaryCache.has(incompleteSession.session.length)) {
+        getDictionaryWords(incompleteSession.session.length)
+          .then(dictionary => {
+            setDictionaryCache(prev => new Map(prev).set(incompleteSession.session!.length, dictionary));
+          })
+          .catch(error => {
+            console.error('Failed to load dictionary:', error);
+            toast.notify('Не удалось загрузить словарь. Проверка слов недоступна.');
+          });
+      }
+    }
+  }, [incompleteSession, dictionaryCache, toast]);
+
   // Get user status for arcade solved count
   const { data: userStatus } = useQuery({
     queryKey: ['user', 'status'],
@@ -104,6 +150,22 @@ export default function ArcadePage() {
 
   const keyboardState = buildKeyboardState(lines);
   const length = session?.length ?? activeLength ?? 5; // Default to 5 for UI purposes when no selection
+
+  const handleUseHint = async () => {
+    if (!session?.sessionId) return;
+    
+    setIsLoadingHint(true);
+    try {
+      const response = await callArcadeHint(session.sessionId);
+      setSession(prev => prev ? { ...prev, hintsUsed: response.hints } : null);
+      setHintEntitlementsRemaining(response.entitlementsRemaining);
+    } catch (error) {
+      console.error('Failed to use hint:', error);
+      toast.notify('Не удалось использовать подсказку');
+    } finally {
+      setIsLoadingHint(false);
+    }
+  };
 
   const handleStart = async (len: ArcadeStartResponse['length']) => {
     setActiveLength(len);
@@ -160,6 +222,22 @@ export default function ArcadePage() {
       const line = evaluateGuessLocally(currentGuess);
       setLines(prev => [...prev, line]);
       
+      // Record guess in database (background, non-blocking)
+      const guessIndex = lines.length + 1;
+      const feedbackMask = JSON.stringify(line.feedback.map(f => f.state));
+      const normalizedGuess = normalizeGuess(currentGuess, false);
+      
+      recordArcadeGuess(
+        session.sessionId,
+        guessIndex,
+        currentGuess, // original input
+        normalizedGuess, // normalized
+        feedbackMask
+      ).catch(error => {
+        console.error('Failed to record guess:', error);
+        // Don't block UI - game continues locally
+      });
+      
       // Check win/loss
       const isWin = line.feedback.every(f => f.state === 'correct');
       const isLost = !isWin && lines.length + 1 >= session.maxAttempts;
@@ -199,6 +277,26 @@ export default function ArcadePage() {
         <section className="flex flex-1 flex-col px-4 mx-auto w-full max-w-lg">
         {session ? (
           <>
+            {/* Hint Modal */}
+            <HintModal
+              isOpen={isHintModalOpen}
+              onClose={() => setIsHintModalOpen(false)}
+              hints={session.hintsUsed}
+              entitlementsRemaining={hintEntitlementsRemaining}
+              onUseHint={handleUseHint}
+              isLoading={isLoadingHint}
+            />
+
+            {/* Hint Icon */}
+            {!showResult && (
+              <div className="fixed top-0 left-0 right-0 z-50 pointer-events-none h-12">
+                <TopCenterIcon 
+                  onClick={() => setIsHintModalOpen(true)}
+                  badgeCount={session.hintsUsed.length}
+                />
+              </div>
+            )}
+
             {/* Result Screen */}
             {showResult && (
               <div className="transition-all duration-500 ease-in-out opacity-100 translate-y-0">

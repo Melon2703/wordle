@@ -124,6 +124,53 @@ export async function recordDailyGuess(
   return data;
 }
 
+export async function recordArcadeGuess(
+  client: Client,
+  params: {
+    sessionId: string;
+    guessIndex: number;
+    textInput: string;
+    textNorm: string;
+    feedbackMask: string;
+  }
+): Promise<Database['public']['Tables']['guesses']['Row']> {
+  const { data, error } = await client
+    .from('guesses')
+    .insert({
+      session_id: params.sessionId,
+      guess_index: params.guessIndex,
+      text_input: params.textInput,
+      text_norm: params.textNorm,
+      feedback_mask: params.feedbackMask
+    })
+    .select()
+    .single();
+
+  if (error || !data) {
+    console.error('Failed to record arcade guess:', {
+      error: error?.message,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint,
+      params
+    });
+    throw new Error('Failed to record arcade guess');
+  }
+
+  // Update session attempts_used counter
+  const { error: updateError } = await client
+    .from('sessions')
+    .update({ attempts_used: params.guessIndex })
+    .eq('session_id', params.sessionId);
+
+  if (updateError) {
+    console.error('Failed to update session attempts:', updateError);
+    // Don't throw - guess was recorded successfully
+  }
+
+  return data;
+}
+
 export async function updateSessionResult(
   client: Client,
   sessionId: string,
@@ -414,15 +461,89 @@ export async function getSessionGuesses(
   client: Client,
   sessionId: string
 ): Promise<Database['public']['Tables']['guesses']['Row'][]> {
+  console.log('🔍 getSessionGuesses called with session_id:', sessionId);
+  
   const { data, error } = await client
     .from('guesses')
     .select('*')
     .eq('session_id', sessionId)
     .order('guess_index', { ascending: true });
 
+  console.log('📊 getSessionGuesses result:', {
+    sessionId,
+    count: data?.length || 0,
+    hasError: !!error,
+    error: error
+  });
+
   if (error) {
     throw new Error('Failed to fetch guesses');
   }
 
   return data || [];
+}
+
+export async function getHintEntitlementsCount(
+  client: Client,
+  profileId: string
+): Promise<number> {
+  const { count, error } = await client
+    .from('entitlements')
+    .select('*', { count: 'exact', head: true })
+    .eq('profile_id', profileId)
+    .eq('product_id', 'arcade_hint');
+
+  if (error) {
+    throw new Error('Failed to count entitlements');
+  }
+
+  return count || 0;
+}
+
+export async function getIncompleteArcadeSession(
+  client: Client,
+  profileId: string
+): Promise<{
+  session: Database['public']['Tables']['sessions']['Row'];
+  puzzle: Database['public']['Tables']['puzzles']['Row'];
+  guesses: Database['public']['Tables']['guesses']['Row'][];
+} | null> {
+  // Find the most recent incomplete arcade session
+  const { data: session, error: sessionError } = await client
+    .from('sessions')
+    .select('*')
+    .eq('profile_id', profileId)
+    .eq('mode', 'arcade')
+    .is('result', null)
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (sessionError && sessionError.code !== 'PGRST116') {
+    throw new Error(`Failed to find incomplete session: ${sessionError.message}`);
+  }
+
+  if (!session) {
+    return null;
+  }
+
+  // Get the puzzle for this session
+  const { data: puzzle, error: puzzleError } = await client
+    .from('puzzles')
+    .select('*')
+    .eq('puzzle_id', session.puzzle_id)
+    .single();
+
+  if (puzzleError || !puzzle) {
+    throw new Error('Failed to fetch puzzle for session');
+  }
+
+  // Get all guesses for this session (use the working function)
+  const guesses = await getSessionGuesses(client, session.session_id);
+
+  return {
+    session,
+    puzzle,
+    guesses
+  };
 }

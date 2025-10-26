@@ -117,6 +117,7 @@ export interface Database {
           initdata_hash: string | null;
           verified: boolean;
           suspicion: string[] | null;
+          hints_used: Array<{letter: string; position: number}> | null;
           created_at: string;
         };
         Insert: {
@@ -136,6 +137,7 @@ export interface Database {
           initdata_hash?: string | null;
           verified?: boolean;
           suspicion?: string[] | null;
+          hints_used?: Array<{letter: string; position: number}> | null;
           created_at?: string;
         };
         Update: {
@@ -155,6 +157,7 @@ export interface Database {
           initdata_hash?: string | null;
           verified?: boolean;
           suspicion?: string[] | null;
+          hints_used?: Array<{letter: string; position: number}> | null;
           created_at?: string;
         };
       };

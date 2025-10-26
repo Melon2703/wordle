@@ -74,7 +74,8 @@ export async function POST(request: Request) {
         puzzle_id: puzzle.puzzle_id,
         mode: 'arcade',
         hard_mode: hardMode,
-        started_at: new Date().toISOString()
+        started_at: new Date().toISOString(),
+        hints_used: []
       })
       .select()
       .single();
@@ -86,13 +87,25 @@ export async function POST(request: Request) {
       );
     }
     
+    // Get hint entitlements count
+    const { count: entitlementsCount } = await client
+      .from('entitlements')
+      .select('*', { count: 'exact', head: true })
+      .eq('profile_id', profile.profile_id)
+      .eq('product_id', 'arcade_hint');
+    
+    const hintEntitlementsAvailable = entitlementsCount || 0;
+    
     const response: ArcadeStartResponse = {
       puzzleId: puzzle.puzzle_id,
+      sessionId: session.session_id,
       mode: 'arcade',
       length: length as 4 | 5 | 6,
       maxAttempts: length + 1, // Allow one extra attempt for arcade
       serverNow: new Date().toISOString(),
-      solution: randomWord.toLowerCase().replace(/ё/g, 'е') // normalized for client validation
+      solution: randomWord.toLowerCase().replace(/ё/g, 'е'), // normalized for client validation
+      hintsUsed: [],
+      hintEntitlementsAvailable
     };
     
     return NextResponse.json(response);

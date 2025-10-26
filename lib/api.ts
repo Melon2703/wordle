@@ -6,7 +6,7 @@ import type {
   DailyPuzzlePayload,
   ShopCatalog
 } from './contracts';
-import type { UserStatus, Banner } from './types';
+import type { UserStatus, Banner, ArcadeSessionCheckResponse } from './types';
 
 // Debug logging helper - only logs in development
 function debugLog(message: string, ...args: unknown[]) {
@@ -75,6 +75,12 @@ export async function openUserProfile(username: string, displayName: string): Pr
 
 // Helper to get Telegram init data from window with comprehensive detection
 function getTelegramInitData(): string | null {
+  // why: use mock auth in local development for testing (AGENTS.md)
+  if (process.env.NODE_ENV === 'development') {
+    debugLog('⚠️ Using mock init data for local development');
+    return 'mock-init-data';
+  }
+  
   if (typeof window === 'undefined') {
     debugLog('🔍 API Debug - Running on server side, no window object');
     return null;
@@ -277,6 +283,52 @@ export async function completeArcadeSession(
     method: 'POST',
     headers: createHeaders(),
     body: JSON.stringify({ puzzleId, result, attemptsUsed, timeMs })
+  });
+  
+  return handleResponse<{ ok: boolean }>(response);
+}
+
+export async function callArcadeHint(sessionId: string): Promise<{
+  hints: Array<{ letter: string; position: number }>;
+  entitlementsRemaining: number;
+}> {
+  const response = await fetch('/api/arcade/hint', {
+    method: 'POST',
+    headers: createHeaders(),
+    body: JSON.stringify({ sessionId })
+  });
+  
+  return handleResponse<{
+    hints: Array<{ letter: string; position: number }>;
+    entitlementsRemaining: number;
+  }>(response);
+}
+
+export async function checkArcadeSession(): Promise<ArcadeSessionCheckResponse> {
+  const response = await fetch('/api/arcade/session', {
+    headers: createHeaders()
+  });
+  
+  return handleResponse<ArcadeSessionCheckResponse>(response);
+}
+
+export async function recordArcadeGuess(
+  sessionId: string,
+  guessIndex: number,
+  textInput: string,
+  textNorm: string,
+  feedbackMask: string
+): Promise<{ ok: boolean }> {
+  const response = await fetch('/api/arcade/guess/record', {
+    method: 'POST',
+    headers: createHeaders(),
+    body: JSON.stringify({
+      sessionId,
+      guessIndex,
+      textInput,
+      textNorm,
+      feedbackMask
+    })
   });
   
   return handleResponse<{ ok: boolean }>(response);
