@@ -110,6 +110,17 @@ export async function POST(request: Request) {
     
     // Get existing guesses for hard mode validation
     const existingGuesses = await getSessionGuesses(client, session.session_id);
+    
+    // Check for duplicate words (case-insensitive)
+    const guessForComparison = guessForLookup.toLowerCase();
+    const isDuplicate = existingGuesses.some(g => g.text_norm.toLowerCase() === guessForComparison);
+    if (isDuplicate) {
+      return NextResponse.json(
+        { error: 'Вы уже пробовали это слово' },
+        { status: 400 }
+      );
+    }
+    
     const existingLines: GuessLine[] = existingGuesses.map(guess => ({
       guess: guess.text_norm,
       submittedAt: guess.created_at,
