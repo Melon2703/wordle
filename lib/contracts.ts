@@ -112,7 +112,9 @@ export const sampleArcadeStart: ArcadeStartResponse = {
   serverNow: new Date().toISOString(),
   solution: 'СЛОВО',
   hintsUsed: [],
-  hintEntitlementsAvailable: 0
+  hintEntitlementsAvailable: 0,
+  extraTryEntitlementsAvailable: 0,
+  hiddenAttempts: []
 };
 
 export const sampleArcadeGuess: ArcadeGuessResponse = {

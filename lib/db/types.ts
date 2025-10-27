@@ -121,6 +121,7 @@ export interface Database {
           verified: boolean;
           suspicion: string[] | null;
           hints_used: Array<{letter: string; position: number}> | null;
+          hidden_attempts: Array<{guess: string; feedback: Array<{index: number; letter: string; state: 'correct' | 'present' | 'absent'}>; submittedAt: string}> | null;
           created_at: string;
         };
         Insert: {
@@ -141,6 +142,7 @@ export interface Database {
           verified?: boolean;
           suspicion?: string[] | null;
           hints_used?: Array<{letter: string; position: number}> | null;
+          hidden_attempts?: Array<{guess: string; feedback: Array<{index: number; letter: string; state: 'correct' | 'present' | 'absent'}>; submittedAt: string}> | null;
           created_at?: string;
         };
         Update: {
@@ -161,6 +163,7 @@ export interface Database {
           verified?: boolean;
           suspicion?: string[] | null;
           hints_used?: Array<{letter: string; position: number}> | null;
+          hidden_attempts?: Array<{guess: string; feedback: Array<{index: number; letter: string; state: 'correct' | 'present' | 'absent'}>; submittedAt: string}> | null;
           created_at?: string;
         };
       };

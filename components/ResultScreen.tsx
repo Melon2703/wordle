@@ -49,21 +49,15 @@ export function ResultScreen({
           </div>
         ) : (
           // For loss: show answer block instead of icon (same size as star)
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center">
-            <div className="px-3 py-2 bg-slate-100 rounded-lg text-center">
-              <Text className="text-[10px] text-slate-600 block leading-tight mb-0.5">Слово дня</Text>
+          <div className="mx-auto mb-4 flex h-20 items-center justify-center">
+            <div className="px-3 py-2 bg-slate-100 rounded-lg text-center min-w-20">
+              <Text className="text-[10px] text-slate-600 block leading-tight mb-0.5">{mode === 'daily' ? 'Слово дня' : 'Неразгаданное слово'}</Text>
               <Text className="font-bold text-sm text-slate-800 uppercase leading-tight">{answer}</Text>
             </div>
           </div>
         )}
         
         <Heading level={2}>{resultCopy}</Heading>
-        
-        {status === 'lost' && mode === 'arcade' && (
-          <Text className="mt-2">
-            Можете потренироваться в режиме Аркада.
-          </Text>
-        )}
       </div>
 
       {/* Statistics Section */}
