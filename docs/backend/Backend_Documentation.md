@@ -1,203 +1,155 @@
 # Backend Documentation — Russian Word Puzzle (Telegram Mini App)
 
-**TL;DR:** The backend is **Next.js (App Router) on Vercel** with **Supabase (Postgres + RLS + Storage)**. It validates **Telegram init data**, serves puzzle state, computes feedback server‑side, stores results, runs **nightly rollovers** with Vercel Cron, and fulfills **Telegram Stars** purchases via a **webhook**. This doc is split into two parts: **Server** and **Database** and is aligned with the frontend contracts defined in `Frontend_Documentation.md`.
+Backend is implemented with Next.js App Router (Node runtime) and Supabase. It authenticates every request with Telegram init data, serves puzzle state, records gameplay, drives Telegram Stars purchases, and runs nightly maintenance. This document reflects the current code in `app/api/**`, `lib/**`, and Supabase helpers.
 
 ---
 
-## Part A — Server (Next.js on Vercel)
+## 1. Architecture Snapshot
 
-### A.1 Responsibilities
-- **Auth:** Verify Telegram **init data** (HMAC‑SHA256) from the Mini App; never trust `initDataUnsafe`. citeturn0search10
-- **Game logic:** Validate guesses, apply RU rules/duplicates, compute tile feedback; attempts/time measured on the server.
-- **APIs:** Route Handlers under `app/api/**/route.ts` expose endpoints used by the frontend. citeturn0search0
-- **Payments:** Create **Stars** invoices for digital goods; handle payment confirmations on a **webhook**. citeturn0search3
-- **Scheduling:** Run **nightly rollovers** with Vercel Cron (HTTP GET to your route; known UA). citeturn0search1
-- **Performance:** Use **Node runtime** for mutations/webhooks; **Edge** only for simple reads. citeturn0search8turn0search15
-
-### A.2 Endpoints (I/O aligned with frontend)
-**Daily**
-- `GET /api/puzzle/daily` → `DailyPuzzlePayload` (cache until `expiresAt`).
-- `POST /api/puzzle/daily/guess` `{ puzzleId, guess, hardMode? }` → `{ line, status: 'playing'|'won'|'lost', attemptsUsed }`.
-
-**Arcade**
-- `POST /api/arcade/start` `{ length: 4|5|6|7, hardMode }` → `ArcadeStartResponse`.
-- `POST /api/arcade/guess` `{ puzzleId, guess }` → Daily‑like result; on final state: `{ mmrDelta }`.
-- `POST /api/arcade/complete` `{ puzzleId, result, attemptsUsed, timeMs }` → `{ ok: boolean }` (records session completion).
-
-**Dictionary**
-- `GET /api/dict/check?word=СТРОКА` → `{ valid: boolean }` (no hints, no solution leakage).
-
-**Leaderboards**
-- `GET /api/leaderboard/daily?puzzleId=...` → `DailyLeaderboard` (attempts first; time as tiebreaker).
-
-**Shop (Stars, digital goods)**
-- `GET /api/shop/catalog` → `ShopCatalog` (tickets, season pass, cosmetics, analysis, archive).
-- `POST /api/shop/purchase` `{ productId }` → creates Stars invoice and returns UI params (fulfillment via webhook). citeturn0search3
-
-**Webhooks & Jobs**
-- `POST /api/tg/webhook/<SECRET>` → Telegram **Bot** updates (`successful_payment` etc.). Use Node runtime and raw body if provider requires signature validation. citeturn0search11turn0search21  
-- `GET /api/cron/nightly` → rollover daily, snapshot leaderboard; triggered by Vercel Cron (HTTP GET; `vercel-cron/1.0` UA). citeturn0search1
-
-> **Note:** Route Handlers are the App Router way to implement APIs inside Next.js. Choose **Node** for crypto/webhooks and **Edge** for read‑only low‑latency endpoints. citeturn0search0turn0search8turn0search15
-
-### A.3 Auth & Security
-- **Validate init data** from `tgWebAppData` each request using **HMAC‑SHA256** with the bot token per Telegram guidance; reject `initDataUnsafe` as untrusted. citeturn0search10
-- **Secrets:** `BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `WEBHOOK_SECRET_PATH` stored as Vercel env vars; functions can read them at runtime. citeturn0search16
-- **Rate limiting:** throttle guess submissions per user/IP; soft‑lock on unusual typing speeds.
-- **Anti‑cheat flags:** mark suspicious sessions (impossible timings, repeated abandon/retake).
-
-### A.4 Payments (Telegram Stars)
-- **Create invoice** via Telegram **Bot Payments for Digital Goods**; user pays with Stars balance. The webhook receives `successful_payment`, after which you grant entitlements (tickets/pass/cosmetics). citeturn0search3
-- **Webhook security:** keep a secret path (e.g., `/api/tg/webhook/<SECRET>`); optionally validate sources; manage retries idempotently. citeturn0search11
-- **Digital goods only:** this flow is designed for digital goods/services (not physical items). citeturn0search3
-
-### A.5 Scheduling & Rollover
-- Use **Vercel Cron Jobs**: Vercel performs an **HTTP GET** to the path you define; jobs show as normal function invocations and include a dedicated user‑agent. citeturn0search1turn0search9
-- Nightly tasks: 1) close yesterday’s daily, 2) snapshot leaderboard, 3) open next daily, 4) clean stale arcade sessions.
-
-### A.6 Runtime & Body Parsing
-- **Node vs Edge:** Edge is fast but limited APIs; Node is default and supports crypto, raw body, SDKs. citeturn0search8turn0search15
-- **Raw body for webhooks:** some providers require raw body for signature verification; disable parsing and read the raw stream in Node runtime. citeturn0search21turn0search7
-
-### A.7 Observability & Ops
-- Structured logs for guesses, results, payments; Vercel dashboard shows function logs (including cron‑invoked). citeturn0search9
-- Metrics tables (simple counters) in Supabase; alarms on webhook failures or high 5xx rates.
-
-### A.8 Environment Variables (server)
-```
-BOT_TOKEN
-SUPABASE_URL
-SUPABASE_SERVICE_KEY
-WEBHOOK_SECRET_PATH      # e.g., random suffix for /api/tg/webhook/<SECRET>
-DICTIONARY_BUCKET        # Supabase Storage bucket name for wordlists
-DICTIONARY_URL           # optional CDN/signed URL base for dictionary assets
-```
+- **Runtime:** Next.js 14 Route Handlers on the **Node.js** runtime (needed for crypto, Supabase SDK, sharp, and Telegram Bot API).
+- **Data layer:** Supabase Postgres accessed through the service-role key (`lib/db/client.ts`). Storage hosts dictionary wordlists and the rolling list of recently used daily answers.
+- **Auth:** `lib/auth/validateInitData.ts` validates Telegram Mini App `initData` on every request. A local flag `USE_MOCK_AUTH` lets devs bypass the signature check.
+- **Caching:** Domain-level caching is handled with React Query on the client. Server-side helpers cache environment variables (`lib/env.ts`) and dictionary sets (`lib/dict/loader.ts`) in-memory for the life of the function instance.
+- **Rate limiting:** `lib/rate-limit.ts` throttles guess submissions to 8 requests per 10 seconds per user. This is an in-memory guard (per serverless instance).
+- **Feature flags:** `TEMP_ARCADE_UNLIMITED` (env) skips arcade availability gating; intended for QA.
 
 ---
 
-## Part B — Database (Supabase / Postgres)
+## 2. Environment & Security
 
-### B.1 Principles
-- **Single source of truth**: session outcome lives in `sessions`; leaderboards are derived (materialized view or query).  
-- **RLS on by default** for user‑owned tables (owner can read/write), public read only for catalogs (dictionary, puzzles, products). citeturn0search4  
-- **Orthography**: store UI text, and a normalized form for validation; duplicates handled in feedback logic.
-- **Performance**: index hot paths; pre‑aggregate leaderboard; keep server‑measured time.
+Required env vars (`lib/env.ts`):
+- `BOT_TOKEN` — Telegram Bot token (used for init data validation, invoices, refunds, inline messages).
+- `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` — service role credentials for database and Storage access.
+- `WEBHOOK_SECRET_PATH` — secret segment for the Telegram webhook route.
 
-### B.2 Minimal Schema (updated)
-> This updates the initial draft with a leaner, production‑oriented set. All timestamps are UTC (`timestamptz`).
+Optional:
+- `USE_MOCK_AUTH` — when `"true"`, the backend returns a hard-coded Telegram profile for local development.
+- `TEMP_ARCADE_UNLIMITED` — when `"true"`, skips arcade availability checks.
 
-**profiles** — player identity & prefs (RLS: owner)
-- `profile_id uuid pk`, `telegram_id bigint unique not null`  
-- `username text`, `locale text default 'ru'`, `tz text`  
-- `colorblind_mode bool`, `haptics_on bool`  
-- `streak_current int`, `streak_max int`, `last_daily_played_at timestamptz`  
-- `is_banned bool`, `ban_reason text`, `ban_expires_at timestamptz`  
-- `created_at timestamptz default now()`
+`requireAuthContext(request)` returns `{ raw, parsed, userId }` and throws if validation fails. Most routes immediately call it to protect private data. When mock auth is enabled, the function logs a warning and issues the sample user profile.
 
-### B.2a Word Access & Validation
-
-**Storage-backed wordlists:**
-- Public Storage URLs:
-  - `for-guesses.txt` (~3k words) - allowed guesses for validation
-  - `for-puzzles.txt` (~200 words) - curated puzzle answers  
-  - `daily-used-words.txt` - tracks used daily words (server-managed)
-- Next.js fetch with `revalidate: 21600` (6 hours) for wordlists; shorter (60s) for used-words
-- Normalization policy: `toLowerCase()` + `ё→е` via `translate()` in Postgres
-- `puzzles.solution_text` stores actual answer; `solution_norm` is generated column
-- **Daily word cycle**: `daily-used-words.txt` tracks used words; resets when all ~200 exhausted
-- **Validation split**: Daily server-side (fairness), Arcade client-side (performance)
-- Storage writes: use service role client to update `daily-used-words.txt`
-- Optional future: signed URLs if bucket becomes private
-
-
-**puzzles** — daily & arcade targets (public select)  
-- `puzzle_id uuid pk`, `mode enum('daily','arcade')`, `date date`, `letters smallint`  
-- `solution_text text`, `solution_norm text` (generated column: lowercase + ё→е normalization)
-- `difficulty smallint`, `ruleset_version smallint`  
-- `status enum('draft','published','retired')`, `seed text`  
-- **Constraint:** unique `(date, letters)` where `mode='daily' and status='published'`
-
-**sessions** — one per player×puzzle (RLS: owner)  
-- `session_id uuid pk`, `profile_id → profiles`, `puzzle_id → puzzles`, `mode enum`  
-- `run_id uuid nullable` (arcade parent), `stage_index smallint`  
-- `started_at timestamptz`, `ended_at timestamptz`, `time_ms int`  
-- `result enum('win','lose','abandon')`, `attempts_used smallint`  
-- `hard_mode bool`, `client_build text`, `initdata_hash text`, `verified bool`, `suspicion text[]`  
-- **Indexes:** unique `(profile_id, puzzle_id)` where `mode='daily'`; `(puzzle_id)`; `(result, attempts_used, time_ms)`
-
-**guesses** — ordered lines (RLS: owner)  
-- `guess_id uuid pk`, `session_id → sessions`, `guess_index smallint >=1`  
-- `text_input text`, `text_norm text`, `feedback_mask text`, `created_at timestamptz`  
-- **Indexes:** unique `(session_id, guess_index)`; index `(session_id)`
-
-**arcade_runs** — arcade container (RLS: owner)  
-- `run_id uuid pk`, `profile_id → profiles`, `started_at`, `finished_at`, `status enum('active','complete')`  
-- `lives_remaining smallint`, `score_total int`  
-- **Index:** `(profile_id, status)`
-
-**products** — Stars catalog (public select)  
-- `product_id text pk`, `type enum('ticket','season_pass','cosmetic','analysis','archive')`  
-- `title_ru text`, `description_ru text`, `price_stars int`, `recurring enum(null,'monthly','seasonal')`  
-- `badge enum(null,'new','popular')`, `active bool`, `created_at`
-
-**purchases** — Stars receipts (RLS: owner)  
-- `purchase_id uuid pk`, `profile_id → profiles`, `product_id → products`  
-- `status enum('pending','paid','failed','refunded')`, `stars_amount int`, `provider_payload jsonb`, `created_at`  
-- **Indexes:** `(profile_id, status)`, `(product_id)`
-
-**entitlements** — inventory (RLS: owner)  
-- `entitlement_id uuid pk`, `profile_id → profiles`, `product_id → products`, `is_equipped bool`, `granted_at`  
-- **Constraint:** unique `(profile_id, product_id)`
-
-**leaderboard_by_puzzle** — materialized view (public select)  
-- Derived from `sessions` where `result='win'`, ranked by attempts then time.
-
-> Storage: **Supabase Storage** bucket for dictionary assets (private by default or CDN with signed URLs). citeturn0search12turn0search5turn0search19
-
-### B.3 RLS Patterns
-- Owner tables (`profiles`, `sessions`, `guesses`, `arcade_runs`, `purchases`, `entitlements`): **enable RLS** and allow `select/insert/update` only where `profile_id` equals the JWT claim. citeturn0search4
-- Catalog tables (`puzzles`, `products`, `leaderboard_by_puzzle`): public `select` (or `select using (true)`), writes by service role only.
-
-### B.4 Indexing & Performance
-- `sessions (profile_id, puzzle_id)` unique (daily)  
-- `sessions (puzzle_id)`, `(result, attempts_used, time_ms)`  
-- `guesses (session_id, guess_index)`  
-- `leaderboard_by_puzzle (puzzle_id, rank)` (MV index)  
-- Store `feedback_mask` to avoid recomputation on reads.
-
-### B.5 Dictionary strategy (Storage + cache)
-- Keep wordlists in **Supabase Storage** (`DICTIONARY_BUCKET`), private by default; optional **`DICTIONARY_URL`** for CDN/signed access (Edge‑friendly). citeturn0search12turn0search5  
-- Server loads `meta.json` + `allowed/lenX.txt` + `answers/*` on cold start/first hit, builds in‑memory Sets, and hot‑reloads on version change.
-
-### B.6 Data flows (typical)
-
-**Daily**
-1) Fetch today’s published `puzzle`; first valid guess creates `session`.  
-2) Each guess inserts into `guesses` with `feedback_mask`; server updates session attempts/time.  
-3) On completion, seal `session` with `result`, `attempts_used`, `time_ms`. Leaderboard view ranks wins.
-
-**Arcade**
-1) Create `arcade_runs` on start; each stage is a `session` linked via `run_id`.  
-2) Client evaluates guesses locally for instant feedback; calls `/api/arcade/complete` to record final result.
-3) Update `score_total` and lives; compute `mmr_delta` if you add rating later.
-
-**Economy**
-1) Show `products` catalog.  
-2) On Stars webhook `successful_payment`, set `purchases.status='paid'` and grant `entitlements` (idempotent). citeturn0search3
-
-### B.7 Governance & Ops
-- **Migrations:** keep SQL migrations in repo; use Supabase CLI.
-- **Backfills:** leaderboard MV can be dropped/rebuilt; `sessions` is authoritative.
-- **Data quality:** maintain banned list; normalize RU input for `text_norm`.
+All Route Handlers opt into `export const runtime = 'nodejs';`.
 
 ---
 
-## References
-- **Next.js Route Handlers (App Router)** — APIs for server routes. citeturn0search0  
-- **Next.js runtimes (Edge vs Node)** — capabilities & trade‑offs. citeturn0search8turn0search15  
-- **Vercel Functions** — serverless functions on Vercel. citeturn0search16  
-- **Vercel Cron Jobs** — HTTP GET triggering & logs. citeturn0search1turn0search9  
-- **Telegram Mini Apps init data** — validate `initData` and don’t trust `initDataUnsafe`. citeturn0search10  
-- **Telegram Stars (digital goods)** — Bot Payments for digital goods. citeturn0search3  
-- **Supabase Row‑Level Security** — enable RLS on exposed tables. citeturn0search4  
-- **Supabase Storage** — buckets (public/private), CDN, and creation. citeturn0search12turn0search5turn0search19
+## 3. API Surface (Route Handlers)
+
+### 3.1 Daily Puzzle
+- `GET /api/puzzle/daily`  
+  - Creates/fetches a Supabase `profiles` row, loads today’s published daily puzzle, looks up existing `sessions` and `guesses`, and returns a `DailyPuzzlePayload`. Supabase response is never cached; headers disable downstream caching.
+- `POST /api/puzzle/daily/guess`  
+  - Guards with rate limit, validates payload, normalises the guess (`normalizeGuess`), ensures dictionary membership (`loadDictionary`), enforces hard mode if requested, records the guess, and updates session status/time. Streak updates live on the `profiles` row.
+
+### 3.2 Arcade Mode
+- `POST /api/arcade/start`  
+  - Accepts `length` ∈ {4,5,6}. Loads answer corpus from Storage, inserts a new `puzzles` row (mode `arcade`), and creates a `sessions` row (maxAttempts = `length + 1`). Returns `ArcadeStartResponse` including currently available hint/extra-try entitlements and normalised solution text.
+- `POST /api/arcade/guess`  
+  - Mirrors daily guess validation but enforces the arcade attempts cap, keeps hard mode status from the session, and writes the guess via `recordDailyGuess`. Returns `ArcadeGuessResponse` (`mmrDelta` is placeholder).
+- `POST /api/arcade/guess/record`  
+  - Lightweight endpoint used by the client to persist locally evaluated guesses when latency-sensitive; stores guess rows and bumps attempts count.
+- `POST /api/arcade/complete`  
+  - Finalises the arcade session with the client-reported `result`, `attemptsUsed`, and `timeMs`.
+- `GET /api/arcade/session`  
+  - Restores the most recent incomplete arcade session (if any), returning session metadata, prior guesses, entitlements, and hidden attempts pushed by extra tries.
+- `GET /api/arcade/status`  
+  - Exposes `profiles.is_arcade_available` plus the count of `arcade_new_game` entitlements.
+- `POST /api/arcade/unlock`  
+  - Consumes an `arcade_new_game` entitlement and flips `is_arcade_available` to `true`.
+- `POST /api/arcade/hint`  
+  - Consumes one `arcade_hint` entitlement, reveals a random unrevealed letter, persists the hint array on the session, and returns remaining entitlements.
+- `POST /api/arcade/extra-try/use`  
+  - Consumes an `arcade_extra_try` entitlement, deletes the most recent guess, appends the failed attempt to `sessions.hidden_attempts`, and decrements `attempts_used`.
+- `POST /api/arcade/extra-try/finish`  
+  - Clears `hidden_attempts`, marks the session as a loss, and seals it.
+
+### 3.3 Shared Utilities
+- `GET /api/user/status`  
+  - Aggregates today’s daily state (status/attempts/time), streak, next puzzle timestamp (UTC midnight rollover), total arcade wins, and exposes `profileId` for the client.
+- `GET /api/banners`  
+  - Returns static in-memory banner definitions after auth. Currently filtered by expiry only.
+- `GET /api/dict/check?word=`  
+  - Boolean lookup against the cached dictionary set.
+- `GET /api/dict/words?length=`  
+  - Returns the allowed word set for the requested length (4/5/6/7). Used by arcade UI for client-side validation.
+- `GET /api/leaderboard/daily?puzzleId=`  
+  - Reads Supabase `sessions` joined with `profiles` to produce the top 50 results for a puzzle. Display name is username (with `https://t.me/<username>` link) else `first_name`.
+
+### 3.4 Shop, Purchases, and Entitlements
+- `GET /api/shop/catalog`  
+  - Authenticated fetch of the `products` table; caches for 5 minutes (stale-while-revalidate 10 minutes).
+- `POST /api/shop/purchase` `{ productId }`  
+  - Creates a `purchases` row (status `pending`), hits `createInvoiceLink` on the Telegram Bot API with the purchase payload, saves the invoice URL, and returns `{ ok, purchase_id, invoice_url, stars_amount }`.
+- `GET /api/purchases`  
+  - Lists a user’s purchases with joined product metadata.
+- `POST /api/purchases/:purchaseId/refund`  
+  - Calls Telegram `refundStarPayment` when `telegram_payment_charge_id` is present, then updates the purchase status to `refunded`.
+- `DELETE /api/purchases/:purchaseId/cleanup`  
+  - Deletes pending purchases the user cancelled (used after an aborted invoice).
+- `POST /api/tg/webhook/<secret>`  
+  - Processes Telegram Bot webhook payloads; expects path segment equal to `WEBHOOK_SECRET_PATH`. Current logic handles:
+    - `successful_payment`: mark purchase as paid, persist charge IDs, and upsert a matching entitlement.
+    - `pre_checkout_query`: approves Stars payments (all valid payloads return `ok: true`).
+
+### 3.5 Sharing
+- `POST /api/share/prepare`  
+  - Validates auth, prepares a PNG scorecard via `/api/share/card`, builds a Telegram deep-link payload, and calls `savePreparedInlineMessage`. Responds with `{ preparedMessageId }` for `Telegram.WebApp.shareMessage`.
+- `GET /api/share/card`  
+  - Renders a minimalist grid PNG (800×418) with sharpened tiles using `sharp`. Supports optional `lines` payload for exact tile colours.
+
+### 3.6 Cron & Maintenance
+- `GET /api/cron/nightly`  
+  - Intended for Vercel Cron. Requires `VERCEL_CRON_SECRET` env to be present (note: current implementation only checks existence, not request headers). Workflow:
+    1. Ensure tomorrow’s daily puzzle exists (create from Storage word list if missing).
+    2. Maintain the “used words” list in Storage to avoid repeats; resets cycle if exhausted.
+    3. Call `refresh_leaderboard_materialized_view` Supabase RPC.
+    4. Reset `profiles.is_arcade_available` to `true` for all users.
+
+---
+
+## 4. Game Logic Internals
+
+- **Feedback:** `lib/game/feedback.ts` evaluates guesses server-side, enforcing duplicate letter rules via a two-pass occurrence counter. The same function powers arcade guess validation.
+- **Normalisation & hard mode:** `lib/game/policies.ts` houses `normalizeGuess` (handles optional Ё→Е substitution) and `validateHardMode` (ensures revealed greens stay fixed and yellows are reused).
+- **Dictionary:** `lib/dict/loader.ts` downloads three text files from Supabase Storage (allowed guesses, valid answers, and the running “used words” list). Results are cached per instance; helper `resetDictionary()` clears the cache for tests. Storage updates go through `updateUsedWords`.
+- **Rate limit keys:** prefixed with `daily-guess:` / `arcade-guess:` per Telegram user ID.
+
+---
+
+## 5. Data Model (Supabase)
+
+The generated types in `lib/db/types.ts` map 1:1 to Supabase tables. Key entities:
+
+- **profiles**
+  - Primary key: `profile_id` (UUID). Stores Telegram identifiers, streak metrics, high-contrast settings, and arcade availability. Updated via `getOrCreateProfile`.
+- **puzzles**
+  - Columns: `mode` (`daily`/`arcade`), `date` (for daily), `letters`, `solution_text`, `solution_norm`, `status`, `seed`. Cron inserts new daily puzzles; arcade start inserts ad-hoc rows.
+- **sessions**
+  - Links `profile_id` ↔ `puzzle_id`, tracks attempts, result, timings, `hard_mode`, `hints_used`, and `hidden_attempts` (for extra tries). Inserted/updated from the daily and arcade handlers.
+- **guesses**
+  - Stores each guess with `text_input`, `text_norm`, and `feedback_mask` JSON string. Ordered by `guess_index`.
+- **products**
+  - Stars catalog. Fields include `type`, RU titles/descriptions, price, optional recurring cadence, and badge.
+- **purchases**
+  - Stars transactions with status (`pending` → `paid` → `refunded`), invoice payloads, and charge IDs. Webhook updates these rows.
+- **entitlements**
+  - Inventory/ownership per profile (`arcade_hint`, `arcade_extra_try`, `arcade_new_game`, etc.). Refund and webhook flows both modify this table.
+- **leaderboard_by_puzzle** (materialised view)
+  - Nightly cron refreshes the view; `fetchDailyLeaderboard` currently queries raw sessions but the view remains available for denormalised lookups.
+
+### Storage Assets
+- **Wordlists bucket:**  
+  - `ru/v1/for-guesses.txt` — allowed guess words (lowercase).  
+  - `ru/v1/for-puzzles.txt` — answer corpus.  
+  - `ru/v1/daily-used-words.txt` — maintained list of prior daily answers.  
+  All files are fetched over HTTPS; responses are cached with `next: { revalidate: ... }`.
+
+---
+
+## 6. Operational Notes
+
+- **Logging:** Route Handlers log warnings for Supabase table absence (useful while migrations are in flux) and errors around purchases, streak updates, and cron jobs. Webhook, refund, and cleanup routes include verbose debug output.
+- **Idempotency:** Purchase, refund, hint, and extra-try routes guard against duplicate processing by checking existing session state and consumption counts before mutating.
+- **Testing hooks:** `USE_MOCK_AUTH` + `TEMP_ARCADE_UNLIMITED` make it possible to test flows locally without Telegram or gating.
+- **Limitations:** Rate limiting is per-instance (no shared store). The cron route currently only checks that `VERCEL_CRON_SECRET` is set; consider validating request headers in production.
+
+Keep this file in sync when adding routes, new entitlements, or altering Supabase schema so frontend and ops references stay aligned.
