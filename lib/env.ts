@@ -43,3 +43,6 @@ export function env(): Env {
 export function resetEnvCache(): void {
   cache = null;
 }
+
+// Temporary testing flag: allow unlimited arcade games
+export const TEMP_ARCADE_UNLIMITED = process.env.TEMP_ARCADE_UNLIMITED === 'true';

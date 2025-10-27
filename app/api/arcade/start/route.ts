@@ -3,6 +3,7 @@ import { requireAuthContext } from '../../../../lib/auth/validateInitData';
 import { getServiceClient } from '../../../../lib/db/client';
 import { getOrCreateProfile } from '../../../../lib/db/queries';
 import { loadPuzzleAnswers } from '../../../../lib/dict/loader';
+import { TEMP_ARCADE_UNLIMITED } from '../../../../lib/env';
 import type { ArcadeStartResponse } from '../../../../lib/contracts';
 
 export const runtime = 'nodejs';
@@ -140,10 +141,13 @@ export async function POST(request: Request) {
     const extraTryEntitlementsAvailable = extraTryResult.count || 0;
     
     // Set arcade available to false (user used their daily game)
-    await client
-      .from('profiles')
-      .update({ is_arcade_available: false })
-      .eq('profile_id', profile.profile_id);
+    // Skip this in unlimited mode for testing
+    if (!TEMP_ARCADE_UNLIMITED) {
+      await client
+        .from('profiles')
+        .update({ is_arcade_available: false })
+        .eq('profile_id', profile.profile_id);
+    }
     
     const response: ArcadeStartResponse = {
       puzzleId: puzzle.puzzle_id,
