@@ -64,7 +64,7 @@ export async function GET(request: Request) {
     const extraTryEntitlementsAvailable = extraTryCount || 0;
     
     // Convert hidden_attempts from database format
-    const hiddenAttempts: GuessLine[] = (session.hidden_attempts || []).map((attempt: any) => ({
+    const hiddenAttempts: GuessLine[] = (session.hidden_attempts || []).map((attempt: { guess: string; submittedAt: string; feedback: Array<{index: number; letter: string; state: 'correct' | 'present' | 'absent'}> }) => ({
       guess: attempt.guess,
       submittedAt: attempt.submittedAt,
       feedback: attempt.feedback

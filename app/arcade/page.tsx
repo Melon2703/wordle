@@ -10,7 +10,7 @@ import { ShareButton } from '@/components/ShareButton';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { Button, Card, Heading, Text } from '@/components/ui';
-import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess, getArcadeStatus, unlockArcade, useExtraTry, finishExtraTry } from '@/lib/api';
+import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess, getArcadeStatus, unlockArcade, useExtraTry as callUseExtraTry, finishExtraTry } from '@/lib/api';
 import { HintModal } from '@/components/HintModal';
 import { ExtraTryModal } from '@/components/ExtraTryModal';
 import { TopCenterIcon } from '@/components/TopCenterIcon';
@@ -45,7 +45,7 @@ export default function ArcadePage() {
   const [isUsingExtraTry, setIsUsingExtraTry] = useState(false);
   
   // Track pending record requests
-  const pendingRecords = useRef<Promise<void>[]>([]);
+  const pendingRecords = useRef<Promise<unknown>[]>([]);
 
   // Check arcade availability on mount
   useEffect(() => {
@@ -240,7 +240,7 @@ export default function ArcadePage() {
     
     setIsUsingExtraTry(true);
     try {
-      const response = await useExtraTry(session.sessionId, pendingFailedAttempt);
+      const response = await callUseExtraTry(session.sessionId, pendingFailedAttempt);
       
       // Update hidden attempts from backend response
       setHiddenAttempts(response.hiddenAttempts);
