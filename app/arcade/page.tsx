@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
@@ -43,6 +43,9 @@ export default function ArcadePage() {
   const [showExtraTryModal, setShowExtraTryModal] = useState(false);
   const [pendingFailedAttempt, setPendingFailedAttempt] = useState<GuessLine | null>(null);
   const [isUsingExtraTry, setIsUsingExtraTry] = useState(false);
+  
+  // Track pending record requests
+  const pendingRecords = useRef<Promise<void>[]>([]);
 
   // Check arcade availability on mount
   useEffect(() => {
@@ -343,27 +346,42 @@ export default function ArcadePage() {
       const line = evaluateGuessLocally(submittedGuess);
       setLines(prev => [...prev, line]);
       
-      // Record guess in database (await completion)
+      // Record guess in database
       const guessIndex = lines.length + 1;
       const feedbackMask = JSON.stringify(line.feedback.map(f => f.state));
       const normalizedGuess = normalizeGuess(submittedGuess, false);
       
-      try {
-        await recordArcadeGuess(
-          session.sessionId,
-          guessIndex,
-          submittedGuess, // original input
-          normalizedGuess, // normalized
-          feedbackMask
-        );
-      } catch (error) {
+      // Check if this is the last attempt
+      const isLastAttempt = lines.length + 1 >= session.maxAttempts;
+      
+      // Create the record promise
+      const recordPromise = recordArcadeGuess(
+        session.sessionId,
+        guessIndex,
+        submittedGuess, // original input
+        normalizedGuess, // normalized
+        feedbackMask
+      ).catch(error => {
         console.error('Failed to record guess:', error);
-        // Continue with game flow even if recording fails
+      }).finally(() => {
+        // Remove from pending array when done
+        pendingRecords.current = pendingRecords.current.filter(p => p !== recordPromise);
+      });
+      
+      // Add to pending array
+      pendingRecords.current.push(recordPromise);
+      
+      // If this is the last attempt, await ALL pending records before proceeding
+      if (isLastAttempt) {
+        try {
+          await Promise.all(pendingRecords.current);
+        } catch (error) {
+          console.error('Failed to complete all record requests:', error);
+        }
       }
       
       // Check win/loss
       const isWin = line.feedback.every(f => f.state === 'correct');
-      const isLastAttempt = lines.length + 1 >= session.maxAttempts;
       const isLost = !isWin && isLastAttempt;
       
       if (isWin) {
