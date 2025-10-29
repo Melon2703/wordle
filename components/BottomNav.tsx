@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
-import { CalendarCheck2, Zap, Store, CircleHelp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CalendarCheck2, Zap, Store, Receipt, CircleHelp } from 'lucide-react';
 import { RulesSheet } from './RulesSheet';
 import clsx from 'clsx';
 
 
 interface NavItem {
-  href: '/daily' | '/arcade' | '/shop';
+  href: '/daily' | '/arcade' | '/shop' | '/purchases';
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   showForAll?: boolean;
@@ -18,15 +18,38 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/daily', label: 'Ежедневная', icon: CalendarCheck2, showForAll: true },
   { href: '/arcade', label: 'Аркада', icon: Zap, showForAll: true },
-  { href: '/shop', label: 'Магазин', icon: Store, showForAll: true }
+  { href: '/shop', label: 'Магазин', icon: Store, showForAll: true },
+  { href: '/purchases', label: 'Покупки', icon: Receipt, showForAll: false }
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
   const [rulesSheetOpen, setRulesSheetOpen] = useState(false);
+  const [isSpecialUser, setIsSpecialUser] = useState(false);
+
+  // Check Telegram user ID to determine if purchases nav should be visible
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const checkTelegramUser = () => {
+      const tg = (window as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp;
+      if (tg?.initDataUnsafe?.user?.id === 626033046) {
+        setIsSpecialUser(true);
+      } else {
+        setIsSpecialUser(false);
+      }
+    };
+    
+    // Try immediately
+    checkTelegramUser();
+    
+    // Also try after a delay in case Telegram isn't ready yet
+    const timeout = setTimeout(checkTelegramUser, 1000);
+    return () => clearTimeout(timeout);
+  }, []);
 
   const visibleItems = navItems.filter(item => 
-    item.showForAll
+    item.showForAll || (item.href === '/purchases' && isSpecialUser)
   );
 
   const handleRulesClick = () => {
