@@ -39,7 +39,7 @@ export function ExtraTryModal({
         </div>
 
         <div className="mb-6">
-          <Text>Вы использовали все попытки</Text>
+          <Text>Хотите попробовать эту же головоломку еще раз?</Text>
         </div>
 
         <div className="flex gap-2">
@@ -52,7 +52,7 @@ export function ExtraTryModal({
                   onClick={() => setConfirming(true)}
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Загрузка...' : `Использовать попытку (${entitlementsRemaining} шт.)`}
+                  {isLoading ? 'Загрузка...' : `Попробовать снова (${entitlementsRemaining} шт.)`}
                 </Button>
               ) : (
                 <>
@@ -70,7 +70,7 @@ export function ExtraTryModal({
                     disabled={isLoading}
                     className="flex-1"
                   >
-                    {isLoading ? 'Загрузка...' : 'Подтвердить'}
+                    {isLoading ? 'Загрузка...' : 'Начать заново'}
                   </Button>
                 </>
               )}
@@ -101,4 +101,3 @@ export function ExtraTryModal({
     </div>
   );
 }
-

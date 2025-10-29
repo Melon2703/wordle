@@ -58,9 +58,9 @@ All Route Handlers opt into `export const runtime = 'nodejs';`.
 - `POST /api/arcade/hint`  
   - Consumes one `arcade_hint` entitlement, reveals a random unrevealed letter, persists the hint array on the session, and returns remaining entitlements.
 - `POST /api/arcade/extra-try/use`  
-  - Consumes an `arcade_extra_try` entitlement, deletes the most recent guess, appends the failed attempt to `sessions.hidden_attempts`, and decrements `attempts_used`.
+  - Consumes an `arcade_extra_try` entitlement, wipes the session’s guesses, resets attempt counters, and restarts the puzzle so the player can try again.
 - `POST /api/arcade/extra-try/finish`  
-  - Clears `hidden_attempts`, marks the session as a loss, and seals it.
+  - Marks the session as a loss and seals it (no hidden-attempt bookkeeping).
 
 ### 3.3 Shared Utilities
 - `GET /api/user/status`  
@@ -121,7 +121,7 @@ The generated types in `lib/db/types.ts` map 1:1 to Supabase tables. Key entitie
 - **puzzles**
   - Columns: `mode` (`daily`/`arcade`), `date` (for daily), `letters`, `solution_text`, `solution_norm`, `status`, `seed`. Cron inserts new daily puzzles; arcade start inserts ad-hoc rows.
 - **sessions**
-  - Links `profile_id` ↔ `puzzle_id`, tracks attempts, result, timings, `hard_mode`, `hints_used`, and `hidden_attempts` (for extra tries). Inserted/updated from the daily and arcade handlers.
+  - Links `profile_id` ↔ `puzzle_id`, tracks attempts, result, timings, `hard_mode`, and `hints_used`. Inserted/updated from the daily and arcade handlers.
 - **guesses**
   - Stores each guess with `text_input`, `text_norm`, and `feedback_mask` JSON string. Ordered by `guess_index`.
 - **products**

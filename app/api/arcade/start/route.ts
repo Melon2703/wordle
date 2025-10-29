@@ -119,8 +119,7 @@ export async function POST(request: Request) {
         mode: 'arcade',
         hard_mode: hardMode,
         started_at: new Date().toISOString(),
-        hints_used: [],
-        hidden_attempts: []
+        hints_used: []
       })
       .select()
       .single();
@@ -168,8 +167,7 @@ export async function POST(request: Request) {
       solution: randomWord.toLowerCase().replace(/ё/g, 'е'), // normalized for client validation
       hintsUsed: [],
       hintEntitlementsAvailable,
-      extraTryEntitlementsAvailable,
-      hiddenAttempts: []
+      extraTryEntitlementsAvailable
     };
     
     return NextResponse.json(response);

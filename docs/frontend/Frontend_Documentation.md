@@ -171,7 +171,6 @@ export interface ArcadeStartResponse {
   hintsUsed: Array<{ letter: string; position: number }>;
   hintEntitlementsAvailable: number;
   extraTryEntitlementsAvailable: number;
-  hiddenAttempts: GuessLine[];
 }
 
 export interface ArcadeGuessResponse {

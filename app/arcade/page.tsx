@@ -38,10 +38,8 @@ export default function ArcadePage() {
   const [newGameEntitlements, setNewGameEntitlements] = useState(0);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [isConfirmingUnlock, setIsConfirmingUnlock] = useState(false);
-  const [hiddenAttempts, setHiddenAttempts] = useState<GuessLine[]>([]);
   const [extraTryEntitlements, setExtraTryEntitlements] = useState(0);
   const [showExtraTryModal, setShowExtraTryModal] = useState(false);
-  const [pendingFailedAttempt, setPendingFailedAttempt] = useState<GuessLine | null>(null);
   const [isUsingExtraTry, setIsUsingExtraTry] = useState(false);
   
   // Track pending record requests
@@ -88,7 +86,6 @@ export default function ArcadePage() {
       setSession(sessionData);
       setHintEntitlementsRemaining(sessionData.hintEntitlementsAvailable);
       setExtraTryEntitlements(sessionData.extraTryEntitlementsAvailable);
-      setHiddenAttempts(sessionData.hiddenAttempts || []);
       setLines([]);
       setCurrentGuess('');
       setSessionStartTime(Date.now());
@@ -152,7 +149,6 @@ export default function ArcadePage() {
         setLines(incompleteSession.lines);
         setHintEntitlementsRemaining(incompleteSession.session.hintEntitlementsAvailable);
         setExtraTryEntitlements(incompleteSession.session.extraTryEntitlementsAvailable);
-        setHiddenAttempts(incompleteSession.session.hiddenAttempts);
         
         // Set session start time
         if (incompleteSession.startedAt) {
@@ -197,8 +193,7 @@ export default function ArcadePage() {
     staleTime: 30 * 1000,
   });
 
-  const allAttempts = [...lines, ...hiddenAttempts];
-  const keyboardState = buildKeyboardState(allAttempts);
+  const keyboardState = buildKeyboardState(lines);
   const length = session?.length ?? activeLength ?? 5; // Default to 5 for UI purposes when no selection
 
   const handleUseHint = async () => {
@@ -239,22 +234,17 @@ export default function ArcadePage() {
   };
 
   const handleUseExtraTry = async () => {
-    if (!session?.sessionId || !pendingFailedAttempt) return;
+    if (!session?.sessionId) return;
     
     setIsUsingExtraTry(true);
     try {
-      const response = await callUseExtraTry(session.sessionId, pendingFailedAttempt);
+      await callUseExtraTry(session.sessionId);
       
-      // Update hidden attempts from backend response
-      setHiddenAttempts(response.hiddenAttempts);
-      
-      // Remove last line from display
-      setLines(prev => prev.slice(0, -1));
-      
-      // Clear pending
-      setPendingFailedAttempt(null);
-      
-      setExtraTryEntitlements(prev => prev - 1);
+      setLines([]);
+      setCurrentGuess('');
+      setSessionStartTime(Date.now());
+      pendingRecords.current = [];
+      setExtraTryEntitlements(prev => Math.max(prev - 1, 0));
       setShowExtraTryModal(false);
       
       toast.notify('Попытка добавлена!');
@@ -272,9 +262,6 @@ export default function ArcadePage() {
     setIsUsingExtraTry(true);
     try {
       await finishExtraTry(session.sessionId);
-      
-      setHiddenAttempts([]);
-      setPendingFailedAttempt(null);
       setShowExtraTryModal(false);
       setShowResult(true);
       
@@ -410,7 +397,6 @@ export default function ArcadePage() {
         }
       } else if (isLost) {
         // Always show extra try modal on last failed attempt
-        setPendingFailedAttempt(line);
         setShowExtraTryModal(true);
         triggerHaptic('error');
       } else {

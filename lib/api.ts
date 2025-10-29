@@ -332,17 +332,14 @@ export async function unlockArcade(): Promise<{
   }>(response);
 }
 
-export async function useExtraTry(
-  sessionId: string,
-  failedAttempt: { guess: string; feedback: Array<{index: number; letter: string; state: 'correct' | 'present' | 'absent'}>; submittedAt: string }
-): Promise<{ hiddenAttempts: Array<{ guess: string; feedback: Array<{index: number; letter: string; state: 'correct' | 'present' | 'absent'}>; submittedAt: string }> }> {
+export async function useExtraTry(sessionId: string): Promise<{ ok: boolean }> {
   const response = await fetch('/api/arcade/extra-try/use', {
     method: 'POST',
     headers: createHeaders(),
-    body: JSON.stringify({ sessionId, failedAttempt })
+    body: JSON.stringify({ sessionId })
   });
   
-  return handleResponse(response);
+  return handleResponse<{ ok: boolean }>(response);
 }
 
 export async function finishExtraTry(sessionId: string): Promise<{ ok: boolean }> {

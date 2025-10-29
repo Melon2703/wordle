@@ -55,11 +55,10 @@ export interface ArcadeStartResponse {
   hintsUsed: Hint[];
   hintEntitlementsAvailable: number;
   extraTryEntitlementsAvailable: number;
-  hiddenAttempts: GuessLine[];
 }
 
 export interface ExtraTryUseResponse {
-  hiddenAttempts: GuessLine[];
+  ok: boolean;
 }
 
 export interface ExtraTryFinishResponse {
