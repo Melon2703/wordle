@@ -169,6 +169,17 @@ export default function ArcadePage() {
         setHintEntitlementsRemaining(incompleteSession.session.hintEntitlementsAvailable);
         setExtraTryEntitlements(incompleteSession.session.extraTryEntitlementsAvailable);
         
+        // Check if this is a last-attempt loss that should show the extra try modal
+        if (incompleteSession.lines.length > 0) {
+          const lastLine = incompleteSession.lines[incompleteSession.lines.length - 1];
+          const isWin = lastLine.feedback.every(f => f.state === 'correct');
+          const isLastAttempt = incompleteSession.lines.length >= incompleteSession.session.maxAttempts;
+          
+          if (!isWin && isLastAttempt) {
+            setShowExtraTryModal(true);
+          }
+        }
+        
         // Set session start time
         if (incompleteSession.startedAt) {
           const startedAtMs = new Date(incompleteSession.startedAt).getTime();
@@ -211,6 +222,19 @@ export default function ArcadePage() {
       }
     }
   }, [incompleteSession, dictionaryCache, toast]);
+
+  // Guard effect to ensure modal state stays consistent with session+lines
+  useEffect(() => {
+    if (session && lines.length > 0 && !showResult) {
+      const lastLine = lines[lines.length - 1];
+      const isWin = lastLine.feedback.every(f => f.state === 'correct');
+      const isLastAttempt = lines.length >= session.maxAttempts;
+      
+      if (!isWin && isLastAttempt && !showExtraTryModal) {
+        setShowExtraTryModal(true);
+      }
+    }
+  }, [session, lines, showResult, showExtraTryModal]);
 
   // Get user status for arcade solved count
   const { data: userStatus } = useQuery({
