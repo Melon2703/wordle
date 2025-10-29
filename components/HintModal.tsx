@@ -5,6 +5,9 @@ import { Button, Heading, Text } from '@/components/ui';
 import { X } from 'lucide-react';
 import { Tile } from '@/components/PuzzleGrid/Tile';
 import type { Hint } from '@/lib/contracts';
+import { purchaseProduct, cleanupCancelledPurchase } from '@/lib/api';
+import { invoice } from '@tma.js/sdk';
+import { useToast } from '@/components/ToastCenter';
 
 interface HintModalProps {
   isOpen: boolean;
@@ -13,6 +16,7 @@ interface HintModalProps {
   entitlementsRemaining: number;
   onUseHint: () => Promise<void>;
   isLoading: boolean;
+  onPurchaseComplete?: () => Promise<void>;
 }
 
 export function HintModal({
@@ -21,15 +25,47 @@ export function HintModal({
   hints,
   entitlementsRemaining,
   onUseHint,
-  isLoading
+  isLoading,
+  onPurchaseComplete
 }: HintModalProps) {
   const [confirming, setConfirming] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const { notify } = useToast();
 
   if (!isOpen) return null;
 
   const handleUseHint = async () => {
     setConfirming(false);
     await onUseHint();
+  };
+
+  const handlePurchase = async () => {
+    setIsPurchasing(true);
+    try {
+      const purchaseResult = await purchaseProduct('arcade_hint');
+      const invoiceUrl = purchaseResult.invoice_url;
+      
+      const result = await invoice.openUrl(invoiceUrl);
+      
+      if (result === 'paid') {
+        notify('Покупка завершена успешно!');
+        if (onPurchaseComplete) {
+          await onPurchaseComplete();
+        }
+        onClose();
+      } else {
+        try {
+          await cleanupCancelledPurchase(purchaseResult.purchase_id);
+        } catch {
+          // Don't fail the whole operation if cleanup fails
+        }
+        notify('Покупка отменена');
+      }
+    } catch {
+      notify('Ошибка при покупке');
+    } finally {
+      setIsPurchasing(false);
+    }
   };
 
   const canShowHintButton = hints.length < 5 && entitlementsRemaining > 0;
@@ -108,9 +144,10 @@ export function HintModal({
             <Button
               fullWidth
               variant="secondary"
-              onClick={() => window.location.href = '/shop'}
+              onClick={handlePurchase}
+              disabled={isPurchasing || isLoading}
             >
-              Купить подсказки
+              {isPurchasing ? 'Покупка...' : 'Купить подсказки'}
             </Button>
           )}
         </div>

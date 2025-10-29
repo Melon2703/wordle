@@ -10,7 +10,8 @@ import { ShareButton } from '@/components/ShareButton';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { Button, Card, Heading, Text } from '@/components/ui';
-import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess, getArcadeStatus, unlockArcade, useExtraTry as callUseExtraTry, finishExtraTry } from '@/lib/api';
+import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess, getArcadeStatus, unlockArcade, useExtraTry as callUseExtraTry, finishExtraTry, purchaseProduct, cleanupCancelledPurchase } from '@/lib/api';
+import { invoice } from '@tma.js/sdk';
 import { HintModal } from '@/components/HintModal';
 import { ExtraTryModal } from '@/components/ExtraTryModal';
 import { TopCenterIcon } from '@/components/TopCenterIcon';
@@ -261,6 +262,26 @@ export default function ArcadePage() {
     }
   };
 
+  const handleHintPurchaseComplete = async () => {
+    // Refresh hint entitlements after purchase
+    if (session?.sessionId) {
+      try {
+        const sessionData = await checkArcadeSession();
+        if (sessionData.hasIncomplete && sessionData.session) {
+          const updatedSession = sessionData.session;
+          setHintEntitlementsRemaining(updatedSession.hintEntitlementsAvailable);
+          // Also update session state if needed
+          setSession(prev => prev ? {
+            ...prev,
+            hintEntitlementsAvailable: updatedSession.hintEntitlementsAvailable
+          } : null);
+        }
+      } catch {
+        // If session check fails, we can't refresh entitlements
+      }
+    }
+  };
+
   const handleUnlockArcade = async () => {
     setIsConfirmingUnlock(false);
     setIsUnlocking(true);
@@ -277,8 +298,30 @@ export default function ArcadePage() {
     }
   };
 
-  const handleBuyGames = () => {
-    window.location.href = '/shop';
+  const handleBuyGames = async () => {
+    try {
+      const purchaseResult = await purchaseProduct('arcade_new_game');
+      const invoiceUrl = purchaseResult.invoice_url;
+      
+      const result = await invoice.openUrl(invoiceUrl);
+      
+      if (result === 'paid') {
+        toast.notify('Покупка завершена успешно!');
+        const status = await getArcadeStatus();
+        const credits = Math.max(0, Math.min(status.arcadeCredits ?? 0, maxArcadeCredits));
+        setArcadeCredits(credits);
+        setNewGameEntitlements(status.newGameEntitlements);
+      } else {
+        try {
+          await cleanupCancelledPurchase(purchaseResult.purchase_id);
+        } catch {
+          // Don't fail the whole operation if cleanup fails
+        }
+        toast.notify('Покупка отменена');
+      }
+    } catch {
+      toast.notify('Ошибка при покупке');
+    }
   };
 
   const handleUseExtraTry = async () => {
@@ -320,8 +363,39 @@ export default function ArcadePage() {
     }
   };
 
-  const handleBuyExtraTries = () => {
-    window.location.href = '/shop';
+  const handleBuyExtraTries = async () => {
+    try {
+      const purchaseResult = await purchaseProduct('arcade_extra_try');
+      const invoiceUrl = purchaseResult.invoice_url;
+      
+      const result = await invoice.openUrl(invoiceUrl);
+      
+      if (result === 'paid') {
+        toast.notify('Покупка завершена успешно!');
+        // Refresh session to get updated entitlements
+        if (session?.sessionId) {
+          try {
+            const sessionData = await checkArcadeSession();
+            if (sessionData.hasIncomplete && sessionData.session) {
+              setExtraTryEntitlements(sessionData.session.extraTryEntitlementsAvailable);
+            }
+          } catch {
+            // Fallback: refresh arcade status
+            const status = await getArcadeStatus();
+            // Note: extra try entitlements are session-specific, but we'll try to refresh
+          }
+        }
+      } else {
+        try {
+          await cleanupCancelledPurchase(purchaseResult.purchase_id);
+        } catch {
+          // Don't fail the whole operation if cleanup fails
+        }
+        toast.notify('Покупка отменена');
+      }
+    } catch {
+      toast.notify('Ошибка при покупке');
+    }
   };
 
   const handleStart = async () => {
@@ -473,6 +547,7 @@ export default function ArcadePage() {
               entitlementsRemaining={hintEntitlementsRemaining}
               onUseHint={handleUseHint}
               isLoading={isLoadingHint}
+              onPurchaseComplete={handleHintPurchaseComplete}
             />
 
             {/* Extra Try Modal */}
