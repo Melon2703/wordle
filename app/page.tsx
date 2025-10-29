@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { Banner } from '@/components/Banner';
+import { LoadingFallback } from '@/components/LoadingFallback';
 import { Button, Card, Heading, Text } from '@/components/ui';
 import { getUserStatus, getActiveBanners, getDailyPuzzle } from '@/lib/api';
 import { CircleDashed, CheckCircle2, XCircle, Play, Flame, Clock } from 'lucide-react';
@@ -83,7 +84,7 @@ export default function HomePage() {
   }, [userStatus?.nextPuzzleAt]);
 
   // Fetch banners
-  const { data: banners = [] } = useQuery({
+  const { data: banners = [], isLoading: bannersLoading } = useQuery({
     queryKey: ['banners'],
     queryFn: getActiveBanners,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -103,6 +104,10 @@ export default function HomePage() {
     setDismissedBanners(newDismissed);
     localStorage.setItem('dismissed-banners', JSON.stringify([...newDismissed]));
   };
+
+  if (statusLoading || bannersLoading) {
+    return <LoadingFallback length={5} />;
+  }
 
 
   // Filter out dismissed banners

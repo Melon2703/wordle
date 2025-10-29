@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
 import { PuzzleLoader } from '@/components/PuzzleLoader';
+import { LoadingFallback } from '@/components/LoadingFallback';
 import { ResultScreen } from '@/components/ResultScreen';
 import { ShareButton } from '@/components/ShareButton';
 import { useToast } from '@/components/ToastCenter';
@@ -53,6 +54,7 @@ export default function ArcadePage() {
   const [extraTryEntitlements, setExtraTryEntitlements] = useState(0);
   const [showExtraTryModal, setShowExtraTryModal] = useState(false);
   const [isUsingExtraTry, setIsUsingExtraTry] = useState(false);
+  const [isStatusLoading, setIsStatusLoading] = useState(true);
   const [isTelegramReady, setIsTelegramReady] = useState(() => hasTelegramInitData());
   
   // Track pending record requests
@@ -61,15 +63,31 @@ export default function ArcadePage() {
 
   // Check arcade availability on mount
   useEffect(() => {
+    let isMounted = true;
+
+    setIsStatusLoading(true);
+
     getArcadeStatus()
       .then(status => {
+        if (!isMounted) {
+          return;
+        }
         const credits = Math.max(0, Math.min(status.arcadeCredits ?? 0, maxArcadeCredits));
         setArcadeCredits(credits);
         setNewGameEntitlements(status.newGameEntitlements);
       })
-        .catch(() => {
+      .catch(() => {
         // Error loading arcade status
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsStatusLoading(false);
+        }
       });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -201,7 +219,7 @@ export default function ArcadePage() {
   };
 
   // Check for incomplete arcade session on mount
-  const { data: incompleteSession } = useQuery({
+  const { data: incompleteSession, isLoading: isIncompleteSessionLoading } = useQuery({
     queryKey: ['arcade', 'incomplete-session'],
     queryFn: checkArcadeSession,
     staleTime: 30 * 1000,
@@ -298,6 +316,10 @@ export default function ArcadePage() {
 
   const keyboardState = buildKeyboardState(lines);
   const length = session?.length ?? activeLength;
+
+  if (isStatusLoading || isIncompleteSessionLoading) {
+    return <LoadingFallback length={activeLength} />;
+  }
 
   const handleUseHint = async () => {
     if (!session?.sessionId) return;
