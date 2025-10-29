@@ -198,7 +198,7 @@ export default function HomePage() {
             <div className="space-y-4">
               <div>
                 <Heading level={2}>Ежедневная загадка</Heading>
-                <Text className="mt-2">Одна загадка в день</Text>
+                <Text className="mt-2">Решайте новую загадка каждый день</Text>
               </div>
             
               {/* Status Row */}

@@ -442,7 +442,7 @@ export default function ArcadePage() {
       await finishExtraTry(session.sessionId);
       setShowExtraTryModal(false);
       // Refetch user status to get updated arcade solved count before showing result
-      queryClient.refetchQueries({ queryKey: ['user', 'status'] });
+      await queryClient.refetchQueries({ queryKey: ['user', 'status'] });
       setShowResult(true);
       queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
       
@@ -622,7 +622,7 @@ export default function ArcadePage() {
       if (isWin) {
         triggerHaptic('success');
         // Refetch user status to get updated arcade solved count before showing result
-        queryClient.refetchQueries({ queryKey: ['user', 'status'] });
+        await queryClient.refetchQueries({ queryKey: ['user', 'status'] });
         setShowResult(true);
         
         // Record session completion in background
