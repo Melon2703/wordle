@@ -7,6 +7,7 @@ import { PuzzleGrid } from '@/components/PuzzleGrid';
 import { LoadingFallback } from '@/components/LoadingFallback';
 import { ResultScreen } from '@/components/ResultScreen';
 import { ShareButton } from '@/components/ShareButton';
+import { SaveWordButton } from '@/components/SaveWordButton';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { Button } from '@/components/ui';
@@ -151,6 +152,9 @@ export default function DailyPage() {
     );
   }
 
+  const completedWord = (data?.answer ?? (lines.length > 0 ? lines[lines.length - 1].guess : '') ?? '').toUpperCase();
+  const canSaveWord = completedWord.length > 0;
+
   return (
     <main className="page-container">
       <section className="flex flex-1 flex-col px-4 mx-auto w-full max-w-lg">
@@ -186,7 +190,7 @@ export default function DailyPage() {
 
         {/* Share Button - only show when game is completed */}
         {isGameCompleted && data && data.yourState.status !== 'playing' && (
-          <div className="mt-auto">
+          <div className="mt-auto flex items-center justify-end gap-3">
             <ShareButton
               mode="daily"
               puzzleId={data.puzzleId}
@@ -195,7 +199,16 @@ export default function DailyPage() {
               timeMs={data.yourState.timeMs}
               lines={lines}
               streak={userStatus?.streak}
+              variant="icon"
             />
+            {canSaveWord && (
+              <SaveWordButton
+                word={completedWord}
+                source="daily"
+                puzzleId={data.puzzleId}
+                ariaLabel="Добавить слово дня в словарь"
+              />
+            )}
           </div>
         )}
 

@@ -72,7 +72,15 @@ All Route Handlers opt into `export const runtime = 'nodejs';`.
 - `GET /api/dict/words?length=`  
   - Returns the allowed word set for the requested length (4/5/6/7). Used by arcade UI for client-side validation.
 
-### 3.4 Shop, Purchases, and Entitlements
+### 3.4 Personal Dictionary
+- `GET /api/saved-words`  
+  - Authenticates the caller, upserts the profile if necessary, and returns the player’s saved words ordered by `created_at` desc. Each row includes the original casing (`word_text`), deduped normalised form (`word_norm`), `source`, optional `puzzle_id`, generated length, and timestamps.
+- `POST /api/saved-words` `{ wordText, source, puzzleId?, treatYoAsYe? }`  
+  - Normalises the incoming word via `normalizeGuess`, inserts it into `saved_words`, and relies on the unique index `(profile_id, word_norm)` with `ON CONFLICT DO NOTHING` semantics. Responds with `{ word, alreadySaved }` where `alreadySaved=true` means the word previously existed.
+- `DELETE /api/saved-words/:savedId`  
+  - Deletes a saved word scoped to the caller’s `profile_id`. Returns 404 if the record doesn’t belong to the user.
+
+### 3.5 Shop, Purchases, and Entitlements
 - `GET /api/shop/catalog`  
   - Authenticated fetch of the `products` table; caches for 5 minutes (stale-while-revalidate 10 minutes).
 - `POST /api/shop/purchase` `{ productId }`  
@@ -88,13 +96,13 @@ All Route Handlers opt into `export const runtime = 'nodejs';`.
     - `successful_payment`: mark purchase as paid, persist charge IDs, and upsert a matching entitlement.
     - `pre_checkout_query`: approves Stars payments (all valid payloads return `ok: true`).
 
-### 3.5 Sharing
+### 3.6 Sharing
 - `POST /api/share/prepare`  
   - Validates auth, prepares a PNG scorecard via `/api/share/card`, builds a Telegram deep-link payload, and calls `savePreparedInlineMessage`. Responds with `{ preparedMessageId }` for `Telegram.WebApp.shareMessage`.
 - `GET /api/share/card`  
   - Renders a minimalist grid PNG (800×418) with sharpened tiles using `sharp`. Supports optional `lines` payload for exact tile colours.
 
-### 3.6 Cron & Maintenance
+### 3.7 Cron & Maintenance
 - `GET /api/cron/nightly`  
   - Intended for Vercel Cron. Requires `VERCEL_CRON_SECRET` env to be present (note: current implementation only checks existence, not request headers). Workflow:
     1. Ensure tomorrow’s daily puzzle exists (create from Storage word list if missing).
@@ -130,6 +138,8 @@ The generated types in `lib/db/types.ts` map 1:1 to Supabase tables. Key entitie
   - Stars transactions with status (`pending` → `paid` → `refunded`), invoice payloads, and charge IDs. Webhook updates these rows.
 - **entitlements**
   - Inventory/ownership per profile (`arcade_hint`, `arcade_extra_try`, `arcade_new_game`, etc.). Refund and webhook flows both modify this table.
+- **saved_words**
+  - Personal dictionary entries keyed by `saved_id`. Columns store the user-facing word (`word_text`), the normalised form (`word_norm`, used for dedupe), generated `length`, `source` (`daily`/`arcade`/`manual`), optional `puzzle_id`, and timestamps. Foreign key on `profile_id` cascades deletes, unique index on (`profile_id`, `word_norm`) enforces idempotent inserts.
 
 ### Storage Assets
 - **Wordlists bucket:**  

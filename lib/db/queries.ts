@@ -474,3 +474,88 @@ export async function getIncompleteArcadeSession(
     guesses
   };
 }
+
+type SavedWordRow = Database['public']['Tables']['saved_words']['Row'];
+
+export async function listSavedWords(
+  client: Client,
+  profileId: string
+): Promise<SavedWordRow[]> {
+  const { data, error } = await client
+    .from('saved_words')
+    .select('*')
+    .eq('profile_id', profileId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to load saved words: ${error.message}`);
+  }
+
+  return data ?? [];
+}
+
+export async function upsertSavedWord(
+  client: Client,
+  params: {
+    profileId: string;
+    wordText: string;
+    wordNorm: string;
+    source: 'daily' | 'arcade' | 'manual';
+    puzzleId?: string | null;
+  }
+): Promise<{ row: SavedWordRow | null; alreadyExisted: boolean }> {
+  const payload = {
+    profile_id: params.profileId,
+    word_text: params.wordText,
+    word_norm: params.wordNorm,
+    source: params.source,
+    puzzle_id: params.puzzleId ?? null
+  };
+
+  const { data, error } = await client
+    .from('saved_words')
+    .upsert(payload, {
+      onConflict: 'profile_id,word_norm',
+      ignoreDuplicates: true
+    })
+    .select()
+    .maybeSingle();
+
+  if (error && error.code !== '23505') {
+    throw new Error(`Failed to save word: ${error.message}`);
+  }
+
+  if (data) {
+    return { row: data, alreadyExisted: false };
+  }
+
+  const { data: existing, error: selectError } = await client
+    .from('saved_words')
+    .select('*')
+    .eq('profile_id', params.profileId)
+    .eq('word_norm', params.wordNorm)
+    .maybeSingle();
+
+  if (selectError) {
+    throw new Error(`Failed to load existing saved word: ${selectError.message}`);
+  }
+
+  return { row: existing ?? null, alreadyExisted: true };
+}
+
+export async function deleteSavedWord(
+  client: Client,
+  params: { profileId: string; savedId: string }
+): Promise<boolean> {
+  const { error, count } = await client
+    .from('saved_words')
+    .delete({ count: 'exact' })
+    .eq('saved_id', params.savedId)
+    .eq('profile_id', params.profileId);
+
+  if (error) {
+    throw new Error(`Failed to delete saved word: ${error.message}`);
+  }
+
+  return (count ?? 0) > 0;
+}

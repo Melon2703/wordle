@@ -8,6 +8,7 @@ import { PuzzleLoader } from '@/components/PuzzleLoader';
 import { LoadingFallback } from '@/components/LoadingFallback';
 import { ResultScreen } from '@/components/ResultScreen';
 import { ShareButton } from '@/components/ShareButton';
+import { SaveWordButton } from '@/components/SaveWordButton';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { Button, Card, Heading, Text } from '@/components/ui';
@@ -719,8 +720,14 @@ export default function ArcadePage() {
             {/* Arcade Result Buttons - positioned at bottom above nav */}
             {showResult && session && (
               <div className="mt-auto">
-                <div className="grid grid-cols-2 gap-3">
-                  <Button fullWidth onClick={() => window.location.href = '/arcade'}>
+                <div className="flex items-center gap-3">
+                  <Button
+                    className="flex-1"
+                    fullWidth
+                    onClick={() => {
+                      window.location.href = '/arcade';
+                    }}
+                  >
                     Новая игра
                   </Button>
                   <ShareButton
@@ -731,6 +738,13 @@ export default function ArcadePage() {
                     timeMs={sessionStartTime ? Date.now() - sessionStartTime : undefined}
                     lines={lines}
                     arcadeSolved={userStatus?.arcadeSolved}
+                    variant="icon"
+                  />
+                  <SaveWordButton
+                    word={session.solution.toUpperCase()}
+                    source="arcade"
+                    puzzleId={session.puzzleId}
+                    ariaLabel="Добавить слово из аркады"
                   />
                 </div>
               </div>
