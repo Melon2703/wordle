@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getShopCatalog, purchaseProduct, cleanupCancelledPurchase } from '@/lib/api';
 import { useToast } from '@/components/ToastCenter';
@@ -8,12 +9,31 @@ import { Button, Card, Heading, Text, Badge } from '@/components/ui';
 import { invoice } from '@tma.js/sdk';
 
 export default function ShopPage() {
+  const [isTelegramReady, setIsTelegramReady] = useState(false);
   const queryClient = useQueryClient();
   const { notify } = useToast();
 
+  // Wait for Telegram WebApp to provide init data before fetching catalog
+  useEffect(() => {
+    const checkTelegramReady = () => {
+      const tg = (window as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
+
+      if (tg && tg.initData) {
+        console.log('✅ Shop Page - Telegram WebApp is ready');
+        setIsTelegramReady(true);
+      } else {
+        console.log('⏳ Shop Page - Waiting for Telegram WebApp...');
+        setTimeout(checkTelegramReady, 100);
+      }
+    };
+
+    checkTelegramReady();
+  }, []);
+
   const { data, isLoading } = useQuery({ 
     queryKey: ['shop', 'catalog'], 
-    queryFn: getShopCatalog
+    queryFn: getShopCatalog,
+    enabled: isTelegramReady
   });
 
   const purchaseMutation = useMutation({
@@ -67,6 +87,10 @@ export default function ShopPage() {
       notify('Ошибка при покупке');
     }
   };
+
+  if (!isTelegramReady) {
+    return <LoadingFallback length={5} />;
+  }
 
   // Show loading state while data is loading
   if (isLoading) {
