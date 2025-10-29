@@ -174,3 +174,13 @@ export interface ArcadeSessionCheckResponse {
   lines?: GuessLine[];
   startedAt?: string;
 }
+
+export interface SavedWord {
+  id: string;
+  text: string;
+  norm: string;
+  length: number;
+  source: 'daily' | 'arcade' | 'manual';
+  puzzleId: string | null;
+  createdAt: string;
+}

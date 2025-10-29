@@ -6,8 +6,8 @@ import { useState, useEffect } from 'react';
 import { Banner } from '@/components/Banner';
 import { LoadingFallback } from '@/components/LoadingFallback';
 import { Button, Card, Heading, Text } from '@/components/ui';
-import { getUserStatus, getActiveBanners, getDailyPuzzle } from '@/lib/api';
-import { CircleDashed, CheckCircle2, XCircle, Play, Flame, Clock } from 'lucide-react';
+import { getUserStatus, getActiveBanners, getDailyPuzzle, getSavedWords } from '@/lib/api';
+import { CircleDashed, CheckCircle2, XCircle, Play, Flame, Clock, BookMarked } from 'lucide-react';
 
 export default function HomePage() {
   const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set());
@@ -51,6 +51,12 @@ export default function HomePage() {
     queryKey: ['user', 'status'],
     queryFn: getUserStatus,
     staleTime: 30 * 1000, // 30 seconds
+  });
+
+  const { data: savedWords, isLoading: savedWordsLoading } = useQuery({
+    queryKey: ['savedWords'],
+    queryFn: getSavedWords,
+    staleTime: 60 * 1000
   });
 
   // Update countdown timer
@@ -139,6 +145,30 @@ export default function HomePage() {
     }
   };
 
+  const getSavedWordsText = () => {
+    if (savedWordsLoading) {
+      return 'Загружаем словарь…';
+    }
+
+    const count = savedWords?.length ?? 0;
+    if (count === 0) {
+      return 'Пока нет сохраненных слов';
+    }
+
+    const remainder10 = count % 10;
+    const remainder100 = count % 100;
+
+    if (remainder10 === 1 && remainder100 !== 11) {
+      return `${count} слово`;
+    }
+
+    if (remainder10 >= 2 && remainder10 <= 4 && (remainder100 < 12 || remainder100 > 14)) {
+      return `${count} слова`;
+    }
+
+    return `${count} слов`;
+  };
+
   return (
     <main className="page-container px-4 pt-20">
       {/* Banner */}
@@ -219,6 +249,27 @@ export default function HomePage() {
                 <Text className="mt-2">Тренируйтесь без ограничений</Text>
               </div>
               <Button fullWidth>Играть</Button>
+            </div>
+          </Card>
+        </Link>
+
+        {/* Dictionary Card */}
+        <Link
+          href="/dictionary"
+          className={`block ${prefersReducedMotion ? '' : 'hover:-translate-y-0.5'}`}
+          aria-label="Личный словарь - сохраненные слова"
+        >
+          <Card padding="lg" interactive className="text-center">
+            <div className="space-y-4">
+              <div className="flex flex-col items-center space-y-3">
+                <BookMarked className="h-8 w-8 text-blue-600" />
+                <Heading level={2}>Личный словарь</Heading>
+                <Text className="mt-1">Собирайте понравившиеся слова</Text>
+              </div>
+              <Text variant="caption" className="text-slate-500">
+                {getSavedWordsText()}
+              </Text>
+              <Button fullWidth>Открыть</Button>
             </div>
           </Card>
         </Link>

@@ -33,16 +33,19 @@ app/
   page.tsx          # Home hub with mode cards, banners, and quick stats
   daily/page.tsx    # Daily puzzle experience
   arcade/page.tsx   # Arcade mode with hints / extra tries
+  dictionary/page.tsx   # Personal dictionary list and management
   shop/page.tsx     # Stars shop (Telegram invoice flow)
   purchases/page.tsx# Purchase history and refunds
 components/
   Banner.tsx, BottomNav.tsx, Header.tsx, ToastCenter.tsx
   PuzzleGrid/{index,GuessRow,Tile}.tsx, KeyboardCyr.tsx
-  ResultScreen.tsx, ShareButton.tsx
+  ResultScreen.tsx, ShareButton.tsx, SaveWordButton.tsx
   HintModal.tsx, ExtraTryModal.tsx, SettingsSheet.tsx, RulesSheet.tsx
   ThemeBridge.tsx, HapticsBridge.tsx, TopCenterIcon.tsx
 lib/
   api.ts, contracts.ts, types.ts, game/*, deeplink.ts, theme.css
+ui/
+  {Button,Card,Heading,Text,Badge,IconButton}.tsx
 ```
 
 ### 3.2 Root layout & wrappers
@@ -67,6 +70,7 @@ lib/
 - **Home (`app/page.tsx`):** Fetches `getUserStatus` and active banners, shows Daily/Arcade cards, streak, timers, and CTA badges. Prefetches the daily puzzle for a snappy entry and stores dismissed banners in `localStorage`.
 - **Daily (`app/daily/page.tsx`):** Loads `getDailyPuzzle`, submits guesses via `submitDailyGuess`, updates cache optimistically, and renders `PuzzleGrid` + `KeyboardCyr`. On completion, shows `ResultScreen` and a `ShareButton`.
 - **Arcade (`app/arcade/page.tsx`):** Orchestrates `startArcade`, hint usage, extra tries, session recovery, dictionary validation, and result sharing. Uses local evaluation for speed but still records guesses and completion to the backend.
+- **Dictionary (`app/dictionary/page.tsx`):** Loads the personal word list with `getSavedWords`, lets users delete entries via `deleteSavedWord`, and surfaces the saved word source/date. Shares the same icon button styling as result actions.
 - **Shop (`app/shop/page.tsx`):** Loads catalog (`getShopCatalog`) once Telegram `initData` is confirmed. Purchases call `purchaseProduct`, open the Telegram invoice URL with `invoice.openUrl`, and clean up cancelled purchases.
 - **Purchases (`app/purchases/page.tsx`):** Lists prior purchases via `getUserPurchases`, allows refunds through `refundPurchase`, and surfaces invoice IDs. Relies on Telegram `popup`/`hapticFeedback` helpers when available.
 - **Navigation visibility:** Shop tab and the settings icon only appear for tester Telegram ID `626033046`; the check runs twice (immediate + delayed) to accommodate slow SDK init.
@@ -78,7 +82,8 @@ lib/
 - `PuzzleGrid`, `GuessRow`, `Tile`: render attempt history, pending guesses, and final boards (ResultScreen scales the grid down for recaps).
 - `KeyboardCyr`: Cyrillic keyboard with enter/delete controls, dynamic key colors, and optional disable states.
 - `ResultScreen`: shows celebration, stats, shrunken grid, and streak/arcade solved counters.
-- `ShareButton`: calls `/api/share/prepare`, then `Telegram.WebApp.shareMessage`, with fallbacks to open link or copy URL.
+- `ShareButton`: calls `/api/share/prepare`, then `Telegram.WebApp.shareMessage`, with fallbacks to open link or copy URL. Supports text or icon-only variants; result screens now use the icon form alongside save actions.
+- `SaveWordButton`: posts to `/api/saved-words`, flips to a checkmark when the insertion succeeds (or already existed), and invalidates the `['savedWords']` cache slice so the dictionary view refreshes.
 - `Banner`: announcement card with optional CTA, dismiss persistence, and reduced motion support.
 - `ToastCenter`: lightweight toast context; used for errors, validations, mutations, and share feedback.
 - `ThemeBridge`: copies Telegram theme params into `--tg-*` CSS variables so Tailwind classes can rely on them.
@@ -199,6 +204,7 @@ Keep backend contracts aligned with these interfaces; `lib/contracts.ts` re-expo
 
 - `['puzzle','daily']` — `staleTime` 30s; manual invalidation after each guess.
 - `['user','status']` — reused across home/daily/arcade; stale for 30s.
+- `['savedWords']` — personal dictionary cache; invalidated after save/delete mutations.
 - `['shop','catalog']` — gated until Telegram `initData` is present.
 - `['purchases']` — invalidated after refunds or purchases.
 - `['arcade','incomplete-session']` — restores sessions once per mount.

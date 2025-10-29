@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui';
+import { Button, IconButton } from '@/components/ui';
 import { useToast } from '@/components/ToastCenter';
 import type { PrepareShareRequest, GuessLine } from '@/lib/types';
+import { Loader2, Share2 } from 'lucide-react';
 
 interface ShareButtonProps {
   mode: 'daily' | 'arcade';
@@ -14,9 +15,20 @@ interface ShareButtonProps {
   lines: GuessLine[];
   streak?: number;
   arcadeSolved?: number;
+  variant?: 'standard' | 'icon';
 }
 
-export function ShareButton({ mode, puzzleId, status, attemptsUsed, timeMs, lines, streak, arcadeSolved }: ShareButtonProps) {
+export function ShareButton({
+  mode,
+  puzzleId,
+  status,
+  attemptsUsed,
+  timeMs,
+  lines,
+  streak,
+  arcadeSolved,
+  variant = 'standard'
+}: ShareButtonProps) {
   const [isSharing, setIsSharing] = useState(false);
   const { notify } = useToast();
 
@@ -84,6 +96,25 @@ export function ShareButton({ mode, puzzleId, status, attemptsUsed, timeMs, line
     }
   };
 
+  const label = 'Поделиться результатом';
+
+  if (variant === 'icon') {
+    return (
+      <IconButton
+        aria-label={label}
+        onClick={handleShare}
+        disabled={isSharing}
+        title={label}
+      >
+        {isSharing ? (
+          <Loader2 className="h-5 w-5 animate-spin" />
+        ) : (
+          <Share2 className="h-5 w-5" />
+        )}
+      </IconButton>
+    );
+  }
+
   return (
     <Button
       fullWidth
@@ -94,4 +125,3 @@ export function ShareButton({ mode, puzzleId, status, attemptsUsed, timeMs, line
     </Button>
   );
 }
-

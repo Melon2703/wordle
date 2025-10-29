@@ -6,7 +6,7 @@ import type {
   DailyPuzzlePayload,
   ShopCatalog
 } from './contracts';
-import type { UserStatus, Banner, ArcadeSessionCheckResponse } from './types';
+import type { UserStatus, Banner, ArcadeSessionCheckResponse, SavedWord } from './types';
 
 // Debug logging helper - only logs in development
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -342,6 +342,52 @@ export async function cleanupCancelledPurchase(purchaseId: string): Promise<void
     headers: createHeaders(),
   });
   
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(error.error || `HTTP ${response.status}`);
+  }
+}
+
+export interface SaveWordResponse {
+  word: SavedWord;
+  alreadySaved: boolean;
+}
+
+export async function getSavedWords(): Promise<SavedWord[]> {
+  const response = await fetch('/api/saved-words', {
+    headers: createHeaders()
+  });
+
+  const data = await handleResponse<{ words: SavedWord[] }>(response);
+  return data.words;
+}
+
+export async function saveWord(params: {
+  wordText: string;
+  source: 'daily' | 'arcade' | 'manual';
+  puzzleId?: string | null;
+  treatYoAsYe?: boolean;
+}): Promise<SaveWordResponse> {
+  const response = await fetch('/api/saved-words', {
+    method: 'POST',
+    headers: createHeaders(),
+    body: JSON.stringify({
+      wordText: params.wordText,
+      source: params.source,
+      puzzleId: params.puzzleId ?? null,
+      treatYoAsYe: params.treatYoAsYe ?? false
+    })
+  });
+
+  return handleResponse<SaveWordResponse>(response);
+}
+
+export async function deleteSavedWord(savedId: string): Promise<void> {
+  const response = await fetch(`/api/saved-words/${savedId}`, {
+    method: 'DELETE',
+    headers: createHeaders()
+  });
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
     throw new Error(error.error || `HTTP ${response.status}`);

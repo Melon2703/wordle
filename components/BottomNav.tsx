@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { CalendarCheck2, Zap, Store, Receipt, CircleHelp } from 'lucide-react';
+import { CalendarCheck2, Zap, Store, Receipt, CircleHelp, BookMarked } from 'lucide-react';
 import { RulesSheet } from './RulesSheet';
 import clsx from 'clsx';
+import type { Route } from 'next';
 
 
 interface NavItem {
-  href: '/daily' | '/arcade' | '/shop' | '/purchases';
+  href: '/daily' | '/arcade' | '/dictionary' | '/shop' | '/purchases';
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   showForAll?: boolean;
@@ -18,6 +19,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/daily', label: 'Ежедневная', icon: CalendarCheck2, showForAll: true },
   { href: '/arcade', label: 'Аркада', icon: Zap, showForAll: true },
+  { href: '/dictionary', label: 'Словарь', icon: BookMarked, showForAll: true },
   { href: '/shop', label: 'Магазин', icon: Store, showForAll: true },
   { href: '/purchases', label: 'Покупки', icon: Receipt, showForAll: false }
 ];
@@ -67,7 +69,7 @@ export function BottomNav() {
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={item.href as Route}
                 className={clsx(
                   'flex h-12 w-12 items-center justify-center rounded-lg transition-colors',
                   'hover:bg-blue-50',

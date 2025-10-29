@@ -12,6 +12,7 @@ import type {
   Product,
   ProductType,
   ShopCatalog,
+  SavedWord,
   TileFeedback
 } from './types';
 
@@ -29,6 +30,7 @@ export type {
   Product,
   ProductType,
   ShopCatalog,
+  SavedWord,
   TileFeedback
 };
 
