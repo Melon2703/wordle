@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { CalendarCheck2, Zap, Store, CircleHelp } from 'lucide-react';
 import { RulesSheet } from './RulesSheet';
 import clsx from 'clsx';
@@ -18,35 +18,15 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/daily', label: 'Ежедневная', icon: CalendarCheck2, showForAll: true },
   { href: '/arcade', label: 'Аркада', icon: Zap, showForAll: true },
-  { href: '/shop', label: 'Магазин', icon: Store, showForAll: false }
+  { href: '/shop', label: 'Магазин', icon: Store, showForAll: true }
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
-  const [showShop, setShowShop] = useState(false);
   const [rulesSheetOpen, setRulesSheetOpen] = useState(false);
 
-  // Check if user should see Shop tab
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    const checkTelegramUser = () => {
-      const tg = (window as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp;
-      if (tg?.initDataUnsafe?.user?.id === 626033046) {
-        setShowShop(true);
-      }
-    };
-
-    // Try immediately
-    checkTelegramUser();
-    
-    // Also try after a delay in case Telegram isn't ready yet
-    const timeout = setTimeout(checkTelegramUser, 1000);
-    return () => clearTimeout(timeout);
-  }, []);
-
   const visibleItems = navItems.filter(item => 
-    item.showForAll || (item.href === '/shop' && showShop)
+    item.showForAll
   );
 
   const handleRulesClick = () => {
