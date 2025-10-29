@@ -28,11 +28,12 @@ export async function GET(request: Request) {
       .eq('profile_id', profile.profile_id)
       .eq('product_id', 'arcade_new_game');
     
-    // In unlimited mode (testing), arcade is always available
-    const isArcadeAvailable = TEMP_ARCADE_UNLIMITED ? true : profile.is_arcade_available;
+    // Derive remaining credits (capped between 0 and 3); unlimited mode keeps the UI unlocked
+    const rawCredits = profile.arcade_credits ?? 0;
+    const arcadeCredits = TEMP_ARCADE_UNLIMITED ? 3 : Math.max(0, Math.min(rawCredits, 3));
     
     const response: ArcadeStatusResponse = {
-      isArcadeAvailable,
+      arcadeCredits,
       newGameEntitlements: newGameEntitlementsCount || 0
     };
     
@@ -46,4 +47,3 @@ export async function GET(request: Request) {
     );
   }
 }
-

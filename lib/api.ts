@@ -304,7 +304,7 @@ export async function checkArcadeSession(): Promise<ArcadeSessionCheckResponse> 
 }
 
 export async function getArcadeStatus(): Promise<{
-  isArcadeAvailable: boolean;
+  arcadeCredits: number;
   newGameEntitlements: number;
 }> {
   const response = await fetch('/api/arcade/status', {
@@ -312,14 +312,14 @@ export async function getArcadeStatus(): Promise<{
   });
   
   return handleResponse<{
-    isArcadeAvailable: boolean;
+    arcadeCredits: number;
     newGameEntitlements: number;
   }>(response);
 }
 
 export async function unlockArcade(): Promise<{
   ok: boolean;
-  isArcadeAvailable: boolean;
+  arcadeCredits: number;
 }> {
   const response = await fetch('/api/arcade/unlock', {
     method: 'POST',
@@ -328,7 +328,7 @@ export async function unlockArcade(): Promise<{
   
   return handleResponse<{
     ok: boolean;
-    isArcadeAvailable: boolean;
+    arcadeCredits: number;
   }>(response);
 }
 

@@ -33,6 +33,15 @@ export async function POST(request: Request) {
       auth.parsed.user?.last_name
     );
     
+    const startingCredits = profile.arcade_credits ?? 0;
+    
+    if (!TEMP_ARCADE_UNLIMITED && startingCredits <= 0) {
+      return NextResponse.json(
+        { error: 'Нет доступных аркад. Купите новую игру.' },
+        { status: 403 }
+      );
+    }
+    
     // Clean up any orphaned arcade sessions (sessions where puzzle doesn't exist)
     const { data: incompleteSessions } = await client
       .from('sessions')
@@ -140,12 +149,12 @@ export async function POST(request: Request) {
     const hintEntitlementsAvailable = hintResult.count || 0;
     const extraTryEntitlementsAvailable = extraTryResult.count || 0;
     
-    // Set arcade available to false (user used their daily game)
-    // Skip this in unlimited mode for testing
+    // Consume one credit unless unlimited mode is enabled
     if (!TEMP_ARCADE_UNLIMITED) {
+      const remainingCredits = Math.max(startingCredits - 1, 0);
       await client
         .from('profiles')
-        .update({ is_arcade_available: false })
+        .update({ arcade_credits: remainingCredits })
         .eq('profile_id', profile.profile_id);
     }
     

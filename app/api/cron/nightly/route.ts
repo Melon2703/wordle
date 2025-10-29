@@ -99,12 +99,12 @@ export async function GET(): Promise<Response> {
       }
     }
     
-    // Reset arcade availability for all users
+    // Reset arcade credits for all users
     await client
       .from('profiles')
-      .update({ is_arcade_available: true });
+      .update({ arcade_credits: 3 });
     
-    console.log('Reset arcade availability for all users');
+    console.log('Reset arcade credits for all users');
     
     console.log('Nightly rollover completed successfully');
     

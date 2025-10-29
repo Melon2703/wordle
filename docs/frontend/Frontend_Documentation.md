@@ -99,7 +99,7 @@ lib/
 5. `getUserStatus` runs alongside to show streaks and time badges and to pre-compute countdowns on the home page.
 
 ### 6.2 Arcade mode (`app/arcade/page.tsx`)
-1. Availability: `getArcadeStatus` gates access; `unlockArcade` opens the mode when permitted.
+1. Availability: `getArcadeStatus` exposes remaining `arcadeCredits` (0–3) alongside entitlements; the UI locks when credits reach zero. `unlockArcade` consumes an entitlement to restore the balance back to three.
 2. Starting a game (`startArcade`) returns `sessionId`, solution, hint/extra-try entitlements, and hidden attempts (for bots or purchases).
 3. Client caches dictionary words per length (`getDictionaryWords`) to validate guesses offline; normalization respects the “ё=е” toggle (still server-validated).
 4. Guesses are evaluated client-side (`evaluateGuess`) for instant feedback, recorded through `/api/arcade/guess`, and queued in `pendingRecords` so server state stays consistent.

@@ -156,13 +156,13 @@ export interface ArcadeHintResponse {
 }
 
 export interface ArcadeStatusResponse {
-  isArcadeAvailable: boolean;
+  arcadeCredits: number;
   newGameEntitlements: number;
 }
 
 export interface ArcadeUnlockResponse {
   ok: boolean;
-  isArcadeAvailable: boolean;
+  arcadeCredits: number;
 }
 
 export interface ArcadeSessionCheckResponse {
