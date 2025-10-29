@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
@@ -18,6 +18,7 @@ import { TopCenterIcon } from '@/components/TopCenterIcon';
 import { buildKeyboardState } from '@/lib/game/feedback';
 import { evaluateGuess, normalizeGuess, validateDictionary } from '@/lib/game/feedback.client';
 import type { ArcadeStartResponse, GuessLine, ArcadeTheme } from '@/lib/contracts';
+import { hasTelegramInitData, waitForTelegramInitData } from '@/lib/telegram';
 
 const allLengths: Array<ArcadeStartResponse['length']> = [4, 5, 6];
 const defaultLength: ArcadeStartResponse['length'] = 5;
@@ -51,6 +52,7 @@ export default function ArcadePage() {
   const [extraTryEntitlements, setExtraTryEntitlements] = useState(0);
   const [showExtraTryModal, setShowExtraTryModal] = useState(false);
   const [isUsingExtraTry, setIsUsingExtraTry] = useState(false);
+  const [isTelegramReady, setIsTelegramReady] = useState(() => hasTelegramInitData());
   
   // Track pending record requests
   const pendingRecords = useRef<Promise<unknown>[]>([]);
@@ -68,6 +70,52 @@ export default function ArcadePage() {
         // Error loading arcade status
       });
   }, []);
+
+  useEffect(() => {
+    if (isTelegramReady) {
+      return;
+    }
+
+    let isMounted = true;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const pollTelegram = () => {
+      if (!isMounted) {
+        return;
+      }
+
+      if (hasTelegramInitData()) {
+        setIsTelegramReady(true);
+        return;
+      }
+
+      timeoutId = setTimeout(pollTelegram, 100);
+    };
+
+    pollTelegram();
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isTelegramReady]);
+
+  const ensureTelegramReady = useCallback(async () => {
+    if (isTelegramReady) {
+      return true;
+    }
+
+    const ready = await waitForTelegramInitData({ timeoutMs: 4000, intervalMs: 100 });
+    if (!ready) {
+      toast.notify('Телеграм еще загружается, попробуйте чуть позже');
+      return false;
+    }
+
+    setIsTelegramReady(true);
+    return true;
+  }, [isTelegramReady, toast]);
 
   // Check Telegram user ID to determine available word lengths
   useEffect(() => {
@@ -299,6 +347,11 @@ export default function ArcadePage() {
   };
 
   const handleBuyGames = async () => {
+    const ready = await ensureTelegramReady();
+    if (!ready) {
+      return;
+    }
+
     try {
       const purchaseResult = await purchaseProduct('arcade_new_game');
       const invoiceUrl = purchaseResult.invoice_url;
@@ -364,6 +417,11 @@ export default function ArcadePage() {
   };
 
   const handleBuyExtraTries = async () => {
+    const ready = await ensureTelegramReady();
+    if (!ready) {
+      return;
+    }
+
     try {
       const purchaseResult = await purchaseProduct('arcade_extra_try');
       const invoiceUrl = purchaseResult.invoice_url;
@@ -381,8 +439,14 @@ export default function ArcadePage() {
             }
           } catch {
             // Fallback: refresh arcade status
-            const status = await getArcadeStatus();
-            // Note: extra try entitlements are session-specific, but we'll try to refresh
+            try {
+              const fallbackStatus = await getArcadeStatus();
+              const credits = Math.max(0, Math.min(fallbackStatus.arcadeCredits ?? 0, maxArcadeCredits));
+              setArcadeCredits(credits);
+              setNewGameEntitlements(fallbackStatus.newGameEntitlements);
+            } catch {
+              // ignore fallback failures
+            }
           }
         }
       } else {
@@ -548,6 +612,7 @@ export default function ArcadePage() {
               onUseHint={handleUseHint}
               isLoading={isLoadingHint}
               onPurchaseComplete={handleHintPurchaseComplete}
+              purchaseDisabled={!isTelegramReady}
             />
 
             {/* Extra Try Modal */}
@@ -558,6 +623,7 @@ export default function ArcadePage() {
               onBuyTries={handleBuyExtraTries}
               entitlementsRemaining={extraTryEntitlements}
               isLoading={isUsingExtraTry}
+              purchaseDisabled={!isTelegramReady}
             />
 
             {/* Hint Icon */}
@@ -691,6 +757,7 @@ export default function ArcadePage() {
                     fullWidth
                     variant="primary"
                     onClick={handleBuyGames}
+                    disabled={!isTelegramReady}
                   >
                     Купить игры
                   </Button>

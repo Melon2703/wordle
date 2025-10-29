@@ -8,6 +8,7 @@ import type { Hint } from '@/lib/contracts';
 import { purchaseProduct, cleanupCancelledPurchase } from '@/lib/api';
 import { invoice } from '@tma.js/sdk';
 import { useToast } from '@/components/ToastCenter';
+import { waitForTelegramInitData } from '@/lib/telegram';
 
 interface HintModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface HintModalProps {
   onUseHint: () => Promise<void>;
   isLoading: boolean;
   onPurchaseComplete?: () => Promise<void>;
+  purchaseDisabled?: boolean;
 }
 
 export function HintModal({
@@ -26,7 +28,8 @@ export function HintModal({
   entitlementsRemaining,
   onUseHint,
   isLoading,
-  onPurchaseComplete
+  onPurchaseComplete,
+  purchaseDisabled = false
 }: HintModalProps) {
   const [confirming, setConfirming] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -40,8 +43,19 @@ export function HintModal({
   };
 
   const handlePurchase = async () => {
+    if (purchaseDisabled) {
+      notify('Телеграм еще загружается, попробуйте чуть позже');
+      return;
+    }
+
     setIsPurchasing(true);
     try {
+      const ready = await waitForTelegramInitData();
+      if (!ready) {
+        notify('Телеграм еще загружается, попробуйте чуть позже');
+        return;
+      }
+
       const purchaseResult = await purchaseProduct('arcade_hint');
       const invoiceUrl = purchaseResult.invoice_url;
       
@@ -145,7 +159,7 @@ export function HintModal({
               fullWidth
               variant="secondary"
               onClick={handlePurchase}
-              disabled={isPurchasing || isLoading}
+              disabled={isPurchasing || isLoading || purchaseDisabled}
             >
               {isPurchasing ? 'Покупка...' : 'Купить подсказки'}
             </Button>
@@ -155,4 +169,3 @@ export function HintModal({
     </div>
   );
 }
-
