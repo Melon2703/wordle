@@ -2,7 +2,6 @@ import type {
   ArcadeGuessResponse,
   ArcadeStartResponse,
   DailyGuessResponse,
-  DailyLeaderboard,
   DailyPuzzlePayload,
   ShopCatalog
 } from './contracts';
@@ -226,14 +225,6 @@ export async function submitArcadeGuess(
   });
   
   return handleResponse<ArcadeGuessResponse>(response);
-}
-
-export async function getDailyLeaderboard(puzzleId: string): Promise<DailyLeaderboard> {
-  const response = await fetch(`/api/leaderboard/daily?puzzleId=${encodeURIComponent(puzzleId)}`, {
-    headers: createHeaders()
-  });
-  
-  return handleResponse<DailyLeaderboard>(response);
 }
 
 export async function getShopCatalog(): Promise<ShopCatalog> {

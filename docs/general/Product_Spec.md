@@ -6,7 +6,7 @@
 ---
 
 ## TL;DR
-- Two modes: **Daily** (shared word, streaks, rating) and **Arcade** (unlimited, separate ladder).  
+- Two modes: **Daily** (shared word, streaks) and **Arcade** (unlimited play).  
 - **Fairness first:** attempts > time; no pay-to-win; strict RU orthography policy; curated wordlists.  
 - **Accessibility:** high-contrast, icons, haptics.  
 - **Monetization (Stars):** cosmetics, analysis, archives, Arcade passes, limited streak protection.
@@ -15,7 +15,7 @@
 
 ## 1) Design Principles
 - **Simple core, deep mastery:** classic 5-letter puzzle loop with optional analysis and competitive layers.
-- **Fair competition:** Attempts carry more weight than time; difficulty-normalized daily rating.
+- **Fair competition:** Attempts carry more weight than time; difficulty stays consistent. 
 - **Respect the ritual:** Daily is cozy and ad-free; Arcade is where variety and monetization live.
 - **Accessibility by default:** color + icon cues; high contrast; haptics; keyboard ergonomics.
 - **Legal/IP:** no NYT branding or word lists; all content is original/curated.
@@ -29,22 +29,19 @@
 - One 5-letter RU word per calendar day; all players get the **same** word.
 - **6 attempts** max. Color feedback after each guess.
 - **Streaks**: number of consecutive solved dailies.
-- **Rating**: per-day score (attempts-first, time-second, difficulty-scaled), then season aggregate.
 - **Timer**: invisible by default; server-authoritative; starts on first accepted guess, stops on solve.
+ - **Recap**: show attempts used and optional time; highlight streak progress.
 
 **RU microcopy (examples):**
 - “Ежедневная загадка готова.”  
 - “Серия: 12 дней”  
-- “Результат отправлен. Место в рейтинге: топ 14%”
 
 ### 2.2 Arcade (unlimited)
 - Unlimited puzzles (configurable 4–7 letters; theme packs and challenges).
-- Separate **MMR ladder** (Glicko-2 style; “you vs. par” outcome).
 - Optional **Hard/No-Trap** variants (see §4.5).
 
 **RU microcopy (examples):**
 - “Аркада: сыграйте без ограничений.”  
-- “Ваш рейтинг аркады: 1735 (↑12)”
 
 ---
 
@@ -77,28 +74,22 @@
 
 ---
 
-## 4) Scoring, Streaks, and Difficulty
+## 4) Streaks, Recaps, and Difficulty
 
-### 4.1 Daily rating (per-day)
-- **Primary:** Attempts efficiency \(A\) — better with fewer guesses.
-- **Secondary:** Time score \(S\) — normalized within the day to dampen device differences.
-- **Difficulty factor \(D\):** scales score by the day’s observed average guesses (hard days worth more).
-- **Final:** `Score_day = 1000 × D × (0.7 × A + 0.3 × S)`  
-  *(Weights are policy and may be tuned; attempts intentionally dominate.)*
+### 4.1 Daily recap
+- Show attempts used, optional time (if user toggled timer), and discovered letters summary.
+- Reinforce streak count and countdown to next puzzle; no numeric score.
+- Provide share CTA plus quick access to Arcade.
 
-### 4.2 Season rating
-- Rolling window (e.g., 28–30 days). Use **trimmed mean** (drop top/bottom 5%) to reduce outliers.
+### 4.2 Arcade recap
+- Summarize attempts used and elapsed time; note remaining tickets if gated.
+- Reinforce that streaks are Daily-only; prompt replay without presenting ladders.
 
-### 4.3 Leaderboards
-- **Daily**: global percentile + filters (friends, country).  
-- **Seasons**: cumulative standings; lightweight decay ensures late joiners can catch up.  
-- **Friends boards**: opt-in via shareable invite; moderation tools (mute/hide).
-
-### 4.4 Streak policy
+### 4.3 Streak policy
 - Streak increments on solving the daily within the local daily window.  
 - **Grace/Freeze:** one **Streak Freeze** per month can preserve a missed day (see §7).
 
-### 4.5 Anti-cheat & integrity
+### 4.4 Anti-cheat & integrity
 - Server-side timing; one active session per user for the daily.  
 - Submissions rate-limited; suspicious patterns flagged.  
 - Canonical timezone for puzzle rollover; explicit countdown.
@@ -166,7 +157,7 @@
 ## 8) Fairness & Ethics
 - No ads that obscure the board; no interstitials before solving.
 - Monetization is **cosmetic/analysis/convenience** only.  
-- Timer visibility can be toggled; rating still computed server-side.  
+- Timer visibility can be toggled; timer off by default.  
 - Clear privacy policy; telemetry is aggregate and minimal.
 
 ---
@@ -176,15 +167,14 @@
 **Key entities (conceptual, not schema):**
 - `Profile`: tg_id, username, locale, settings (contrast, timer visibility).  
 - `DailyWord`: date, answer, difficulty metrics.  
-- `DailyResult`: tg_id, date, guesses, time_ms, score_day, hard_mode.  
+- `DailyResult`: tg_id, date, guesses, time_ms, hard_mode.  
 - `ArcadeGame`: id/seed, tg_id, size, attempts, time_ms, outcome.  
-- `ArcadeRating`: tg_id, rating, rd, volatility, last_update.  
 - `Purchase`: tg_id, product_id, type (sub/consumable), status, receipt.  
 - `Entitlement`: tg_id, perk (supporter, season_pass, cosmetics), expires_at/balance.
 
 **Event flow snapshots:**
-- **Daily submit:** validate guess → color tiles → update keyboard → if solved: compute `score_day`, update streak/leaderboards → share card.  
-- **Arcade end:** compute outcome vs. par → update rating → award cosmetics/missions.
+- **Daily submit:** validate guess → color tiles → update keyboard → if solved: update streak → share card.  
+- **Arcade end:** evaluate outcome → award cosmetics/missions.  
 
 ---
 
@@ -199,7 +189,7 @@
 ---
 
 ## 11) Metrics & Success Criteria
-- D1/D7 retention (Daily mode), % high-contrast usage, average guesses/time, dispute rate per word, streak break causes, ARPDAU from Stars, conversion to Supporter/Season Pass, Arcade DAU and MMR stability.
+- D1/D7 retention (Daily mode), % high-contrast usage, average guesses/time, dispute rate per word, streak break causes, ARPDAU from Stars, conversion to Supporter/Season Pass, Arcade DAU and replay rate.
 
 ---
 
@@ -220,10 +210,9 @@
 ---
 
 ## 14) Glossary
-- **Daily**: one shared puzzle per day with streaks and rating.  
-- **Arcade**: unlimited puzzles; separate competitive MMR.  
+- **Daily**: one shared puzzle per day with streaks.  
+- **Arcade**: unlimited puzzles; optional ticket gating.  
 - **Streak**: consecutive solved dailies.  
-- **Par**: expected performance baseline used for Arcade outcomes.  
 - **High-contrast**: accessibility palette with icon overlays.  
 - **Freeze**: consumable to protect a missed day.
 

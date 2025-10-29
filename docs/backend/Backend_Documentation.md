@@ -44,7 +44,7 @@ All Route Handlers opt into `export const runtime = 'nodejs';`.
 - `POST /api/arcade/start`  
   - Accepts `length` ∈ {4,5,6}. Loads answer corpus from Storage, inserts a new `puzzles` row (mode `arcade`), and creates a `sessions` row (maxAttempts = `length + 1`). Returns `ArcadeStartResponse` including currently available hint/extra-try entitlements and normalised solution text.
 - `POST /api/arcade/guess`  
-  - Mirrors daily guess validation but enforces the arcade attempts cap, keeps hard mode status from the session, and writes the guess via `recordDailyGuess`. Returns `ArcadeGuessResponse` (`mmrDelta` is placeholder).
+  - Mirrors daily guess validation but enforces the arcade attempts cap, keeps hard mode status from the session, and writes the guess via `recordDailyGuess`. Returns `ArcadeGuessResponse` with updated attempts and status only.
 - `POST /api/arcade/guess/record`  
   - Lightweight endpoint used by the client to persist locally evaluated guesses when latency-sensitive; stores guess rows and bumps attempts count.
 - `POST /api/arcade/complete`  
@@ -64,15 +64,13 @@ All Route Handlers opt into `export const runtime = 'nodejs';`.
 
 ### 3.3 Shared Utilities
 - `GET /api/user/status`  
-  - Aggregates today’s daily state (status/attempts/time), streak, next puzzle timestamp (UTC midnight rollover), total arcade wins, and exposes `profileId` for the client.
+  - Aggregates today’s daily state (status/attempts/time), streak, next puzzle timestamp (UTC midnight rollover), and total arcade wins.
 - `GET /api/banners`  
   - Returns static in-memory banner definitions after auth. Currently filtered by expiry only.
 - `GET /api/dict/check?word=`  
   - Boolean lookup against the cached dictionary set.
 - `GET /api/dict/words?length=`  
   - Returns the allowed word set for the requested length (4/5/6/7). Used by arcade UI for client-side validation.
-- `GET /api/leaderboard/daily?puzzleId=`  
-  - Reads Supabase `sessions` joined with `profiles` to produce the top 50 results for a puzzle. Display name is username (with `https://t.me/<username>` link) else `first_name`.
 
 ### 3.4 Shop, Purchases, and Entitlements
 - `GET /api/shop/catalog`  
@@ -101,8 +99,7 @@ All Route Handlers opt into `export const runtime = 'nodejs';`.
   - Intended for Vercel Cron. Requires `VERCEL_CRON_SECRET` env to be present (note: current implementation only checks existence, not request headers). Workflow:
     1. Ensure tomorrow’s daily puzzle exists (create from Storage word list if missing).
     2. Maintain the “used words” list in Storage to avoid repeats; resets cycle if exhausted.
-    3. Call `refresh_leaderboard_materialized_view` Supabase RPC.
-    4. Reset `profiles.is_arcade_available` to `true` for all users.
+    3. Reset `profiles.is_arcade_available` to `true` for all users.
 
 ---
 
@@ -133,8 +130,6 @@ The generated types in `lib/db/types.ts` map 1:1 to Supabase tables. Key entitie
   - Stars transactions with status (`pending` → `paid` → `refunded`), invoice payloads, and charge IDs. Webhook updates these rows.
 - **entitlements**
   - Inventory/ownership per profile (`arcade_hint`, `arcade_extra_try`, `arcade_new_game`, etc.). Refund and webhook flows both modify this table.
-- **leaderboard_by_puzzle** (materialised view)
-  - Nightly cron refreshes the view; `fetchDailyLeaderboard` currently queries raw sessions but the view remains available for denormalised lookups.
 
 ### Storage Assets
 - **Wordlists bucket:**  

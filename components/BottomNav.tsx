@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { CalendarCheck2, Zap, Trophy, Store } from 'lucide-react';
+import { CalendarCheck2, Zap, Store } from 'lucide-react';
 import clsx from 'clsx';
 
 
 interface NavItem {
-  href: '/daily' | '/arcade' | '/leaders' | '/shop';
+  href: '/daily' | '/arcade' | '/shop';
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   showForAll?: boolean;
@@ -17,7 +17,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/daily', label: 'Ежедневная', icon: CalendarCheck2, showForAll: true },
   { href: '/arcade', label: 'Аркада', icon: Zap, showForAll: true },
-  { href: '/leaders', label: 'Рейтинги', icon: Trophy, showForAll: true },
   { href: '/shop', label: 'Магазин', icon: Store, showForAll: false }
 ];
 

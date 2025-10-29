@@ -14,8 +14,6 @@ servers:
 tags:
   - name: puzzles
     description: Daily/Arcade puzzle endpoints
-  - name: leaderboard
-    description: Leaderboards
   - name: dictionary
     description: Dictionary utilities
   - name: shop
@@ -159,47 +157,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/ServerError'
-  /api/leaderboard/daily:
-    get:
-      tags: [leaderboard]
-      summary: Get the daily leaderboard for a puzzle
-      operationId: getDailyLeaderboard
-      security:
-        - InitDataHeader: []
-        - InitDataQuery: []
-      parameters:
-        - in: query
-          name: puzzleId
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - in: query
-          name: page
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - in: query
-          name: pageSize
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 200
-            default: 50
-      responses:
-        '200':
-          description: Daily leaderboard
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DailyLeaderboard'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
         '500':
           $ref: '#/components/responses/ServerError'
   /api/dict/check:
@@ -638,59 +595,7 @@ components:
           enum: [playing, won, lost]
         attemptsUsed:
           type: integer
-        mmrDelta:
-          type: integer
-          description: Present only on final state
       required: [puzzleId, line, status, attemptsUsed]
-      additionalProperties: false
-
-    # ---------- Leaderboards ----------
-    DailyBoardEntry:
-      type: object
-      properties:
-        rank:
-          type: integer
-          minimum: 1
-        userId:
-          type: string
-          description: Internal or telegram-based id
-        displayName:
-          type: string
-        attempts:
-          type: integer
-        timeMs:
-          type: integer
-          minimum: 0
-        country:
-          type: string
-          nullable: true
-        badges:
-          type: array
-          items:
-            type: string
-          nullable: true
-        profileUrl:
-          type: string
-          nullable: true
-          description: Telegram profile URL for clickable usernames
-      required: [rank, userId, displayName, attempts, timeMs]
-      additionalProperties: false
-    DailyLeaderboard:
-      type: object
-      properties:
-        puzzleId:
-          type: string
-          format: uuid
-        asOf:
-          type: string
-          format: date-time
-        entries:
-          type: array
-          items:
-            $ref: '#/components/schemas/DailyBoardEntry'
-        you:
-          $ref: '#/components/schemas/DailyBoardEntry'
-      required: [puzzleId, asOf, entries]
       additionalProperties: false
 
     # ---------- Dictionary ----------

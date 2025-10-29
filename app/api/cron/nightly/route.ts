@@ -99,9 +99,6 @@ export async function GET(): Promise<Response> {
       }
     }
     
-    // Refresh leaderboard materialized view
-    await client.rpc('refresh_leaderboard_materialized_view');
-    
     // Reset arcade availability for all users
     await client
       .from('profiles')

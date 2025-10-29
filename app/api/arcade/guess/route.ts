@@ -204,8 +204,7 @@ export async function POST(request: Request) {
       puzzleId: puzzle.puzzle_id,
       line,
       status: isWin ? 'won' : isLost ? 'lost' : 'playing',
-      attemptsUsed: newAttemptsUsed,
-      mmrDelta: (isWin || isLost) ? 0 : undefined // Stub for v0
+      attemptsUsed: newAttemptsUsed
     };
     
     return NextResponse.json(response);

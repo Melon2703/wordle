@@ -33,7 +33,6 @@ app/
   page.tsx          # Home hub with mode cards, banners, and quick stats
   daily/page.tsx    # Daily puzzle experience
   arcade/page.tsx   # Arcade mode with hints / extra tries
-  leaders/page.tsx  # Daily leaderboard surface
   shop/page.tsx     # Stars shop (Telegram invoice flow)
   purchases/page.tsx# Purchase history and refunds
 components/
@@ -68,7 +67,6 @@ lib/
 - **Home (`app/page.tsx`):** Fetches `getUserStatus` and active banners, shows Daily/Arcade cards, streak, timers, and CTA badges. Prefetches the daily puzzle for a snappy entry and stores dismissed banners in `localStorage`.
 - **Daily (`app/daily/page.tsx`):** Loads `getDailyPuzzle`, submits guesses via `submitDailyGuess`, updates cache optimistically, and renders `PuzzleGrid` + `KeyboardCyr`. On completion, shows `ResultScreen` and a `ShareButton`.
 - **Arcade (`app/arcade/page.tsx`):** Orchestrates `startArcade`, hint usage, extra tries, session recovery, dictionary validation, and result sharing. Uses local evaluation for speed but still records guesses and completion to the backend.
-- **Leaders (`app/leaders/page.tsx`):** Fetches the current puzzle ID, then `getDailyLeaderboard`, rendering per-player rows with quick attempt/time stats. Gives a profile-open CTA via `openUserProfile`.
 - **Shop (`app/shop/page.tsx`):** Loads catalog (`getShopCatalog`) once Telegram `initData` is confirmed. Purchases call `purchaseProduct`, open the Telegram invoice URL with `invoice.openUrl`, and clean up cancelled purchases.
 - **Purchases (`app/purchases/page.tsx`):** Lists prior purchases via `getUserPurchases`, allows refunds through `refundPurchase`, and surfaces invoice IDs. Relies on Telegram `popup`/`hapticFeedback` helpers when available.
 - **Navigation visibility:** Shop tab and the settings icon only appear for tester Telegram ID `626033046`; the check runs twice (immediate + delayed) to accommodate slow SDK init.
@@ -181,18 +179,6 @@ export interface ArcadeGuessResponse {
   line: GuessLine;
   status: 'playing' | 'won' | 'lost';
   attemptsUsed: number;
-  mmrDelta?: number;
-}
-
-export interface DailyBoardEntry {
-  rank: number;
-  userId: string;
-  displayName: string;
-  attempts: number;
-  timeMs: number;
-  country?: string;
-  badges?: string[];
-  profileUrl?: string;
 }
 
 export interface Product {
@@ -214,7 +200,6 @@ Keep backend contracts aligned with these interfaces; `lib/contracts.ts` re-expo
 
 - `['puzzle','daily']` — `staleTime` 30s; manual invalidation after each guess.
 - `['user','status']` — reused across home/daily/arcade; stale for 30s.
-- `['leaderboard','daily', puzzleId]` — enabled when puzzleId is known.
 - `['shop','catalog']` — gated until Telegram `initData` is present.
 - `['purchases']` — invalidated after refunds or purchases.
 - `['arcade','incomplete-session']` — restores sessions once per mount.
@@ -238,4 +223,4 @@ Keep backend contracts aligned with these interfaces; `lib/contracts.ts` re-expo
 
 ---
 
-For backend expectations, cross-reference `docs/backend` (leaderboards, share payloads, arcade entitlement rules). Keep this document updated when new routes, settings, or SDK adjustments land.
+For backend expectations, cross-reference `docs/backend` (share payloads, arcade entitlement rules). Keep this document updated when new routes, settings, or SDK adjustments land.

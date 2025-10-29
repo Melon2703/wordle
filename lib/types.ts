@@ -71,25 +71,6 @@ export interface ArcadeGuessResponse {
   line: GuessLine;
   status: 'playing' | 'won' | 'lost';
   attemptsUsed: number;
-  mmrDelta?: number;
-}
-
-export interface DailyBoardEntry {
-  rank: number;
-  userId: string;
-  displayName: string;
-  attempts: number;
-  timeMs: number;
-  country?: string;
-  badges?: string[];
-  profileUrl?: string;
-}
-
-export interface DailyLeaderboard {
-  puzzleId: string;
-  asOf: string;
-  entries: DailyBoardEntry[];
-  you?: DailyBoardEntry;
 }
 
 export type ProductType = 'ticket' | 'season_pass' | 'cosmetic' | 'analysis' | 'archive';
@@ -116,7 +97,6 @@ export interface UserStatus {
   dailyTimeMs?: number;
   streak: number;
   nextPuzzleAt: string;
-  profileId?: string;  // User's profile ID for matching with leaderboard
   arcadeSolved: number;  // Total arcade puzzles solved
   lastMode?: 'daily' | 'arcade';
   lastArcadeLength?: 4 | 5 | 6;
