@@ -111,13 +111,7 @@ export async function recordDailyGuess(
     .single();
 
   if (error || !data) {
-    console.error('Failed to record guess:', {
-      error: error?.message,
-      code: error?.code,
-      details: error?.details,
-      hint: error?.hint,
-      params
-    });
+    console.error('Failed to record guess');
     throw new Error('Failed to record guess');
   }
 
@@ -147,13 +141,7 @@ export async function recordArcadeGuess(
     .single();
 
   if (error || !data) {
-    console.error('Failed to record arcade guess:', {
-      error: error?.message,
-      code: error?.code,
-      details: error?.details,
-      hint: error?.hint,
-      params
-    });
+    console.error('Failed to record arcade guess');
     throw new Error('Failed to record arcade guess');
   }
 
@@ -189,16 +177,7 @@ export async function updateSessionResult(
     .eq('session_id', sessionId);
 
   if (error) {
-    console.error('Failed to update session result:', {
-      error: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint,
-      sessionId,
-      result,
-      attemptsUsed,
-      timeMs
-    });
+    console.error('Failed to update session result');
     throw new Error('Failed to update session result');
   }
 }
@@ -215,9 +194,6 @@ export async function listShopProducts(client: Client): Promise<ShopCatalog> {
   }
 
   const products = data || [];
-  console.log(`[listShopProducts] Found ${products.length} active products in database:`, 
-    products.map(p => ({ id: p.product_id, title: p.title_ru, active: p.active }))
-  );
 
   return {
     asOf: new Date().toISOString(),
@@ -319,7 +295,7 @@ export async function refundPurchase(
       await refundResponse.json();
       
     } catch (error) {
-      console.error('Error calling Telegram refund API:', error);
+      console.error('Error calling Telegram refund API');
       throw new Error(`Failed to process refund with Telegram: ${error instanceof Error ? error.message : String(error)}`);
     }
   } else {
@@ -473,11 +449,7 @@ export async function getIncompleteArcadeSession(
 
   // Verify the session belongs to this profile (security check)
   if (session.profile_id !== profileId) {
-    console.error('Security: session profile_id mismatch', {
-      sessionId: session.session_id,
-      expectedProfileId: profileId,
-      actualProfileId: session.profile_id
-    });
+    console.error('Security: session profile_id mismatch');
     return null;
   }
 

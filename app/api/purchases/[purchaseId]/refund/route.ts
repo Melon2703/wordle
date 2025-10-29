@@ -10,14 +10,8 @@ export async function POST(
   context: { params: { purchaseId: string } }
 ): Promise<Response> {
   try {
-    console.log('💸 Refund Debug - Starting refund request');
-    
     const auth = requireAuthContext(request);
-    console.log('💸 Refund Debug - Auth successful for user:', auth.userId);
-    
     const { purchaseId } = context.params;
-    console.log('💸 Refund Debug - Purchase ID:', purchaseId);
-    
     const client = getServiceClient();
     
     // Get or create user profile
@@ -28,17 +22,9 @@ export async function POST(
       auth.parsed.user?.first_name,
       auth.parsed.user?.last_name
     );
-    console.log('💸 Refund Debug - Profile:', {
-      profile_id: profile.profile_id,
-      username: profile.username
-    });
     
     // Process refund
     const refundedPurchase = await refundPurchase(client, purchaseId);
-    console.log('💸 Refund Debug - Refund completed:', {
-      purchase_id: refundedPurchase.purchase_id,
-      status: refundedPurchase.status
-    });
     
     return NextResponse.json({ 
       ok: true,
@@ -48,7 +34,7 @@ export async function POST(
     });
     
   } catch (error) {
-    console.error('❌ Refund Debug - POST error:', error);
+    console.error('Refund error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to process refund' },
       { status: 500 }

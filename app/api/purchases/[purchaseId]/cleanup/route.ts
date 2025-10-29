@@ -9,14 +9,8 @@ export async function DELETE(
   context: { params: { purchaseId: string } }
 ): Promise<Response> {
   try {
-    console.log('🧹 Cleanup Debug - Starting cleanup for cancelled purchase');
-    
     const auth = requireAuthContext(request);
     const { purchaseId } = context.params;
-    
-    console.log('🧹 Cleanup Debug - Purchase ID:', purchaseId);
-    console.log('🧹 Cleanup Debug - User ID:', auth.userId);
-    
     const client = getServiceClient();
     
     // Only allow cleanup of pending purchases owned by the user
@@ -29,15 +23,8 @@ export async function DELETE(
       .single();
     
     if (fetchError || !purchase) {
-      console.log('❌ Cleanup Debug - Purchase not found or not pending:', fetchError);
       return NextResponse.json({ error: 'Purchase not found or not cancellable' }, { status: 404 });
     }
-    
-    console.log('✅ Cleanup Debug - Found pending purchase:', {
-      purchase_id: purchase.purchase_id,
-      product_id: purchase.product_id,
-      stars_amount: purchase.stars_amount
-    });
     
     // Delete the pending purchase
     const { error: deleteError } = await client
@@ -46,16 +33,14 @@ export async function DELETE(
       .eq('purchase_id', purchaseId);
     
     if (deleteError) {
-      console.log('❌ Cleanup Debug - Failed to delete purchase:', deleteError);
+      console.error('Failed to delete purchase');
       return NextResponse.json({ error: 'Failed to cleanup purchase' }, { status: 500 });
     }
-    
-    console.log('✅ Cleanup Debug - Purchase cleaned up successfully');
     
     return NextResponse.json({ ok: true });
     
   } catch (error) {
-    console.error('❌ Cleanup Debug - DELETE error:', error);
+    console.error('Cleanup error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to cleanup purchase' },
       { status: 500 }

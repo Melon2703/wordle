@@ -54,8 +54,8 @@ export default function ArcadePage() {
         setArcadeCredits(credits);
         setNewGameEntitlements(status.newGameEntitlements);
       })
-      .catch(error => {
-        console.error('Failed to get arcade status:', error);
+        .catch(() => {
+        // Error loading arcade status
       });
   }, []);
 
@@ -96,14 +96,12 @@ export default function ArcadePage() {
         try {
           const dictionary = await getDictionaryWords(sessionData.length);
           setDictionaryCache(prev => new Map(prev).set(sessionData.length, dictionary));
-        } catch (error) {
-          console.error('Failed to load dictionary:', error);
+        } catch {
           toast.notify('Не удалось загрузить словарь. Проверка слов недоступна.');
         }
       }
     },
-    onError: (error) => {
-      console.error(error);
+    onError: () => {
       toast.notify('Не удалось запустить аркаду.');
       // Reset activeLength when mutation fails
       setActiveLength(null);
@@ -140,7 +138,6 @@ export default function ArcadePage() {
       try {
         // Validate session data
         if (!incompleteSession.session.solution || !incompleteSession.session.sessionId) {
-          console.error('Invalid session data detected');
           toast.notify('Не удалось восстановить игру. Начните новую.');
           return;
         }
@@ -168,14 +165,12 @@ export default function ArcadePage() {
             .then(dictionary => {
               setDictionaryCache(prev => new Map(prev).set(incompleteSession.session!.length, dictionary));
             })
-            .catch(error => {
-              console.error('Failed to load dictionary:', error);
+            .catch(() => {
               toast.notify('Не удалось загрузить словарь. Проверка слов недоступна.');
             });
         }
         
-      } catch (error) {
-        console.error('Error restoring session:', error);
+      } catch {
         toast.notify('Ошибка при восстановлении игры. Начните новую.');
         // Clear the invalid session state
         setSession(null);
@@ -204,8 +199,7 @@ export default function ArcadePage() {
       const response = await callArcadeHint(session.sessionId);
       setSession(prev => prev ? { ...prev, hintsUsed: response.hints } : null);
       setHintEntitlementsRemaining(response.entitlementsRemaining);
-    } catch (error) {
-      console.error('Failed to use hint:', error);
+    } catch {
       toast.notify('Не удалось использовать подсказку');
     } finally {
       setIsLoadingHint(false);
@@ -221,8 +215,7 @@ export default function ArcadePage() {
       setArcadeCredits(replenishedCredits);
       setNewGameEntitlements(prev => Math.max(prev - 1, 0));
       toast.notify('Игры восстановлены!');
-    } catch (error) {
-      console.error('Failed to unlock arcade:', error);
+    } catch {
       toast.notify('Не удалось разблокировать аркаду');
     } finally {
       setIsUnlocking(false);
@@ -248,8 +241,7 @@ export default function ArcadePage() {
       setShowExtraTryModal(false);
       
       toast.notify('Попытка добавлена!');
-    } catch (error) {
-      console.error('Failed to use extra try:', error);
+    } catch {
       toast.notify('Не удалось использовать попытку');
     } finally {
       setIsUsingExtraTry(false);
@@ -266,8 +258,7 @@ export default function ArcadePage() {
       setShowResult(true);
       
       // finishExtraTry already marks the session as complete, no need to call completeArcadeSession
-    } catch (error) {
-      console.error('Failed to finish game:', error);
+    } catch {
       toast.notify('Ошибка завершения игры');
     } finally {
       setIsUsingExtraTry(false);
@@ -356,8 +347,8 @@ export default function ArcadePage() {
         submittedGuess, // original input
         normalizedGuess, // normalized
         feedbackMask
-      ).catch(error => {
-        console.error('Failed to record guess:', error);
+      ).catch(() => {
+        // Error recording guess (non-critical)
       }).finally(() => {
         // Remove from pending array when done
         pendingRecords.current = pendingRecords.current.filter(p => p !== recordPromise);
@@ -370,8 +361,8 @@ export default function ArcadePage() {
       if (isLastAttempt) {
         try {
           await Promise.all(pendingRecords.current);
-        } catch (error) {
-          console.error('Failed to complete all record requests:', error);
+        } catch {
+          // Error completing record requests (non-critical)
         }
       }
       
@@ -387,11 +378,7 @@ export default function ArcadePage() {
         if (sessionStartTime) {
           const timeMs = Date.now() - sessionStartTime;
           completeArcadeSession(session.puzzleId, 'won', lines.length + 1, timeMs)
-            .then(() => {
-              console.log('✅ Arcade session recorded successfully');
-            })
-            .catch((error) => {
-              console.error('❌ Failed to record arcade session:', error);
+            .catch(() => {
               // Don't show error to user - game already completed locally
             });
         }

@@ -73,14 +73,13 @@ export function requireAuthContext(request: Request): AuthContext {
       throw new Error('Telegram init data missing user context');
     }
 
-    console.log('✅ Telegram auth successful');
     return {
       raw: rawTrimmed,
       parsed,
       userId: String(userId)
     };
   } catch (error) {
-    console.log('❌ Telegram auth validation failed');
+    // Auth validation failed - error is thrown and will be handled by caller
     throw error;
   }
 }
