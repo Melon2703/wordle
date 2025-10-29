@@ -58,6 +58,7 @@ export default function DailyPage() {
       
       // Also invalidate the cache to ensure fresh data on next fetch
       queryClient.invalidateQueries({ queryKey: ['puzzle', 'daily'] });
+      queryClient.invalidateQueries({ queryKey: ['user', 'status'] });
       
       if (response.status === 'won' || response.status === 'lost') {
         triggerHaptic('success');

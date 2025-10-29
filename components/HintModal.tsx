@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Heading, Text } from '@/components/ui';
 import { X } from 'lucide-react';
 import { Tile } from '@/components/PuzzleGrid/Tile';
@@ -34,6 +35,7 @@ export function HintModal({
   const [confirming, setConfirming] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const { notify } = useToast();
+  const queryClient = useQueryClient();
 
   if (!isOpen) return null;
 
@@ -63,6 +65,7 @@ export function HintModal({
       
       if (result === 'paid') {
         notify('Покупка завершена успешно!');
+        queryClient.invalidateQueries({ queryKey: ['purchases'] });
         if (onPurchaseComplete) {
           await onPurchaseComplete();
         }

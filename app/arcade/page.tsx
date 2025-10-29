@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
 import { PuzzleLoader } from '@/components/PuzzleLoader';
@@ -32,6 +32,7 @@ const getDictionaryKey = (length: ArcadeStartResponse['length'], theme: ArcadeTh
 
 export default function ArcadePage() {
   const toast = useToast();
+  const queryClient = useQueryClient();
   const [activeLength, setActiveLength] = useState<ArcadeStartResponse['length']>(defaultLength);
   const [activeTheme, setActiveTheme] = useState<ArcadeTheme>(defaultTheme);
   const [session, setSession] = useState<ArcadeStartResponse | null>(null);
@@ -173,6 +174,9 @@ export default function ArcadePage() {
           toast.notify('Не удалось загрузить словарь. Проверка слов недоступна.');
         }
       }
+
+      queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+      queryClient.invalidateQueries({ queryKey: ['arcade', 'status'] });
     },
     onError: () => {
       toast.notify('Не удалось запустить аркаду.');
@@ -303,6 +307,7 @@ export default function ArcadePage() {
       const response = await callArcadeHint(session.sessionId);
       setSession(prev => prev ? { ...prev, hintsUsed: response.hints } : null);
       setHintEntitlementsRemaining(response.entitlementsRemaining);
+      queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
     } catch {
       toast.notify('Не удалось использовать подсказку');
     } finally {
@@ -323,11 +328,14 @@ export default function ArcadePage() {
             ...prev,
             hintEntitlementsAvailable: updatedSession.hintEntitlementsAvailable
           } : null);
+          queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
         }
       } catch {
         // If session check fails, we can't refresh entitlements
       }
     }
+    queryClient.invalidateQueries({ queryKey: ['purchases'] });
+    queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
   };
 
   const handleUnlockArcade = async () => {
@@ -339,6 +347,7 @@ export default function ArcadePage() {
       setArcadeCredits(replenishedCredits);
       setNewGameEntitlements(prev => Math.max(prev - 1, 0));
       toast.notify('Игры восстановлены!');
+      queryClient.invalidateQueries({ queryKey: ['arcade', 'status'] });
     } catch {
       toast.notify('Не удалось разблокировать аркаду');
     } finally {
@@ -364,6 +373,8 @@ export default function ArcadePage() {
         const credits = Math.max(0, Math.min(status.arcadeCredits ?? 0, maxArcadeCredits));
         setArcadeCredits(credits);
         setNewGameEntitlements(status.newGameEntitlements);
+        queryClient.invalidateQueries({ queryKey: ['arcade', 'status'] });
+        queryClient.invalidateQueries({ queryKey: ['purchases'] });
       } else {
         try {
           await cleanupCancelledPurchase(purchaseResult.purchase_id);
@@ -390,6 +401,7 @@ export default function ArcadePage() {
       pendingRecords.current = [];
       setExtraTryEntitlements(prev => Math.max(prev - 1, 0));
       setShowExtraTryModal(false);
+      queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
       
       toast.notify('Попытка добавлена!');
     } catch {
@@ -407,6 +419,8 @@ export default function ArcadePage() {
       await finishExtraTry(session.sessionId);
       setShowExtraTryModal(false);
       setShowResult(true);
+      queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+      queryClient.invalidateQueries({ queryKey: ['user', 'status'] });
       
       // finishExtraTry already marks the session as complete, no need to call completeArcadeSession
     } catch {
@@ -436,6 +450,7 @@ export default function ArcadePage() {
             const sessionData = await checkArcadeSession();
             if (sessionData.hasIncomplete && sessionData.session) {
               setExtraTryEntitlements(sessionData.session.extraTryEntitlementsAvailable);
+              queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
             }
           } catch {
             // Fallback: refresh arcade status
@@ -449,6 +464,9 @@ export default function ArcadePage() {
             }
           }
         }
+        queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+        queryClient.invalidateQueries({ queryKey: ['arcade', 'status'] });
+        queryClient.invalidateQueries({ queryKey: ['purchases'] });
       } else {
         try {
           await cleanupCancelledPurchase(purchaseResult.purchase_id);
@@ -547,7 +565,9 @@ export default function ArcadePage() {
         submittedGuess, // original input
         normalizedGuess, // normalized
         feedbackMask
-      ).catch(() => {
+      ).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+      }).catch(() => {
         // Error recording guess (non-critical)
       }).finally(() => {
         // Remove from pending array when done
@@ -578,6 +598,10 @@ export default function ArcadePage() {
         if (sessionStartTime) {
           const timeMs = Date.now() - sessionStartTime;
           completeArcadeSession(session.puzzleId, 'won', lines.length + 1, timeMs)
+            .then(() => {
+              queryClient.invalidateQueries({ queryKey: ['user', 'status'] });
+              queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+            })
             .catch(() => {
               // Don't show error to user - game already completed locally
             });
