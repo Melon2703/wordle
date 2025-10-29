@@ -1,6 +1,7 @@
 import type {
   ArcadeGuessResponse,
   ArcadeStartResponse,
+  ArcadeTheme,
   DailyGuessResponse,
   DailyPuzzlePayload,
   ShopCatalog
@@ -8,6 +9,7 @@ import type {
 import type { UserStatus, Banner, ArcadeSessionCheckResponse } from './types';
 
 // Debug logging helper - only logs in development
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function debugLog(message: string, ...args: unknown[]) {
   if (process.env.NODE_ENV === 'development') {
     console.log(message, ...args);
@@ -154,13 +156,14 @@ export async function submitDailyGuess(
 }
 
 export async function startArcade(
-  length: 4 | 5 | 6, 
+  length: 4 | 5 | 6,
+  theme: ArcadeTheme,
   hardMode = false
 ): Promise<ArcadeStartResponse> {
   const response = await fetch('/api/arcade/start', {
     method: 'POST',
     headers: createHeaders(),
-    body: JSON.stringify({ length, hardMode })
+    body: JSON.stringify({ length, theme, hardMode })
   });
   
   return handleResponse<ArcadeStartResponse>(response);
@@ -204,8 +207,8 @@ export async function checkDictionaryWord(word: string): Promise<{ valid: boolea
   return handleResponse<{ valid: boolean }>(response);
 }
 
-export async function getDictionaryWords(length: 4 | 5 | 6 | 7): Promise<Set<string>> {
-  const response = await fetch(`/api/dict/words?length=${length}`, {
+export async function getDictionaryWords(length: 4 | 5 | 6 | 7, theme: ArcadeTheme): Promise<Set<string>> {
+  const response = await fetch(`/api/dict/words?length=${length}&theme=${theme}`, {
     headers: createHeaders()
   });
   

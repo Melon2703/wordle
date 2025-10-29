@@ -5,6 +5,12 @@ import { getOrCreateProfile } from '../../../../lib/db/queries';
 import { loadPuzzleAnswers } from '../../../../lib/dict/loader';
 import { TEMP_ARCADE_UNLIMITED } from '../../../../lib/env';
 import type { ArcadeStartResponse } from '../../../../lib/contracts';
+import { ARCADE_THEMES } from '../../../../lib/types';
+import type { ArcadeTheme } from '../../../../lib/types';
+
+function isArcadeTheme(value: unknown): value is ArcadeTheme {
+  return typeof value === 'string' && (ARCADE_THEMES as readonly string[]).includes(value);
+}
 
 export const runtime = 'nodejs';
 
@@ -15,7 +21,7 @@ export async function POST(request: Request) {
     
     // Parse request body
     const body = await request.json();
-    const { length, hardMode = false } = body;
+    const { length, theme, hardMode = false } = body;
     
     if (!length || ![4, 5, 6].includes(length)) {
       return NextResponse.json(
@@ -23,6 +29,14 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    if (!isArcadeTheme(theme)) {
+      return NextResponse.json(
+        { error: 'Invalid theme. Must be one of: common, music' },
+        { status: 400 }
+      );
+    }
+    const arcadeTheme: ArcadeTheme = theme;
     
     // Get or create user profile
     const profile = await getOrCreateProfile(
@@ -77,7 +91,7 @@ export async function POST(request: Request) {
     }
     
     // Load puzzle answers from Storage and filter by length
-    const puzzleAnswers = await loadPuzzleAnswers();
+    const puzzleAnswers = await loadPuzzleAnswers(arcadeTheme);
     const wordsOfLength = puzzleAnswers.filter(word => word.length === length);
     
     if (wordsOfLength.length === 0) {
@@ -98,7 +112,7 @@ export async function POST(request: Request) {
         letters: length,
         solution_text: randomWord,
         status: 'published',
-        seed: `arcade-${Date.now()}`
+        seed: `arcade-${arcadeTheme}-${Date.now()}`
       })
       .select()
       .single();
@@ -165,6 +179,7 @@ export async function POST(request: Request) {
       maxAttempts: length + 1, // Allow one extra attempt for arcade
       serverNow: new Date().toISOString(),
       solution: randomWord.toLowerCase().replace(/ё/g, 'е'), // normalized for client validation
+      theme: arcadeTheme,
       hintsUsed: [],
       hintEntitlementsAvailable,
       extraTryEntitlementsAvailable

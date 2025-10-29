@@ -44,6 +44,9 @@ export interface Hint {
   position: number;
 }
 
+export const ARCADE_THEMES = ['common', 'music'] as const;
+export type ArcadeTheme = typeof ARCADE_THEMES[number];
+
 export interface ArcadeStartResponse {
   puzzleId: string;
   sessionId: string;
@@ -52,6 +55,7 @@ export interface ArcadeStartResponse {
   maxAttempts: number;
   serverNow: string;
   solution: string;
+  theme: ArcadeTheme;
   hintsUsed: Hint[];
   hintEntitlementsAvailable: number;
   extraTryEntitlementsAvailable: number;

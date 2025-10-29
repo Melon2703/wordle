@@ -2,7 +2,21 @@ import { NextResponse } from 'next/server';
 import { requireAuthContext } from '../../../../lib/auth/validateInitData';
 import { getServiceClient } from '../../../../lib/db/client';
 import { getOrCreateProfile, getIncompleteArcadeSession, getHintEntitlementsCount } from '../../../../lib/db/queries';
-import type { ArcadeStartResponse, GuessLine, ArcadeSessionCheckResponse } from '../../../../lib/types';
+import type { ArcadeStartResponse, GuessLine, ArcadeSessionCheckResponse, ArcadeTheme } from '../../../../lib/types';
+import { ARCADE_THEMES } from '../../../../lib/types';
+
+function parseArcadeTheme(seed: string | null): ArcadeTheme {
+  if (!seed) {
+    return 'common';
+  }
+
+  const [, candidate] = seed.split('-');
+  if (candidate && (ARCADE_THEMES as readonly string[]).includes(candidate)) {
+    return candidate as ArcadeTheme;
+  }
+
+  return 'common';
+}
 
 export const runtime = 'nodejs';
 
@@ -72,6 +86,7 @@ export async function GET(request: Request) {
       maxAttempts: puzzle.letters + 1,
       serverNow: new Date().toISOString(),
       solution: puzzle.solution_norm, // normalized solution for client-side evaluation
+      theme: parseArcadeTheme(puzzle.seed),
       hintsUsed: (session.hints_used as Array<{letter: string; position: number}>) || [],
       hintEntitlementsAvailable,
       extraTryEntitlementsAvailable

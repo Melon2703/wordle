@@ -15,7 +15,7 @@ export async function POST(
     const client = getServiceClient();
     
     // Get or create user profile
-    const profile = await getOrCreateProfile(
+    await getOrCreateProfile(
       client, 
       parseInt(auth.userId), 
       auth.parsed.user?.username,

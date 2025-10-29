@@ -1,6 +1,7 @@
 // Dictionary loader that fetches words from Supabase Storage
 // See docs/backend/Backend_Documentation.md §B.2a for requirements.
 import { getServiceClient } from '../db/client';
+import type { ArcadeTheme } from '../types';
 
 export interface DictionarySets {
   allowed: Set<string>;
@@ -11,8 +12,14 @@ let cache: DictionarySets | null = null;
 
 // Storage URLs for wordlists
 const GUESSES_URL = 'https://vsxtbhwfekvbwqupbgbd.supabase.co/storage/v1/object/public/wordlists/ru/v1/for-guesses.txt';
-const PUZZLES_URL = 'https://vsxtbhwfekvbwqupbgbd.supabase.co/storage/v1/object/public/wordlists/ru/v1/for-puzzles.txt';
+const PUZZLE_URLS: Record<ArcadeTheme, string> = {
+  common: 'https://vsxtbhwfekvbwqupbgbd.supabase.co/storage/v1/object/public/wordlists/ru/v1/for-puzzles.txt',
+  music: 'https://vsxtbhwfekvbwqupbgbd.supabase.co/storage/v1/object/public/wordlists/ru/v1/music-words.txt'
+};
 const USED_WORDS_URL = 'https://vsxtbhwfekvbwqupbgbd.supabase.co/storage/v1/object/public/wordlists/ru/v1/daily-used-words.txt';
+
+const puzzleCache = new Map<ArcadeTheme, string[]>();
+const puzzleSetCache = new Map<ArcadeTheme, Set<string>>();
 
 export async function loadDictionary(): Promise<DictionarySets> {
   if (cache) {
@@ -21,19 +28,13 @@ export async function loadDictionary(): Promise<DictionarySets> {
 
   try {
     // Load both wordlists in parallel with Next.js caching
-    const [guessesResponse, puzzlesResponse] = await Promise.all([
-      fetch(GUESSES_URL, { next: { revalidate: 21600 } }), // 6 hours
-      fetch(PUZZLES_URL, { next: { revalidate: 21600 } })  // 6 hours
-    ]);
-
-    if (!guessesResponse.ok || !puzzlesResponse.ok) {
-      throw new Error('Failed to fetch wordlists from Storage');
+    const guessesResponse = await fetch(GUESSES_URL, { next: { revalidate: 21600 } });
+    if (!guessesResponse.ok) {
+      throw new Error('Failed to fetch guesses wordlist from Storage');
     }
 
-    const [guessesText, puzzlesText] = await Promise.all([
-      guessesResponse.text(),
-      puzzlesResponse.text()
-    ]);
+    const guessesText = await guessesResponse.text();
+    const answersList = await loadPuzzleAnswers('common');
 
     // Parse newline-delimited text files into Sets
     const allowed = new Set(
@@ -43,12 +44,7 @@ export async function loadDictionary(): Promise<DictionarySets> {
         .filter(word => word.length > 0)
     );
 
-    const answers = new Set(
-      puzzlesText
-        .split('\n')
-        .map(word => word.trim().toLowerCase())
-        .filter(word => word.length > 0)
-    );
+    const answers = new Set(answersList);
 
     cache = { allowed, answers };
     return cache;
@@ -59,24 +55,49 @@ export async function loadDictionary(): Promise<DictionarySets> {
   }
 }
 
-export async function loadPuzzleAnswers(): Promise<string[]> {
+export async function loadPuzzleAnswers(theme: ArcadeTheme = 'common'): Promise<string[]> {
   try {
-    const response = await fetch(PUZZLES_URL, { next: { revalidate: 21600 } });
-    
+    if (puzzleCache.has(theme)) {
+      return puzzleCache.get(theme)!;
+    }
+
+    const url = PUZZLE_URLS[theme];
+    if (!url) {
+      throw new Error(`Unsupported puzzle theme: ${theme}`);
+    }
+
+    const response = await fetch(url, { next: { revalidate: 21600 } });
+
     if (!response.ok) {
       throw new Error('Failed to fetch puzzle answers from Storage');
     }
 
     const text = await response.text();
-    return text
+    const words = text
       .split('\n')
-      .map(word => word.trim().toLowerCase())
+      .map(word => word.trim().toLowerCase().replace(/ё/g, 'е'))
       .filter(word => word.length > 0);
+
+    puzzleCache.set(theme, words);
+    puzzleSetCache.set(theme, new Set(words));
+
+    return words;
 
   } catch (error) {
     console.error('Failed to load puzzle answers:', error);
     throw new Error('Failed to load puzzle answers');
   }
+}
+
+export async function loadThemeWordSet(theme: ArcadeTheme): Promise<Set<string>> {
+  if (puzzleSetCache.has(theme)) {
+    return puzzleSetCache.get(theme)!;
+  }
+
+  const words = await loadPuzzleAnswers(theme);
+  const set = new Set(words);
+  puzzleSetCache.set(theme, set);
+  return set;
 }
 
 export async function loadUsedWords(): Promise<Set<string>> {
@@ -131,4 +152,6 @@ export async function updateUsedWords(words: string[]): Promise<void> {
 
 export function resetDictionary(): void {
   cache = null;
+  puzzleCache.clear();
+  puzzleSetCache.clear();
 }

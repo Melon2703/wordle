@@ -3,6 +3,7 @@ import type {
   ArcadeHintRequest,
   ArcadeHintResponse,
   ArcadeStartResponse,
+  ArcadeTheme,
   DailyGuessResponse,
   DailyPuzzlePayload,
   GuessLine,
@@ -19,6 +20,7 @@ export type {
   ArcadeHintRequest,
   ArcadeHintResponse,
   ArcadeStartResponse,
+  ArcadeTheme,
   DailyGuessResponse,
   DailyPuzzlePayload,
   GuessLine,
@@ -96,6 +98,7 @@ export const sampleArcadeStart: ArcadeStartResponse = {
   maxAttempts: 6,
   serverNow: new Date().toISOString(),
   solution: 'СЛОВО',
+  theme: 'common',
   hintsUsed: [],
   hintEntitlementsAvailable: 0,
   extraTryEntitlementsAvailable: 0
