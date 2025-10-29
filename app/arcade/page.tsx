@@ -466,12 +466,14 @@ export default function ArcadePage() {
       
       if (result === 'paid') {
         toast.notify('Покупка завершена успешно!');
+        let shouldAutoUseExtraTry = false;
         // Refresh session to get updated entitlements
         if (session?.sessionId) {
           try {
             const sessionData = await checkArcadeSession();
             if (sessionData.hasIncomplete && sessionData.session) {
               setExtraTryEntitlements(sessionData.session.extraTryEntitlementsAvailable);
+              shouldAutoUseExtraTry = sessionData.session.extraTryEntitlementsAvailable > 0;
               queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
             }
           } catch {
@@ -489,6 +491,9 @@ export default function ArcadePage() {
         queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
         queryClient.invalidateQueries({ queryKey: ['arcade', 'status'] });
         queryClient.invalidateQueries({ queryKey: ['purchases'] });
+        if (shouldAutoUseExtraTry) {
+          await handleUseExtraTry();
+        }
       } else {
         try {
           await cleanupCancelledPurchase(purchaseResult.purchase_id);

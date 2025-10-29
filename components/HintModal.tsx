@@ -66,10 +66,10 @@ export function HintModal({
       if (result === 'paid') {
         notify('Покупка завершена успешно!');
         queryClient.invalidateQueries({ queryKey: ['purchases'] });
+        setConfirming(false);
         if (onPurchaseComplete) {
           await onPurchaseComplete();
         }
-        onClose();
       } else {
         try {
           await cleanupCancelledPurchase(purchaseResult.purchase_id);
