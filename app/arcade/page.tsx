@@ -441,9 +441,10 @@ export default function ArcadePage() {
     try {
       await finishExtraTry(session.sessionId);
       setShowExtraTryModal(false);
+      // Refetch user status to get updated arcade solved count before showing result
+      queryClient.refetchQueries({ queryKey: ['user', 'status'] });
       setShowResult(true);
       queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
-      queryClient.invalidateQueries({ queryKey: ['user', 'status'] });
       
       // finishExtraTry already marks the session as complete, no need to call completeArcadeSession
     } catch {
@@ -620,6 +621,8 @@ export default function ArcadePage() {
       
       if (isWin) {
         triggerHaptic('success');
+        // Refetch user status to get updated arcade solved count before showing result
+        queryClient.refetchQueries({ queryKey: ['user', 'status'] });
         setShowResult(true);
         
         // Record session completion in background
@@ -627,7 +630,7 @@ export default function ArcadePage() {
           const timeMs = Date.now() - sessionStartTime;
           completeArcadeSession(session.puzzleId, 'won', lines.length + 1, timeMs)
             .then(() => {
-              queryClient.invalidateQueries({ queryKey: ['user', 'status'] });
+              queryClient.refetchQueries({ queryKey: ['user', 'status'] });
               queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
             })
             .catch(() => {
@@ -849,7 +852,7 @@ export default function ArcadePage() {
                 </Card>
 
                 <Card padding="lg" className="text-center">
-                  <Text className="mb-4">Выберите тему слов</Text>
+                  <Text className="mb-4">Выберите тему слова</Text>
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     {themeOptions.map((option) => (
                       <Button
