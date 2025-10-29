@@ -7,7 +7,7 @@ import { Banner } from '@/components/Banner';
 import { LoadingFallback } from '@/components/LoadingFallback';
 import { Button, Card, Heading, Text } from '@/components/ui';
 import { getUserStatus, getActiveBanners, getDailyPuzzle, getSavedWords } from '@/lib/api';
-import { CircleDashed, CheckCircle2, XCircle, Play, Flame, Clock, BookMarked } from 'lucide-react';
+import { CircleDashed, CheckCircle2, XCircle, Play, Flame, Clock, BookMarked, CalendarCheck2, Zap } from 'lucide-react';
 
 export default function HomePage() {
   const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set());
@@ -169,6 +169,30 @@ export default function HomePage() {
     return `${count} слов`;
   };
 
+  const getArcadeSolvedText = () => {
+    if (statusLoading) {
+      return 'Загружаем…';
+    }
+
+    const count = userStatus?.arcadeSolved ?? 0;
+    if (count === 0) {
+      return 'Пока нет решенных';
+    }
+
+    const remainder10 = count % 10;
+    const remainder100 = count % 100;
+
+    if (remainder10 === 1 && remainder100 !== 11) {
+      return `${count} решена`;
+    }
+
+    if (remainder10 >= 2 && remainder10 <= 4 && (remainder100 < 12 || remainder100 > 14)) {
+      return `${count} решены`;
+    }
+
+    return `${count} решено`;
+  };
+
   return (
     <main className="page-container px-4 pt-20">
       {/* Banner */}
@@ -196,9 +220,10 @@ export default function HomePage() {
         >
           <Card padding="lg" interactive className="text-center">
             <div className="space-y-4">
-              <div>
+              <div className="flex flex-col items-center space-y-3">
+                <CalendarCheck2 className="h-8 w-8 text-blue-600" />
                 <Heading level={2}>Ежедневная загадка</Heading>
-                <Text className="mt-2">Решайте новую загадка каждый день</Text>
+                <Text className="mt-1">Отгадывайте новое слово каждый день</Text>
               </div>
             
               {/* Status Row */}
@@ -244,10 +269,14 @@ export default function HomePage() {
         >
           <Card padding="lg" interactive className="text-center">
             <div className="space-y-4">
-              <div>
+              <div className="flex flex-col items-center space-y-3">
+                <Zap className="h-8 w-8 text-blue-600" />
                 <Heading level={2}>Аркада</Heading>
-                <Text className="mt-2">Тренируйтесь без ограничений</Text>
+                <Text className="mt-1">Тренируйтесь без ограничений</Text>
               </div>
+              <Text variant="caption" className="text-slate-500">
+                {getArcadeSolvedText()}
+              </Text>
               <Button fullWidth>Играть</Button>
             </div>
           </Card>
