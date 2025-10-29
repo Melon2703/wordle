@@ -12,7 +12,7 @@ import { SaveWordButton } from '@/components/SaveWordButton';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { Button, Card, Heading, Text } from '@/components/ui';
-import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess, getArcadeStatus, unlockArcade, useExtraTry as callUseExtraTry, finishExtraTry, purchaseProduct, cleanupCancelledPurchase } from '@/lib/api';
+import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess, getArcadeStatus, unlockArcade, useExtraTry as callUseExtraTry, finishExtraTry, purchaseProduct, cleanupCancelledPurchase, getUserStatus } from '@/lib/api';
 import { invoice } from '@tma.js/sdk';
 import { HintModal } from '@/components/HintModal';
 import { ExtraTryModal } from '@/components/ExtraTryModal';
@@ -311,7 +311,7 @@ export default function ArcadePage() {
   // Get user status for arcade solved count
   const { data: userStatus } = useQuery({
     queryKey: ['user', 'status'],
-    queryFn: () => fetch('/api/user/status').then(res => res.json()),
+    queryFn: getUserStatus,
     staleTime: 30 * 1000,
   });
 
@@ -441,8 +441,8 @@ export default function ArcadePage() {
     try {
       await finishExtraTry(session.sessionId);
       setShowExtraTryModal(false);
-      // Refetch user status to get updated arcade solved count before showing result
-      await queryClient.refetchQueries({ queryKey: ['user', 'status'] });
+      // Invalidate user status so the arcade count reflects the finished game
+      await queryClient.invalidateQueries({ queryKey: ['user', 'status'] });
       setShowResult(true);
       queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
       
@@ -621,8 +621,8 @@ export default function ArcadePage() {
       
       if (isWin) {
         triggerHaptic('success');
-        // Refetch user status to get updated arcade solved count before showing result
-        await queryClient.refetchQueries({ queryKey: ['user', 'status'] });
+        // Invalidate user status to ensure the arcade count refreshes before showing the result
+        await queryClient.invalidateQueries({ queryKey: ['user', 'status'] });
         setShowResult(true);
         
         // Record session completion in background
@@ -630,7 +630,7 @@ export default function ArcadePage() {
           const timeMs = Date.now() - sessionStartTime;
           completeArcadeSession(session.puzzleId, 'won', lines.length + 1, timeMs)
             .then(() => {
-              queryClient.refetchQueries({ queryKey: ['user', 'status'] });
+              queryClient.invalidateQueries({ queryKey: ['user', 'status'] });
               queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
             })
             .catch(() => {
