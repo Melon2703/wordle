@@ -7,7 +7,6 @@ import { Providers } from './providers';
 import { ThemeBridge } from '@/components/ThemeBridge';
 import { HapticsBridge } from '@/components/HapticsBridge';
 import { ToastCenter } from '@/components/ToastCenter';
-import { Header } from '@/components/Header';
 import { BottomNavWrapper } from '@/components/BottomNavWrapper';
 import { LoadingFallback } from '@/components/LoadingFallback';
 
@@ -34,7 +33,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Providers>
           <ThemeBridge />
           <HapticsBridge />
-          <Header />
           <ToastCenter>
             <Suspense fallback={<LoadingFallback length={5} />}>
               {children}

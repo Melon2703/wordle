@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { CalendarCheck2, Zap, Store } from 'lucide-react';
+import { CalendarCheck2, Zap, Store, CircleHelp } from 'lucide-react';
+import { RulesSheet } from './RulesSheet';
 import clsx from 'clsx';
 
 
@@ -23,6 +24,7 @@ const navItems: NavItem[] = [
 export function BottomNav() {
   const pathname = usePathname();
   const [showShop, setShowShop] = useState(false);
+  const [rulesSheetOpen, setRulesSheetOpen] = useState(false);
 
   // Check if user should see Shop tab
   useEffect(() => {
@@ -47,29 +49,54 @@ export function BottomNav() {
     item.showForAll || (item.href === '/shop' && showShop)
   );
 
+  const handleRulesClick = () => {
+    setRulesSheetOpen(true);
+  };
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-blue-200 bg-white px-6 py-3">
-      <div className="flex items-center justify-around gap-6">
-        {visibleItems.map((item) => {
-          const isActive = pathname === item.href;
-          const IconComponent = item.icon;
+    <>
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-blue-200 bg-white px-6 py-3">
+        <div className="flex items-center justify-around gap-6">
+          {visibleItems.map((item) => {
+            const isActive = pathname === item.href;
+            const IconComponent = item.icon;
+            
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={clsx(
+                  'flex h-12 w-12 items-center justify-center rounded-lg transition-colors',
+                  'hover:bg-blue-50',
+                  isActive && 'bg-blue-100 text-blue-600'
+                )}
+                aria-label={item.label}
+              >
+                <IconComponent className="h-5 w-5" />
+              </Link>
+            );
+          })}
           
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={clsx(
-                'flex h-12 w-12 items-center justify-center rounded-lg transition-colors',
-                'hover:bg-blue-50',
-                isActive && 'bg-blue-100 text-blue-600'
-              )}
-              aria-label={item.label}
-            >
-              <IconComponent className="h-5 w-5" />
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+          {/* Rules button */}
+          <button
+            type="button"
+            onClick={handleRulesClick}
+            className={clsx(
+              'flex h-12 w-12 items-center justify-center rounded-lg transition-colors',
+              'hover:bg-blue-50'
+            )}
+            aria-label="Правила"
+          >
+            <CircleHelp className="h-5 w-5" />
+          </button>
+        </div>
+      </nav>
+      
+      <RulesSheet
+        open={rulesSheetOpen}
+        onClose={() => setRulesSheetOpen(false)}
+        showOnboardingButton={false}
+      />
+    </>
   );
 }

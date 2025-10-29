@@ -41,7 +41,7 @@ export default function HomePage() {
   useEffect(() => {
     const onboardingCompleted = localStorage.getItem('wordle-onboarding-completed');
     if (!onboardingCompleted) {
-      // Onboarding will be handled by TopRightIcons component
+      // Onboarding can be handled elsewhere if needed
     }
   }, []);
 
