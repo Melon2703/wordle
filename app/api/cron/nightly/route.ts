@@ -114,7 +114,8 @@ export async function GET(req: NextRequest): Promise<Response> {
         .update(
           { arcade_credits: 3 },
           { count: 'exact' }
-        );
+        )
+        .neq('profile_id', ''); // force a WHERE that matches all real rows
 
       if (updErr) {
         console.error('Reset arcade credits failed', updErr);
