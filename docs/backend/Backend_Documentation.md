@@ -127,7 +127,7 @@ The generated types in `lib/db/types.ts` map 1:1 to Supabase tables. Key entitie
 - **profiles**
   - Primary key: `profile_id` (UUID). Stores Telegram identifiers, streak metrics, high-contrast settings, and arcade availability. Updated via `getOrCreateProfile`.
 - **puzzles**
-  - Columns: `mode` (`daily`/`arcade`), `date` (for daily), `letters`, `solution_text`, `solution_norm`, `status`, `seed`. Cron inserts new daily puzzles; arcade start inserts ad-hoc rows.
+  - Columns: `mode` (`daily`/`arcade`), `date` (for daily), `letters`, `solution_text`, `solution_norm`, `status`, `seed`, `profile_id` (nullable UUID; populated for arcade puzzles to tie ownership and enable cascade cleanup). Cron inserts new daily puzzles; arcade start inserts ad-hoc rows.
 - **sessions**
   - Links `profile_id` ↔ `puzzle_id`, tracks attempts, result, timings, `hard_mode`, and `hints_used`. Inserted/updated from the daily and arcade handlers.
 - **guesses**

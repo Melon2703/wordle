@@ -73,6 +73,7 @@ export interface Database {
           ruleset_version: number;
           status: 'draft' | 'published' | 'retired';
           seed: string | null;
+          profile_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -86,6 +87,7 @@ export interface Database {
           ruleset_version?: number;
           status?: 'draft' | 'published' | 'retired';
           seed?: string | null;
+          profile_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -99,6 +101,7 @@ export interface Database {
           ruleset_version?: number;
           status?: 'draft' | 'published' | 'retired';
           seed?: string | null;
+          profile_id?: string | null;
           created_at?: string;
         };
       };
