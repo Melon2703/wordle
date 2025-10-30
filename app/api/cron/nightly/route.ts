@@ -27,6 +27,10 @@ export async function GET(req: NextRequest): Promise<Response> {
       now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1
     ));
     const tomorrowStr = tomorrowUTC.toISOString().slice(0, 10);
+    const twoDaysAgoUTC = new Date(Date.UTC(
+      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 2
+    ));
+    const twoDaysAgoStr = twoDaysAgoUTC.toISOString().slice(0, 10);
 
     // --- Check if tomorrow's puzzle exists ---
     const { data: existingPuzzle, error: existingErr } = await client
@@ -107,6 +111,8 @@ export async function GET(req: NextRequest): Promise<Response> {
     // --- Reset arcade credits for all users (with count) ---
     let profilesUpdated: number | null = null;
     let creditsError: string | null = null;
+    let dailyCleanupDeleted: number | null = null;
+    let dailyCleanupError: string | null = null;
 
     if (!dryRun) {
       const { count, error: updErr } = await client
@@ -126,6 +132,24 @@ export async function GET(req: NextRequest): Promise<Response> {
       }
     }
 
+    // Delete T-2 daily, not T-1 — keep yesterday’s for users in slower timezones.
+    if (!dryRun) {
+      const { error: cleanupDailyErr, count: dailyDeletedCount } = await client
+        .from('puzzles')
+        .delete({ count: 'exact' })
+        .eq('mode', 'daily')
+        .eq('status', 'published')
+        .eq('date', twoDaysAgoStr);
+
+      if (cleanupDailyErr) {
+        dailyCleanupError = 'daily_cleanup_failed';
+        console.error('Daily cleanup failed', { cleanupTargetDate: twoDaysAgoStr, error: cleanupDailyErr });
+      } else {
+        dailyCleanupDeleted = dailyDeletedCount ?? null;
+        console.log('Daily cleanup OK', { dailyCleanupDeleted, cleanupTargetDate: twoDaysAgoStr });
+      }
+    }
+
     const finishedAt = new Date().toISOString();
     const summary = {
       ok: true,
@@ -139,6 +163,9 @@ export async function GET(req: NextRequest): Promise<Response> {
       resetCycle,
       profilesUpdated,
       creditsError,
+      dailyCleanupDeleted,
+      dailyCleanupError,
+      cleanupTargetDate: twoDaysAgoStr,
       startedAt,
       finishedAt,
     };
