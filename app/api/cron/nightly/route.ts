@@ -1,4 +1,4 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { getServiceClient } from '../../../../lib/db/client';
 import { loadPuzzleAnswers, loadUsedWords, updateUsedWords } from '../../../../lib/dict/loader';
 
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
         if (insertErr) {
           // Unique violation / race: another instance inserted it
-          if ((insertErr as any).code !== '23505') {
+          if ((insertErr as { code?: string }).code !== '23505') {
             console.error('Insert puzzle failed', insertErr);
             return NextResponse.json({ error: 'insert_failed' }, { status: 500 });
           } else {
