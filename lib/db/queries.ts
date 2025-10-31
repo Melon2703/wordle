@@ -111,6 +111,10 @@ export async function recordDailyGuess(
     .single();
 
   if (error || !data) {
+    // Check for unique constraint violation (duplicate guess)
+    if (error?.code === '23505' || (error?.message && error.message.includes('guesses_unique_per_session_word'))) {
+      throw new Error('DUPLICATE_GUESS');
+    }
     console.error('Failed to record guess');
     throw new Error('Failed to record guess');
   }
@@ -141,6 +145,10 @@ export async function recordArcadeGuess(
     .single();
 
   if (error || !data) {
+    // Check for unique constraint violation (duplicate guess)
+    if (error?.code === '23505' || (error?.message && error.message.includes('guesses_unique_per_session_word'))) {
+      throw new Error('DUPLICATE_GUESS');
+    }
     console.error('Failed to record arcade guess');
     throw new Error('Failed to record arcade guess');
   }
