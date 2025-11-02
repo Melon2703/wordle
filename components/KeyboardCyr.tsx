@@ -1,7 +1,6 @@
 'use client';
 
 import clsx from 'clsx';
-import { ArrowRight, Delete } from 'lucide-react';
 import { triggerHaptic } from './HapticsBridge';
 import type { LetterState } from '@/lib/contracts';
 
@@ -10,7 +9,7 @@ type KeyState = LetterState | undefined;
 const layout: string[][] = [
   ['Й', 'Ц', 'У', 'К', 'Е', 'Н', 'Г', 'Ш', 'Щ', 'З', 'Х'],
   ['Ф', 'Ы', 'В', 'А', 'П', 'Р', 'О', 'Л', 'Д', 'Ж', 'Э'],
-  ['ENTER', 'Я', 'Ч', 'С', 'М', 'И', 'Т', 'Ь', 'Б', 'Ю', 'DELETE']
+  ['Я', 'Ч', 'С', 'М', 'И', 'Т', 'Ь', 'Б', 'Ю']
 ];
 
 interface KeyboardCyrProps {
@@ -53,44 +52,6 @@ export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {}, disab
           {row.map((label) => {
             const state = keyStates[label];
             
-            // Render action buttons with icons
-            if (label === 'ENTER') {
-              const isEnterDisabled = disabled || disableEnter;
-              return (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => handlePress(label)}
-                  disabled={isEnterDisabled}
-                  className={clsx(
-                    'flex-1 rounded-md bg-blue-200 h-12 text-slate-800 shadow-sm transition active:scale-95 hover:bg-blue-300 font-sans flex items-center justify-center',
-                    isEnterDisabled && 'opacity-50 cursor-not-allowed'
-                  )}
-                  aria-label="Enter"
-                >
-                  <ArrowRight className="h-5 w-5" />
-                </button>
-              );
-            }
-            
-            if (label === 'DELETE') {
-              return (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => handlePress(label)}
-                  disabled={disabled}
-                  className={clsx(
-                    'flex-1 rounded-md bg-red-200 h-12 text-slate-800 shadow-sm transition active:scale-95 hover:bg-red-300 font-sans flex items-center justify-center',
-                    disabled && 'opacity-50 cursor-not-allowed'
-                  )}
-                  aria-label="Delete"
-                >
-                  <Delete className="h-5 w-5" />
-                </button>
-              );
-            }
-            
             // Render letter buttons
             return (
               <button
@@ -111,6 +72,34 @@ export function KeyboardCyr({ onKey, onEnter, onBackspace, keyStates = {}, disab
           })}
         </div>
       ))}
+      
+      {/* Action buttons row */}
+      <div className="flex justify-center gap-1">
+        <button
+          type="button"
+          onClick={() => handlePress('ENTER')}
+          disabled={disabled || disableEnter}
+          className={clsx(
+            'flex-1 rounded-md bg-green-200 h-12 text-slate-800 shadow-sm transition active:scale-95 hover:bg-green-300 font-sans flex items-center justify-center text-sm font-semibold',
+            (disabled || disableEnter) && 'opacity-50 cursor-not-allowed'
+          )}
+          aria-label="Отправить"
+        >
+          Отправить
+        </button>
+        <button
+          type="button"
+          onClick={() => handlePress('DELETE')}
+          disabled={disabled}
+          className={clsx(
+            'flex-1 rounded-md bg-red-200 h-12 text-slate-800 shadow-sm transition active:scale-95 hover:bg-red-300 font-sans flex items-center justify-center text-sm font-semibold',
+            disabled && 'opacity-50 cursor-not-allowed'
+          )}
+          aria-label="Очистить"
+        >
+          Очистить
+        </button>
+      </div>
     </div>
   );
 }
