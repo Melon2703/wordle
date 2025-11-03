@@ -5,6 +5,7 @@ import { Button, IconButton } from '@/components/ui';
 import { useToast } from '@/components/ToastCenter';
 import type { PrepareShareRequest, GuessLine } from '@/lib/types';
 import { Loader2, Share2 } from 'lucide-react';
+import { trackEvent } from '@/lib/analytics';
 
 interface ShareButtonProps {
   mode: 'daily' | 'arcade';
@@ -48,6 +49,27 @@ export function ShareButton({
         return;
       }
 
+      const telegram = (window as { Telegram?: { WebApp?: { shareMessage?: (id: string) => Promise<void>; openTelegramLink?: (url: string) => void } } }).Telegram;
+      const transport = telegram?.WebApp?.shareMessage
+        ? 'telegram_shareMessage'
+        : telegram?.WebApp?.openTelegramLink
+          ? 'telegram_openLink'
+          : 'clipboard';
+
+      const sharedParams = {
+        mode,
+        result: status,
+        attempts_used: attemptsUsed,
+        time_ms: timeMs,
+        streak,
+        arcade_solved: arcadeSolved,
+        transport,
+        variant
+      };
+
+      trackEvent('share_clicked', sharedParams);
+      trackEvent(`${mode}_share_clicked`, sharedParams);
+
       // why: Prepare shareable message via bot savePreparedInlineMessage (docs/backend/Backend_Documentation.md §A.2)
       const response = await fetch('/api/share/prepare', {
         method: 'POST',
@@ -73,9 +95,6 @@ export function ShareButton({
 
       const data = await response.json();
 
-      // Use Telegram WebApp shareMessage
-      const telegram = (window as { Telegram?: { WebApp?: { shareMessage?: (id: string) => Promise<void>; openTelegramLink?: (url: string) => void } } }).Telegram;
-      
       if (telegram?.WebApp?.shareMessage) {
         await telegram.WebApp.shareMessage(data.preparedMessageId);
         notify('Результат подготовлен для отправки!');
@@ -91,6 +110,11 @@ export function ShareButton({
     } catch (error) {
       console.error('Share failed:', error);
       notify('Не удалось подготовить результат');
+      trackEvent('share_failed', {
+        mode,
+        result: status,
+        attempts_used: attemptsUsed
+      });
     } finally {
       setIsSharing(false);
     }

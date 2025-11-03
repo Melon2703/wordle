@@ -10,6 +10,7 @@ import { purchaseProduct, cleanupCancelledPurchase } from '@/lib/api';
 import { invoice } from '@tma.js/sdk';
 import { useToast } from '@/components/ToastCenter';
 import { waitForTelegramInitData } from '@/lib/telegram';
+import { trackEvent } from '@/lib/analytics';
 
 interface HintModalProps {
   isOpen: boolean;
@@ -52,6 +53,11 @@ export function HintModal({
 
     setIsPurchasing(true);
     try {
+      trackEvent('arcade_hint_purchase_flow', {
+        mode: 'arcade',
+        product_id: 'arcade_hint',
+        stage: 'started'
+      });
       const ready = await waitForTelegramInitData();
       if (!ready) {
         notify('Телеграм еще загружается, попробуйте чуть позже');
@@ -77,9 +83,19 @@ export function HintModal({
           // Don't fail the whole operation if cleanup fails
         }
         notify('Покупка отменена');
+        trackEvent('arcade_hint_purchase_flow', {
+          mode: 'arcade',
+          product_id: 'arcade_hint',
+          stage: 'cancelled'
+        });
       }
     } catch {
       notify('Ошибка при покупке');
+      trackEvent('arcade_hint_purchase_flow', {
+        mode: 'arcade',
+        product_id: 'arcade_hint',
+        stage: 'failed'
+      });
     } finally {
       setIsPurchasing(false);
     }

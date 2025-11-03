@@ -2,17 +2,19 @@
 
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Banner } from '@/components/Banner';
 import { LoadingFallback } from '@/components/LoadingFallback';
 import { Button, Card, Heading, Text } from '@/components/ui';
 import { getUserStatus, getActiveBanners, getDailyPuzzle, getSavedWords } from '@/lib/api';
 import { CircleDashed, CheckCircle2, XCircle, Play, Flame, Clock, BookMarked, CalendarCheck2, Zap } from 'lucide-react';
+import { trackEvent } from '@/lib/analytics';
 
 export default function HomePage() {
   const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set());
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [timeUntilNext, setTimeUntilNext] = useState<string>('');
+  const savedWordsLoggedRef = useRef(false);
 
   // Check for reduced motion preference
   useEffect(() => {
@@ -58,6 +60,23 @@ export default function HomePage() {
     queryFn: getSavedWords,
     staleTime: 60 * 1000
   });
+
+  useEffect(() => {
+    if (savedWordsLoggedRef.current) {
+      return;
+    }
+    if (savedWordsLoading) {
+      return;
+    }
+    if (savedWords === undefined) {
+      return;
+    }
+    savedWordsLoggedRef.current = true;
+    trackEvent('saved_words_preview_loaded', {
+      mode: 'home',
+      count: savedWords.length
+    });
+  }, [savedWords, savedWordsLoading]);
 
   // Update countdown timer
   useEffect(() => {
@@ -109,6 +128,19 @@ export default function HomePage() {
     newDismissed.add(bannerId);
     setDismissedBanners(newDismissed);
     localStorage.setItem('dismissed-banners', JSON.stringify([...newDismissed]));
+  };
+
+  const savedWordsCount = savedWords?.length ?? 0;
+
+  const handleCardTap = (destination: 'daily' | 'arcade' | 'dictionary') => {
+    trackEvent('home_card_tapped', {
+      mode: 'home',
+      destination_mode: destination,
+      daily_status: userStatus?.dailyStatus,
+      streak: userStatus?.streak,
+      saved_words_count: savedWordsCount,
+      arcade_solved: userStatus?.arcadeSolved
+    });
   };
 
   if (statusLoading || bannersLoading) {
@@ -213,6 +245,7 @@ export default function HomePage() {
         {/* Daily Card */}
         <Link
           href="/daily"
+          onClick={() => handleCardTap('daily')}
           className={`block ${prefersReducedMotion ? '' : 'hover:-translate-y-0.5'} ${
             isFirstTime ? 'ring-2 ring-blue-300 ring-opacity-50' : ''
           }`}
@@ -264,6 +297,7 @@ export default function HomePage() {
         {/* Arcade Card */}
         <Link
           href="/arcade"
+          onClick={() => handleCardTap('arcade')}
           className={`block ${prefersReducedMotion ? '' : 'hover:-translate-y-0.5'}`}
           aria-label="Аркада - тренируйтесь без ограничений"
         >
@@ -285,6 +319,7 @@ export default function HomePage() {
         {/* Dictionary Card */}
         <Link
           href="/dictionary"
+          onClick={() => handleCardTap('dictionary')}
           className={`block ${prefersReducedMotion ? '' : 'hover:-translate-y-0.5'}`}
           aria-label="Личный словарь - сохраненные слова"
         >

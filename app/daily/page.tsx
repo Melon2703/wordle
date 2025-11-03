@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
@@ -14,9 +14,12 @@ import { Button } from '@/components/ui';
 import { getDailyPuzzle, submitDailyGuess, getUserStatus } from '@/lib/api';
 import { buildKeyboardState } from '@/lib/game/feedback';
 import type { DailyPuzzlePayload } from '@/lib/contracts';
+import { trackEvent } from '@/lib/analytics';
 
 export default function DailyPage() {
   const queryClient = useQueryClient();
+  const lastPuzzleIdRef = useRef<string | null>(null);
+  const completionLoggedPuzzleRef = useRef<string | null>(null);
   const { data, isLoading, error } = useQuery({ 
     queryKey: ['puzzle', 'daily'], 
     queryFn: getDailyPuzzle,
@@ -32,6 +35,52 @@ export default function DailyPage() {
   const [currentGuess, setCurrentGuess] = useState('');
   const [submittingGuess, setSubmittingGuess] = useState<string | null>(null);
   const toast = useToast();
+
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+    if (lastPuzzleIdRef.current === data.puzzleId) {
+      return;
+    }
+    lastPuzzleIdRef.current = data.puzzleId;
+    trackEvent('daily_puzzle_loaded', {
+      mode: 'daily',
+      word_length: data.length,
+      attempts_used: data.yourState.attemptsUsed,
+      status: data.yourState.status
+    });
+    if (data.yourState.status !== 'playing') {
+      completionLoggedPuzzleRef.current = data.puzzleId;
+      trackEvent('daily_game_completed', {
+        mode: 'daily',
+        result: data.yourState.status === 'won' ? 'win' : 'loss',
+        attempts_used: data.yourState.attemptsUsed,
+        time_ms: data.yourState.timeMs
+      });
+    } else {
+      completionLoggedPuzzleRef.current = null;
+    }
+  }, [data]);
+
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+    if (data.yourState.status === 'playing') {
+      return;
+    }
+    if (completionLoggedPuzzleRef.current === data.puzzleId) {
+      return;
+    }
+    completionLoggedPuzzleRef.current = data.puzzleId;
+    trackEvent('daily_game_completed', {
+      mode: 'daily',
+      result: data.yourState.status === 'won' ? 'win' : 'loss',
+      attempts_used: data.yourState.attemptsUsed,
+      time_ms: data.yourState.timeMs
+    });
+  }, [data]);
 
   const submitGuessMutation = useMutation({
     mutationFn: ({ puzzleId, guess, hardMode }: { puzzleId: string; guess: string; hardMode: boolean }) =>
@@ -61,8 +110,24 @@ export default function DailyPage() {
       queryClient.invalidateQueries({ queryKey: ['puzzle', 'daily'] });
       queryClient.invalidateQueries({ queryKey: ['user', 'status'] });
       
+      const isCorrect = response.line.feedback.every((tile) => tile.state === 'correct');
+      const attemptIndex = response.attemptsUsed;
+      trackEvent('daily_guess_submitted', {
+        mode: 'daily',
+        attempt_index: attemptIndex,
+        attempts_used: response.attemptsUsed,
+        result: isCorrect ? 'correct' : 'incorrect',
+        word_length: response.line.guess.length
+      });
+
       if (response.status === 'won' || response.status === 'lost') {
         triggerHaptic('success');
+        completionLoggedPuzzleRef.current = lastPuzzleIdRef.current;
+        trackEvent('daily_game_completed', {
+          mode: 'daily',
+          result: response.status === 'won' ? 'win' : 'loss',
+          attempts_used: response.attemptsUsed
+        });
       } else {
         triggerHaptic('light');
       }
@@ -126,12 +191,23 @@ export default function DailyPage() {
       
       const errorMessage = error instanceof Error ? error.message : 'Ошибка при отправке догадки';
       toast.notify(errorMessage);
+      trackEvent('daily_guess_failed', {
+        mode: 'daily',
+        error_message: errorMessage,
+        attempt_index: lines.length + 1,
+        word_length: length
+      });
     }
   };
 
   if (isLoading) {
     return <LoadingFallback length={5} />;
   }
+
+  const handleRetry = () => {
+    trackEvent('daily_error_retry_clicked', { mode: 'daily' });
+    queryClient.invalidateQueries({ queryKey: ['puzzle', 'daily'] });
+  };
 
   if (error) {
     return (
@@ -141,7 +217,7 @@ export default function DailyPage() {
             <p className="text-caption">Не удалось загрузить загадку</p>
             <Button 
               variant="ghost"
-              onClick={() => queryClient.invalidateQueries({ queryKey: ['puzzle', 'daily'] })}
+              onClick={handleRetry}
               className="mt-2"
             >
               Попробовать снова

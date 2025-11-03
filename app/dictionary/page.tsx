@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Heading, Text, Card, Button, IconButton } from '@/components/ui';
 import { getSavedWords, deleteSavedWord } from '@/lib/api';
 import type { SavedWord } from '@/lib/types';
 import { useToast } from '@/components/ToastCenter';
 import { Trash2, Loader2 } from 'lucide-react';
+import { trackEvent } from '@/lib/analytics';
 
 const SOURCE_LABELS: Record<SavedWord['source'], string> = {
   daily: 'Ежедневная игра',
@@ -34,6 +35,8 @@ export default function DictionaryPage() {
   const { notify } = useToast();
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const loadedLoggedRef = useRef(false);
+  const pendingWordRef = useRef<SavedWord | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['savedWords'],
@@ -47,21 +50,58 @@ export default function DictionaryPage() {
         current ? current.filter((word) => word.id !== id) : current
       );
       notify('Слово удалено из словаря');
+      if (pendingWordRef.current) {
+        trackEvent('dictionary_delete_result', {
+          mode: 'dictionary',
+          outcome: 'success',
+          word_length: pendingWordRef.current.length,
+          source: pendingWordRef.current.source
+        });
+      }
     },
     onError: () => {
       notify('Не удалось удалить слово');
+      if (pendingWordRef.current) {
+        trackEvent('dictionary_delete_result', {
+          mode: 'dictionary',
+          outcome: 'error',
+          word_length: pendingWordRef.current.length,
+          source: pendingWordRef.current.source
+        });
+      }
     },
     onSettled: () => {
       setDeletingId(null);
+      pendingWordRef.current = null;
     }
   });
 
-  const handleDelete = (id: string) => {
+  useEffect(() => {
+    if (loadedLoggedRef.current) {
+      return;
+    }
+    if (isLoading || isError || data === undefined) {
+      return;
+    }
+    loadedLoggedRef.current = true;
+    trackEvent('dictionary_loaded', {
+      mode: 'dictionary',
+      words_count: data?.length ?? 0
+    });
+  }, [data, isError, isLoading]);
+
+  const handleDelete = (word: SavedWord) => {
     if (deleteMutation.isPending) {
       return;
     }
-    setDeletingId(id);
-    deleteMutation.mutate(id);
+    setDeletingId(word.id);
+    pendingWordRef.current = word;
+    trackEvent('dictionary_delete_clicked', {
+      mode: 'dictionary',
+      word_length: word.length,
+      source: word.source
+    });
+    deleteMutation.mutate(word.id);
   };
 
   const words = data ?? [];
@@ -117,7 +157,7 @@ export default function DictionaryPage() {
               <IconButton
                 variant="ghost"
                 aria-label={`Удалить слово ${word.text}`}
-                onClick={() => handleDelete(word.id)}
+                onClick={() => handleDelete(word)}
                 disabled={deletingId === word.id && deleteMutation.isPending}
                 title="Удалить слово"
               >

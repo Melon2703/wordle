@@ -7,6 +7,7 @@ import { CalendarCheck2, Zap, Store, Receipt, CircleHelp, BookMarked } from 'luc
 import { RulesSheet } from './RulesSheet';
 import clsx from 'clsx';
 import type { Route } from 'next';
+import { getModeFromPath, trackEvent } from '@/lib/analytics';
 
 
 interface NavItem {
@@ -25,7 +26,7 @@ const navItems: NavItem[] = [
 ];
 
 export function BottomNav() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '/';
   const [rulesSheetOpen, setRulesSheetOpen] = useState(false);
   const [isSpecialUser, setIsSpecialUser] = useState(false);
 
@@ -55,7 +56,17 @@ export function BottomNav() {
   );
 
   const handleRulesClick = () => {
+    trackEvent('rules_sheet_opened', {
+      mode: getModeFromPath(pathname)
+    });
     setRulesSheetOpen(true);
+  };
+
+  const handleNavClick = (destination: NavItem['href']) => {
+    trackEvent('nav_item_clicked', {
+      mode: getModeFromPath(destination),
+      source_mode: getModeFromPath(pathname)
+    });
   };
 
   return (
@@ -70,6 +81,7 @@ export function BottomNav() {
               <Link
                 key={item.href}
                 href={item.href as Route}
+                onClick={() => handleNavClick(item.href)}
                 className={clsx(
                   'flex h-12 w-12 items-center justify-center rounded-lg transition-colors',
                   'hover:bg-blue-50',

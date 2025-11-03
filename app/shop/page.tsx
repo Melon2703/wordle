@@ -1,17 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getShopCatalog, purchaseProduct, cleanupCancelledPurchase } from '@/lib/api';
 import { useToast } from '@/components/ToastCenter';
 import { LoadingFallback } from '@/components/LoadingFallback';
 import { Button, Card, Heading, Text, Badge } from '@/components/ui';
 import { invoice } from '@tma.js/sdk';
+import { trackEvent } from '@/lib/analytics';
 
 export default function ShopPage() {
   const [isTelegramReady, setIsTelegramReady] = useState(false);
   const queryClient = useQueryClient();
   const { notify } = useToast();
+  const readyLoggedRef = useRef(false);
+  const catalogLoggedRef = useRef(false);
 
   // Wait for Telegram WebApp to provide init data before fetching catalog
   useEffect(() => {
@@ -28,11 +31,30 @@ export default function ShopPage() {
     checkTelegramReady();
   }, []);
 
+  useEffect(() => {
+    if (!isTelegramReady || readyLoggedRef.current) {
+      return;
+    }
+    readyLoggedRef.current = true;
+    trackEvent('shop_ready_state', { mode: 'shop', ready: true });
+  }, [isTelegramReady]);
+
   const { data, isLoading } = useQuery({ 
     queryKey: ['shop', 'catalog'], 
     queryFn: getShopCatalog,
     enabled: isTelegramReady
   });
+
+  useEffect(() => {
+    if (!data || catalogLoggedRef.current) {
+      return;
+    }
+    catalogLoggedRef.current = true;
+    trackEvent('shop_catalog_loaded', {
+      mode: 'shop',
+      product_count: data.products.length
+    });
+  }, [data]);
 
   const purchaseMutation = useMutation({
     mutationFn: purchaseProduct,
@@ -47,6 +69,10 @@ export default function ShopPage() {
 
   const handlePurchase = async (productId: string) => {
     try {
+      trackEvent('shop_product_clicked', {
+        mode: 'shop',
+        product_id: productId
+      });
       // First, create the purchase record via API
       const purchaseResult = await purchaseProduct(productId);
       
@@ -59,6 +85,11 @@ export default function ShopPage() {
       if (result === 'paid') {
         notify('Покупка завершена успешно!');
         queryClient.invalidateQueries({ queryKey: ['purchases'] });
+        trackEvent('shop_purchase_result', {
+          mode: 'shop',
+          product_id: productId,
+          payment_outcome: 'paid'
+        });
       } else {
         // Payment was cancelled - clean up the pending purchase
         try {
@@ -67,10 +98,20 @@ export default function ShopPage() {
           // Don't fail the whole operation if cleanup fails
         }
         notify('Покупка отменена');
+        trackEvent('shop_purchase_result', {
+          mode: 'shop',
+          product_id: productId,
+          payment_outcome: 'cancelled'
+        });
       }
       
     } catch {
       notify('Ошибка при покупке');
+      trackEvent('shop_purchase_result', {
+        mode: 'shop',
+        product_id: productId,
+        payment_outcome: 'failed'
+      });
     }
   };
 

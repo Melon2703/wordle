@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { Banner } from '@/lib/types';
+import { trackEvent } from '@/lib/analytics';
 
 interface BannerProps {
   banner: Banner;
@@ -26,6 +27,7 @@ const ctaStyles = {
 export function Banner({ banner, onDismiss }: BannerProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const hasLoggedImpressionRef = useRef(false);
 
   // Check for reduced motion preference
   useEffect(() => {
@@ -39,6 +41,10 @@ export function Banner({ banner, onDismiss }: BannerProps) {
   }, []);
 
   const handleDismiss = () => {
+    trackEvent('home_banner_dismissed', {
+      mode: 'home',
+      banner_id: banner.id
+    });
     if (!prefersReducedMotion) {
       setIsVisible(false);
       // Small delay to allow animation to complete
@@ -49,6 +55,13 @@ export function Banner({ banner, onDismiss }: BannerProps) {
   };
 
   const handleCtaClick = () => {
+    const ctaType = banner.ctaLink?.startsWith('/') ? 'internal' : 'external';
+    trackEvent('home_banner_cta_clicked', {
+      mode: 'home',
+      banner_id: banner.id,
+      cta_id: banner.ctaText ?? 'cta',
+      cta_type: ctaType
+    });
     if (banner.ctaLink) {
       if (banner.ctaLink.startsWith('/')) {
         // Internal link
@@ -59,6 +72,17 @@ export function Banner({ banner, onDismiss }: BannerProps) {
       }
     }
   };
+
+  useEffect(() => {
+    if (!hasLoggedImpressionRef.current && isVisible) {
+      trackEvent('home_banner_shown', {
+        mode: 'home',
+        banner_id: banner.id,
+        variant: banner.variant
+      });
+      hasLoggedImpressionRef.current = true;
+    }
+  }, [isVisible, banner.id, banner.variant]);
 
   if (!isVisible) {
     return null;

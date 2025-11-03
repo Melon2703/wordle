@@ -2,6 +2,9 @@
 
 import { Button, Heading, Text } from '@/components/ui';
 import { X } from 'lucide-react';
+import { useCallback } from 'react';
+import { usePathname } from 'next/navigation';
+import { getModeFromPath, trackEvent } from '@/lib/analytics';
 
 interface RulesSheetProps {
   open: boolean;
@@ -10,16 +13,27 @@ interface RulesSheetProps {
 }
 
 export function RulesSheet({ open, onClose, showOnboardingButton = false }: RulesSheetProps) {
-  if (!open) {
-    return null;
-  }
+  const pathname = usePathname() ?? '/';
+  const handleClose = useCallback(() => {
+    trackEvent('rules_sheet_closed', {
+      mode: getModeFromPath(pathname)
+    });
+    onClose();
+  }, [onClose, pathname]);
 
   const handleOkClick = () => {
     if (showOnboardingButton) {
       localStorage.setItem('wordle-onboarding-completed', 'true');
+      trackEvent('onboarding_completed', {
+        mode: getModeFromPath(pathname)
+      });
     }
-    onClose();
+    handleClose();
   };
+
+  if (!open) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end bg-black/30 pointer-events-auto">
@@ -28,7 +42,7 @@ export function RulesSheet({ open, onClose, showOnboardingButton = false }: Rule
           <Heading level={2}>Как играть</Heading>
           <button 
             type="button" 
-            onClick={onClose} 
+            onClick={handleClose} 
             className="p-2 rounded-md hover:bg-gray-100 transition-colors"
             aria-label="Закрыть"
           >

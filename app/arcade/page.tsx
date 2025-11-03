@@ -21,6 +21,7 @@ import { buildKeyboardState } from '@/lib/game/feedback';
 import { evaluateGuess, normalizeGuess, validateDictionary } from '@/lib/game/feedback.client';
 import type { ArcadeStartResponse, GuessLine, ArcadeTheme } from '@/lib/contracts';
 import { hasTelegramInitData, waitForTelegramInitData } from '@/lib/telegram';
+import { trackEvent } from '@/lib/analytics';
 
 const allLengths: Array<ArcadeStartResponse['length']> = [4, 5, 6];
 const defaultLength: ArcadeStartResponse['length'] = 5;
@@ -60,6 +61,9 @@ export default function ArcadePage() {
   
   // Track pending record requests
   const pendingRecords = useRef<Promise<unknown>[]>([]);
+  const sessionRestoredRef = useRef(false);
+  const extraTryPromptLoggedRef = useRef(false);
+  const sessionStartedRef = useRef(false);
   const maxArcadeCredits = 3;
 
   // Check arcade availability on mount
@@ -168,6 +172,41 @@ export default function ArcadePage() {
     }
   }, [availableLengths, activeLength]);
 
+  const handleSelectLength = (len: ArcadeStartResponse['length']) => {
+    setActiveLength(len);
+    trackEvent('arcade_length_selected', {
+      mode: 'arcade',
+      word_length: len
+    });
+  };
+
+  const handleSelectTheme = (theme: ArcadeTheme) => {
+    setActiveTheme(theme);
+    trackEvent('arcade_theme_selected', {
+      mode: 'arcade',
+      theme
+    });
+  };
+
+  const handleHintIconClick = () => {
+    trackEvent('arcade_hint_icon_opened', {
+      mode: 'arcade',
+      hint_count: session?.hintsUsed.length ?? 0
+    });
+    setIsHintModalOpen(true);
+  };
+
+  const handleNewGameClick = () => {
+    const lastLine = lines[lines.length - 1];
+    const lastResult = lastLine && lastLine.feedback.every((tile) => tile.state === 'correct') ? 'win' : 'loss';
+    trackEvent('arcade_new_game_clicked', {
+      mode: 'arcade',
+      last_result: lastResult,
+      attempts_used: lines.length
+    });
+    window.location.href = '/arcade';
+  };
+
   const startArcadeMutation = useMutation({
     mutationFn: ({ length, theme }: { length: ArcadeStartResponse['length']; theme: ArcadeTheme }) => startArcade(length, theme, false),
     onSuccess: async (sessionData) => {
@@ -178,6 +217,17 @@ export default function ArcadePage() {
       setCurrentGuess('');
       setSessionStartTime(Date.now());
       setIsSubmitting(false);
+      sessionStartedRef.current = true;
+      sessionRestoredRef.current = false;
+      extraTryPromptLoggedRef.current = false;
+
+      trackEvent('arcade_session_started', {
+        mode: 'arcade',
+        word_length: sessionData.length,
+        theme: sessionData.theme,
+        hint_entitlements: sessionData.hintEntitlementsAvailable,
+        extra_try_entitlements: sessionData.extraTryEntitlementsAvailable
+      });
       
       // Fetch dictionary if not cached
       const cacheKey = getDictionaryKey(sessionData.length, sessionData.theme);
@@ -199,6 +249,11 @@ export default function ArcadePage() {
     },
     onError: () => {
       toast.notify('Не удалось запустить аркаду.');
+      trackEvent('arcade_session_start_failed', {
+        mode: 'arcade',
+        word_length: activeLength,
+        theme: activeTheme
+      });
     }
   });
 
@@ -240,6 +295,17 @@ export default function ArcadePage() {
         setLines(incompleteSession.lines);
         setHintEntitlementsRemaining(incompleteSession.session.hintEntitlementsAvailable);
         setExtraTryEntitlements(incompleteSession.session.extraTryEntitlementsAvailable);
+        sessionStartedRef.current = true;
+
+        if (!sessionRestoredRef.current) {
+          sessionRestoredRef.current = true;
+          trackEvent('arcade_session_restored', {
+            mode: 'arcade',
+            word_length: incompleteSession.session.length,
+            lines_count: incompleteSession.lines.length,
+            extra_try_entitlements: incompleteSession.session.extraTryEntitlementsAvailable
+          });
+        }
         
         // Check if this is a last-attempt loss that should show the extra try modal
         if (incompleteSession.lines.length > 0) {
@@ -248,6 +314,14 @@ export default function ArcadePage() {
           const isLastAttempt = incompleteSession.lines.length >= incompleteSession.session.maxAttempts;
           
           if (!isWin && isLastAttempt) {
+            if (!extraTryPromptLoggedRef.current) {
+              extraTryPromptLoggedRef.current = true;
+              trackEvent('arcade_extra_try_prompt_shown', {
+                mode: 'arcade',
+                attempts_used: incompleteSession.lines.length,
+                remaining_entitlements: incompleteSession.session.extraTryEntitlementsAvailable
+              });
+            }
             setShowExtraTryModal(true);
           }
         }
@@ -303,10 +377,18 @@ export default function ArcadePage() {
       const isLastAttempt = lines.length >= session.maxAttempts;
       
       if (!isWin && isLastAttempt && !showExtraTryModal) {
+        if (!extraTryPromptLoggedRef.current) {
+          extraTryPromptLoggedRef.current = true;
+          trackEvent('arcade_extra_try_prompt_shown', {
+            mode: 'arcade',
+            attempts_used: lines.length,
+            remaining_entitlements: extraTryEntitlements
+          });
+        }
         setShowExtraTryModal(true);
       }
     }
-  }, [session, lines, showResult, showExtraTryModal]);
+  }, [session, lines, showResult, showExtraTryModal, extraTryEntitlements]);
 
   // Get user status for arcade solved count
   const { data: userStatus } = useQuery({
@@ -331,8 +413,14 @@ export default function ArcadePage() {
       setSession(prev => prev ? { ...prev, hintsUsed: response.hints } : null);
       setHintEntitlementsRemaining(response.entitlementsRemaining);
       queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+      trackEvent('arcade_hint_used', {
+        mode: 'arcade',
+        remaining_entitlements: response.entitlementsRemaining,
+        hint_count: response.hints.length
+      });
     } catch {
       toast.notify('Не удалось использовать подсказку');
+      trackEvent('arcade_hint_failed', { mode: 'arcade' });
     } finally {
       setIsLoadingHint(false);
     }
@@ -359,11 +447,22 @@ export default function ArcadePage() {
     }
     queryClient.invalidateQueries({ queryKey: ['purchases'] });
     queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+    trackEvent('arcade_hint_purchase_flow', {
+      mode: 'arcade',
+      product_id: 'arcade_hint',
+      stage: 'completed'
+    });
   };
 
   const handleUnlockArcade = async () => {
     setIsConfirmingUnlock(false);
     setIsUnlocking(true);
+    trackEvent('arcade_unlock_games_flow', {
+      mode: 'arcade',
+      product_id: 'arcade_entitlement',
+      stage: 'started',
+      new_game_entitlements: newGameEntitlements
+    });
     try {
       const response = await unlockArcade();
       const replenishedCredits = Math.max(0, Math.min(response.arcadeCredits ?? 0, maxArcadeCredits));
@@ -371,8 +470,19 @@ export default function ArcadePage() {
       setNewGameEntitlements(prev => Math.max(prev - 1, 0));
       toast.notify('Игры восстановлены!');
       queryClient.invalidateQueries({ queryKey: ['arcade', 'status'] });
+      trackEvent('arcade_unlock_games_flow', {
+        mode: 'arcade',
+        product_id: 'arcade_entitlement',
+        stage: 'completed',
+        new_game_entitlements: Math.max(newGameEntitlements - 1, 0)
+      });
     } catch {
       toast.notify('Не удалось разблокировать аркаду');
+      trackEvent('arcade_unlock_games_flow', {
+        mode: 'arcade',
+        product_id: 'arcade_entitlement',
+        stage: 'failed'
+      });
     } finally {
       setIsUnlocking(false);
     }
@@ -385,6 +495,11 @@ export default function ArcadePage() {
     }
 
     try {
+      trackEvent('arcade_unlock_games_flow', {
+        mode: 'arcade',
+        product_id: 'arcade_new_game',
+        stage: 'started'
+      });
       const purchaseResult = await purchaseProduct('arcade_new_game');
       const invoiceUrl = purchaseResult.invoice_url;
       
@@ -398,6 +513,12 @@ export default function ArcadePage() {
         setNewGameEntitlements(status.newGameEntitlements);
         queryClient.invalidateQueries({ queryKey: ['arcade', 'status'] });
         queryClient.invalidateQueries({ queryKey: ['purchases'] });
+        trackEvent('arcade_unlock_games_flow', {
+          mode: 'arcade',
+          product_id: 'arcade_new_game',
+          stage: 'completed',
+          arcade_credits: credits
+        });
       } else {
         try {
           await cleanupCancelledPurchase(purchaseResult.purchase_id);
@@ -405,9 +526,19 @@ export default function ArcadePage() {
           // Don't fail the whole operation if cleanup fails
         }
         toast.notify('Покупка отменена');
+        trackEvent('arcade_unlock_games_flow', {
+          mode: 'arcade',
+          product_id: 'arcade_new_game',
+          stage: 'cancelled'
+        });
       }
     } catch {
       toast.notify('Ошибка при покупке');
+      trackEvent('arcade_unlock_games_flow', {
+        mode: 'arcade',
+        product_id: 'arcade_new_game',
+        stage: 'failed'
+      });
     }
   };
 
@@ -425,10 +556,16 @@ export default function ArcadePage() {
       setExtraTryEntitlements(prev => Math.max(prev - 1, 0));
       setShowExtraTryModal(false);
       queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+      extraTryPromptLoggedRef.current = false;
+      trackEvent('arcade_extra_try_used', {
+        mode: 'arcade',
+        remaining_entitlements_after: Math.max(extraTryEntitlements - 1, 0)
+      });
       
       toast.notify('Попытка добавлена!');
     } catch {
       toast.notify('Не удалось использовать попытку');
+      trackEvent('arcade_extra_try_failed', { mode: 'arcade' });
     } finally {
       setIsUsingExtraTry(false);
     }
@@ -445,10 +582,20 @@ export default function ArcadePage() {
       await queryClient.invalidateQueries({ queryKey: ['user', 'status'] });
       setShowResult(true);
       queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+      trackEvent('arcade_session_completed', {
+        mode: 'arcade',
+        result: 'loss',
+        attempts_used: lines.length,
+        time_ms: sessionStartTime ? Date.now() - sessionStartTime : undefined,
+        word_length: session?.length,
+        theme: session?.theme
+      });
+      sessionStartedRef.current = false;
       
       // finishExtraTry already marks the session as complete, no need to call completeArcadeSession
     } catch {
       toast.notify('Ошибка завершения игры');
+      trackEvent('arcade_finish_game_failed', { mode: 'arcade' });
     } finally {
       setIsUsingExtraTry(false);
     }
@@ -461,6 +608,11 @@ export default function ArcadePage() {
     }
 
     try {
+      trackEvent('arcade_extra_try_purchase_flow', {
+        mode: 'arcade',
+        product_id: 'arcade_extra_try',
+        stage: 'started'
+      });
       const purchaseResult = await purchaseProduct('arcade_extra_try');
       const invoiceUrl = purchaseResult.invoice_url;
       
@@ -496,6 +648,11 @@ export default function ArcadePage() {
         if (shouldAutoUseExtraTry) {
           await handleUseExtraTry();
         }
+        trackEvent('arcade_extra_try_purchase_flow', {
+          mode: 'arcade',
+          product_id: 'arcade_extra_try',
+          stage: 'completed'
+        });
       } else {
         try {
           await cleanupCancelledPurchase(purchaseResult.purchase_id);
@@ -503,9 +660,19 @@ export default function ArcadePage() {
           // Don't fail the whole operation if cleanup fails
         }
         toast.notify('Покупка отменена');
+        trackEvent('arcade_extra_try_purchase_flow', {
+          mode: 'arcade',
+          product_id: 'arcade_extra_try',
+          stage: 'cancelled'
+        });
       }
     } catch {
       toast.notify('Ошибка при покупке');
+      trackEvent('arcade_extra_try_purchase_flow', {
+        mode: 'arcade',
+        product_id: 'arcade_extra_try',
+        stage: 'failed'
+      });
     }
   };
 
@@ -524,6 +691,12 @@ export default function ArcadePage() {
     }
 
     try {
+      trackEvent('arcade_start_clicked', {
+        mode: 'arcade',
+        word_length: activeLength,
+        theme: activeTheme,
+        credits_remaining: arcadeCredits
+      });
       await startArcadeMutation.mutateAsync({ length: activeLength, theme: activeTheme });
     } catch (error) {
       // handled by mutation.onError toast
@@ -587,10 +760,19 @@ export default function ArcadePage() {
     try {
       // Evaluate guess locally
       const line = evaluateGuessLocally(submittedGuess);
+      const guessIndex = lines.length + 1;
+      const isWin = line.feedback.every(f => f.state === 'correct');
       setLines(prev => [...prev, line]);
+      trackEvent('arcade_guess_submitted', {
+        mode: 'arcade',
+        attempt_index: guessIndex,
+        attempts_used: guessIndex,
+        result: isWin ? 'correct' : 'incorrect',
+        word_length: session.length,
+        theme: session.theme
+      });
       
       // Record guess in database
-      const guessIndex = lines.length + 1;
       const feedbackMask = JSON.stringify(line.feedback.map(f => f.state));
       const normalizedGuess = normalizeGuess(submittedGuess, false);
       
@@ -626,7 +808,6 @@ export default function ArcadePage() {
       }
       
       // Check win/loss
-      const isWin = line.feedback.every(f => f.state === 'correct');
       const isLost = !isWin && isLastAttempt;
       
       if (isWin) {
@@ -634,6 +815,16 @@ export default function ArcadePage() {
         // Invalidate user status to ensure the arcade count refreshes before showing the result
         await queryClient.invalidateQueries({ queryKey: ['user', 'status'] });
         setShowResult(true);
+        trackEvent('arcade_session_completed', {
+          mode: 'arcade',
+          result: 'win',
+          attempts_used: guessIndex,
+          time_ms: sessionStartTime ? Date.now() - sessionStartTime : undefined,
+          word_length: session.length,
+          theme: session.theme
+        });
+        sessionStartedRef.current = false;
+        extraTryPromptLoggedRef.current = false;
         
         // Record session completion in background
         if (sessionStartTime) {
@@ -649,6 +840,14 @@ export default function ArcadePage() {
         }
       } else if (isLost) {
         // Always show extra try modal on last failed attempt
+        if (!extraTryPromptLoggedRef.current) {
+          extraTryPromptLoggedRef.current = true;
+          trackEvent('arcade_extra_try_prompt_shown', {
+            mode: 'arcade',
+            attempts_used: guessIndex,
+            remaining_entitlements: extraTryEntitlements
+          });
+        }
         setShowExtraTryModal(true);
         triggerHaptic('error');
       } else {
@@ -658,6 +857,12 @@ export default function ArcadePage() {
       triggerHaptic('error');
       const errorMessage = error instanceof Error ? error.message : 'Ошибка при обработке догадки';
       toast.notify(errorMessage);
+      trackEvent('arcade_guess_failed', {
+        mode: 'arcade',
+        message: errorMessage,
+        word_length: session?.length,
+        theme: session?.theme
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -695,7 +900,7 @@ export default function ArcadePage() {
             {!showResult && (
               <div className="fixed top-0 left-0 right-0 z-50 pointer-events-none h-12">
                 <TopCenterIcon 
-                  onClick={() => setIsHintModalOpen(true)}
+                  onClick={handleHintIconClick}
                   badgeCount={session.hintsUsed.length}
                 />
               </div>
@@ -737,9 +942,7 @@ export default function ArcadePage() {
                   <Button
                     className="flex-1"
                     fullWidth
-                    onClick={() => {
-                      window.location.href = '/arcade';
-                    }}
+                    onClick={handleNewGameClick}
                   >
                     Новая игра
                   </Button>
@@ -849,7 +1052,7 @@ export default function ArcadePage() {
                     {availableLengths.map((len) => (
                       <Button
                         key={len}
-                        onClick={() => setActiveLength(len)}
+                        onClick={() => handleSelectLength(len)}
                         variant={len === activeLength ? 'primary' : 'secondary'}
                         size="sm"
                         className="rounded-full"
@@ -867,7 +1070,7 @@ export default function ArcadePage() {
                     {themeOptions.map((option) => (
                       <Button
                         key={option.value}
-                        onClick={() => setActiveTheme(option.value)}
+                        onClick={() => handleSelectTheme(option.value)}
                         variant={option.value === activeTheme ? 'primary' : 'secondary'}
                         size="sm"
                         className="rounded-full"

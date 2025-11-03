@@ -1,17 +1,20 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getUserPurchases, refundPurchase, type Purchase } from '@/lib/api';
 import { useToast } from '@/components/ToastCenter';
 import { LoadingFallback } from '@/components/LoadingFallback';
 import { Button, Card, Heading, Text, Badge } from '@/components/ui';
 import { popup, hapticFeedback } from '@tma.js/sdk';
+import { trackEvent } from '@/lib/analytics';
 
 export default function PurchasesPage() {
   const [isTelegramReady, setIsTelegramReady] = useState(false);
   const queryClient = useQueryClient();
   const { notify } = useToast();
+  const purchasesLoadedRef = useRef(false);
+  const pendingRefundRef = useRef<{ purchaseId: string; starsAmount: number } | null>(null);
 
   // Wait for Telegram WebApp to be ready
   useEffect(() => {
@@ -44,6 +47,13 @@ export default function PurchasesPage() {
       
       notify('Возврат обработан успешно');
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
+      if (pendingRefundRef.current) {
+        trackEvent('purchase_refund_result', {
+          mode: 'purchases',
+          purchase_id: pendingRefundRef.current.purchaseId,
+          outcome: 'success'
+        });
+      }
     },
     onError: () => {
       // Haptic feedback for error
@@ -52,8 +62,29 @@ export default function PurchasesPage() {
       }
       
       notify('Ошибка при обработке возврата');
+      if (pendingRefundRef.current) {
+        trackEvent('purchase_refund_result', {
+          mode: 'purchases',
+          purchase_id: pendingRefundRef.current.purchaseId,
+          outcome: 'error'
+        });
+      }
+    },
+    onSettled: () => {
+      pendingRefundRef.current = null;
     }
   });
+
+  useEffect(() => {
+    if (!purchases || purchasesLoadedRef.current) {
+      return;
+    }
+    purchasesLoadedRef.current = true;
+    trackEvent('purchases_loaded', {
+      mode: 'purchases',
+      purchase_count: purchases.length
+    });
+  }, [purchases]);
 
   const handleRefund = async (purchaseId: string, productTitle: string, starsAmount: number) => {
     // Haptic feedback for button press
@@ -61,10 +92,26 @@ export default function PurchasesPage() {
       hapticFeedback.impactOccurred('medium');
     }
     
+    trackEvent('purchase_refund_clicked', {
+      mode: 'purchases',
+      purchase_id: purchaseId,
+      stars_amount: starsAmount
+    });
+    
     // Check if popup is supported
     if (!popup.isSupported()) {
       if (confirm('Вы уверены, что хотите вернуть эту покупку?')) {
+        pendingRefundRef.current = { purchaseId, starsAmount };
+        trackEvent('purchase_refund_confirmed', {
+          mode: 'purchases',
+          purchase_id: purchaseId
+        });
         refundMutation.mutate(purchaseId);
+      } else {
+        trackEvent('purchase_refund_cancelled', {
+          mode: 'purchases',
+          purchase_id: purchaseId
+        });
       }
       return;
     }
@@ -74,16 +121,35 @@ export default function PurchasesPage() {
       const confirmed = confirm(`Вы уверены, что хотите вернуть "${productTitle}" за ⭐ ${starsAmount}?`);
       
       if (confirmed) {
+        pendingRefundRef.current = { purchaseId, starsAmount };
+        trackEvent('purchase_refund_confirmed', {
+          mode: 'purchases',
+          purchase_id: purchaseId
+        });
         refundMutation.mutate(purchaseId);
       } else {
         notify('Возврат отменен');
+        trackEvent('purchase_refund_cancelled', {
+          mode: 'purchases',
+          purchase_id: purchaseId
+        });
       }
       
     } catch (error) {
       console.error('Refund confirmation error');
       // Fallback to standard confirmation
       if (confirm('Вы уверены, что хотите вернуть эту покупку?')) {
+        pendingRefundRef.current = { purchaseId, starsAmount };
+        trackEvent('purchase_refund_confirmed', {
+          mode: 'purchases',
+          purchase_id: purchaseId
+        });
         refundMutation.mutate(purchaseId);
+      } else {
+        trackEvent('purchase_refund_cancelled', {
+          mode: 'purchases',
+          purchase_id: purchaseId
+        });
       }
     }
   };

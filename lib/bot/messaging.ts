@@ -7,7 +7,6 @@ import {
 
 const DAILY_ROUTE = 'daily';
 const DICTIONARY_ROUTE = 'dictionary';
-const SETTINGS_ROUTE = 'settings';
 
 export const START_MESSAGE = `Привет! Готов(а) сыграть?
 

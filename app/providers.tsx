@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isShareDeepLink, getTelegramStartParam, decodeShareParam } from '@/lib/deeplink';
+import { ClientAnalyticsBridge } from '@/components/ClientAnalyticsBridge';
 
 let initialized = false;
 
@@ -54,5 +55,10 @@ export function Providers({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer);
   }, [router]);
 
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ClientAnalyticsBridge />
+      {children}
+    </QueryClientProvider>
+  );
 }

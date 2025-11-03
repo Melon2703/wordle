@@ -6,6 +6,7 @@ import { BookmarkCheck, BookmarkPlus, Loader2 } from 'lucide-react';
 import { IconButton } from '@/components/ui';
 import { useToast } from '@/components/ToastCenter';
 import { saveWord } from '@/lib/api';
+import { trackEvent } from '@/lib/analytics';
 
 interface SaveWordButtonProps {
   word: string;
@@ -34,6 +35,16 @@ export function SaveWordButton({
       return;
     }
 
+    const eventPayload = {
+      mode: source,
+      source,
+      word_length: word.length,
+      already_saved: initialSaved
+    };
+
+    trackEvent('word_save_attempted', eventPayload);
+    trackEvent(`${source}_save_word_clicked`, eventPayload);
+
     setIsSaving(true);
     try {
       const result = await saveWord({
@@ -51,10 +62,19 @@ export function SaveWordButton({
       }
 
       queryClient.invalidateQueries({ queryKey: ['savedWords'] });
+
+      trackEvent('word_save_result', {
+        ...eventPayload,
+        outcome: result.alreadySaved ? 'duplicate' : 'saved'
+      });
     } catch (error) {
       console.error('Failed to save word', error);
       notify('Не удалось сохранить слово');
       setIsSaved(false);
+      trackEvent('word_save_result', {
+        ...eventPayload,
+        outcome: 'error'
+      });
     } finally {
       setIsSaving(false);
     }
