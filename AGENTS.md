@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-Next.js app router lives in `app/` with feature folders like `app/arcade` and `app/daily`. Routes rely on `layout.tsx` plus shared providers in `app/providers.tsx`. Shared UI sits in `components/`, primitives in `components/ui/`, and feature widgets stay near their route. Cross-cutting logic lives in `lib/` (auth, db, dictionary, rate limiting). API schemas reside in `contracts/`, implementation plans in `implementations/`, broader product notes in `docs/`, and static assets in `public/`.
+Next.js app router lives in `app/` with feature folders like `app/arcade`, `app/daily`, `app/shop`, and `app/purchases`. Routes rely on `layout.tsx` plus shared providers in `app/providers.tsx`. Shared UI sits in `components/`, primitives in `components/ui/`, and feature widgets stay near their route. Cross-cutting logic lives in `lib/` (auth, db, dictionary, rate limiting, analytics). API schemas reside in `contracts/`, implementation plans in `implementations/`, broader product notes in `docs/`, and static assets in `public/`.
 
 ## Build, Test, and Development Commands
 Run `npm install` once to sync dependencies. Use `npm run dev` for the local Telegram mini-app shell, `npm run build` before deploying, and `npm run start` to verify the production bundle. Quality gates: `npm run lint` (ESLint + Next rules), `npm run typecheck` (TypeScript noEmit mode), and `npm run format` for Prettier compliance; add `--write` locally when fixing formatting.

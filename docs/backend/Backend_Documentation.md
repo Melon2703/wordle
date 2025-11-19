@@ -11,6 +11,7 @@ Backend is implemented with Next.js App Router (Node runtime) and Supabase. It a
 - **Auth:** `lib/auth/validateInitData.ts` validates Telegram Mini App `initData` on every request. A local flag `USE_MOCK_AUTH` lets devs bypass the signature check.
 - **Caching:** Domain-level caching is handled with React Query on the client. Server-side helpers cache environment variables (`lib/env.ts`) and dictionary sets (`lib/dict/loader.ts`) in-memory for the life of the function instance.
 - **Rate limiting:** `lib/rate-limit.ts` throttles guess submissions to 8 requests per 10 seconds per user. This is an in-memory guard (per serverless instance).
+- **Analytics:** `lib/analytics.ts` provides a client-side wrapper for Google Analytics (GA4), respecting user privacy by avoiding PII.
 - **Feature flags:** `TEMP_ARCADE_UNLIMITED` (env) skips arcade availability gating; intended for QA.
 
 ---

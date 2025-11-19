@@ -19,6 +19,7 @@ Next.js App Router frontend for the RU word puzzle Telegram Mini App. This doc e
 - **Telegram SDK:** core `@tma.js/sdk` (we call `init`, `invoice`, `popup`, `hapticFeedback` directly). No `@tma.js/sdk-react` hooks are in use.
 - **Styling:** Tailwind CSS 3.x plus `lib/theme.css` tokens; utility classes live in `app/globals.css`.
 - **Animation & icons:** `framer-motion` for loaders/celebrations, `lucide-react` for vector icons, `clsx` for deterministic class joins.
+- **Analytics:** Google Analytics (GA4) integration via `lib/analytics.ts` and `ClientAnalyticsBridge` in `app/providers.tsx`.
 - **Local helpers:** custom `ToastCenter`, `ThemeBridge`, and `HapticsBridge` adapt Telegram runtime features to React components.
 
 ---
