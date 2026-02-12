@@ -128,7 +128,6 @@ export interface SharePayload {
   streak?: number;
   arcadeSolved?: number;
   length: number;
-  lines: GuessLine[]; // for grid rendering
 }
 
 export interface PrepareShareRequest {

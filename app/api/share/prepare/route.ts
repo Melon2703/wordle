@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     // Use the public URL for the image (not uploading to Telegram)
     const photoUrl = publicPhotoUrl;
 
-    // Create share payload
+    // Create share payload (without lines to keep deep link small)
     const payload: SharePayload = {
       v: 1,
       mode: body.mode,
@@ -73,7 +73,6 @@ export async function POST(request: NextRequest) {
       attempts: body.attemptsUsed,
       status: body.status,
       length,
-      lines: body.lines,
     };
 
     if (body.timeMs) {
