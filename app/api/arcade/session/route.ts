@@ -1,22 +1,11 @@
 import { NextResponse } from 'next/server';
 import { requireAuthContext } from '../../../../lib/auth/validateInitData';
 import { getServiceClient } from '../../../../lib/db/client';
-import { ensureUserTracked, getIncompleteArcadeSession, getHintEntitlementsCount } from '../../../../lib/db/queries';
-import type { ArcadeStartResponse, GuessLine, ArcadeSessionCheckResponse, ArcadeTheme } from '../../../../lib/types';
-import { ARCADE_THEMES } from '../../../../lib/types';
+import { ensureUserTracked, getIncompleteArcadeSession, getHintEntitlementsCount, guessRowToLine } from '../../../../lib/db/queries';
+import { parseArcadeTheme } from '../../../../lib/game/arcade';
+import type { ArcadeStartResponse, GuessLine, ArcadeSessionCheckResponse } from '../../../../lib/types';
 
-function parseArcadeTheme(seed: string | null): ArcadeTheme {
-  if (!seed) {
-    return 'common';
-  }
 
-  const [, candidate] = seed.split('-');
-  if (candidate && (ARCADE_THEMES as readonly string[]).includes(candidate)) {
-    return candidate as ArcadeTheme;
-  }
-
-  return 'common';
-}
 
 export const runtime = 'nodejs';
 
@@ -24,7 +13,7 @@ export async function GET(request: Request) {
   try {
     const auth = requireAuthContext(request);
     const client = getServiceClient();
-    
+
     // Ensure user profile exists and is tracked
     const { profile } = await ensureUserTracked(client, parseInt(auth.userId), {
       username: auth.parsed.user?.username,
@@ -32,18 +21,18 @@ export async function GET(request: Request) {
       lastName: auth.parsed.user?.last_name,
       languageCode: auth.parsed.user?.language_code
     });
-    
+
     // Check for incomplete arcade session
     const incompleteSession = await getIncompleteArcadeSession(client, profile.profile_id);
-    
+
     if (!incompleteSession) {
       return NextResponse.json({
         hasIncomplete: false
       } as ArcadeSessionCheckResponse);
     }
-    
+
     const { session, puzzle, guesses } = incompleteSession;
-    
+
     // Validate that puzzle exists and has required data
     if (!puzzle || !puzzle.solution_norm) {
       console.error('Invalid puzzle data for session:', session.session_id);
@@ -52,30 +41,22 @@ export async function GET(request: Request) {
         { status: 500 }
       );
     }
-    
+
     // Convert guesses to GuessLine format
-    const lines: GuessLine[] = guesses.map(guess => ({
-      guess: guess.text_norm,
-      submittedAt: guess.created_at,
-      feedback: JSON.parse(guess.feedback_mask).map((state: string, index: number) => ({
-        index,
-        letter: guess.text_norm[index] || '',
-        state: state as 'correct' | 'present' | 'absent'
-      }))
-    }));
-    
+    const lines: GuessLine[] = guesses.map(guessRowToLine);
+
     // Get hint entitlements count
     const hintEntitlementsAvailable = await getHintEntitlementsCount(client, profile.profile_id);
-    
+
     // Get extra try entitlements count
     const { count: extraTryCount } = await client
       .from('entitlements')
       .select('*', { count: 'exact', head: true })
       .eq('profile_id', profile.profile_id)
       .eq('product_id', 'arcade_extra_try');
-    
+
     const extraTryEntitlementsAvailable = extraTryCount || 0;
-    
+
     // Build response
     const arcadeSession: ArcadeStartResponse = {
       puzzleId: puzzle.puzzle_id,
@@ -86,18 +67,18 @@ export async function GET(request: Request) {
       serverNow: new Date().toISOString(),
       solution: puzzle.solution_norm, // normalized solution for client-side evaluation
       theme: parseArcadeTheme(puzzle.seed),
-      hintsUsed: (session.hints_used as Array<{letter: string; position: number}>) || [],
+      hintsUsed: (session.hints_used as Array<{ letter: string; position: number }>) || [],
       hintEntitlementsAvailable,
       extraTryEntitlementsAvailable
     };
-    
+
     return NextResponse.json({
       hasIncomplete: true,
       session: arcadeSession,
       lines,
       startedAt: session.started_at
     } as ArcadeSessionCheckResponse);
-    
+
   } catch (error) {
     console.error('Arcade session GET error:', error);
     // If it's an orphaned session error, return hasIncomplete: false instead of 500

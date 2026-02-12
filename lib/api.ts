@@ -8,13 +8,7 @@ import type {
 } from './types';
 import type { UserStatus, Banner, ArcadeSessionCheckResponse, SavedWord } from './types';
 
-// Debug logging helper - only logs in development
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function debugLog(message: string, ...args: unknown[]) {
-  if (process.env.NODE_ENV === 'development') {
-    console.log(message, ...args);
-  }
-}
+
 
 // Telegram WebApp types
 interface TelegramWebApp {
@@ -80,37 +74,33 @@ function getTelegramInitData(): string | null {
   if (process.env.NODE_ENV === 'development') {
     return 'mock-init-data';
   }
-  
+
   if (typeof window === 'undefined') {
     return null;
   }
-  
-  // Try multiple ways to access Telegram WebApp
-  const tg1 = (window as TelegramWindow).Telegram?.WebApp;
-  const tg2 = (window as TelegramWindow).Telegram?.WebApp;
-  const tg3 = (window as TelegramWindow).tg?.WebApp;
-  
-  const tg = tg1 || tg2 || tg3;
-  
+
+  const tg = (window as TelegramWindow).Telegram?.WebApp
+    ?? (window as TelegramWindow).tg?.WebApp;
+
   if (!tg) {
     return null;
   }
-  
+
   return tg.initData || null;
 }
 
 // Helper to create headers with auth
 function createHeaders(): HeadersInit {
   const initData = getTelegramInitData();
-  
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json'
   };
-  
+
   if (initData) {
     headers['x-telegram-init-data'] = initData;
   }
-  
+
   return headers;
 }
 
@@ -120,30 +110,30 @@ async function handleResponse<T>(response: Response): Promise<T> {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
     throw new Error(error.error || `HTTP ${response.status}`);
   }
-  
+
   return response.json();
 }
 
 export async function getDailyPuzzle(): Promise<DailyPuzzlePayload> {
   // Try to get init data with retry mechanism
   let initData = getTelegramInitData();
-  
+
   // If no init data, wait a bit and try again (Telegram WebApp might be loading)
   if (!initData && typeof window !== 'undefined') {
     await new Promise(resolve => setTimeout(resolve, 100));
     initData = getTelegramInitData();
   }
-  
+
   const response = await fetch('/api/puzzle/daily', {
     headers: createHeaders()
   });
-  
+
   return handleResponse<DailyPuzzlePayload>(response);
 }
 
 export async function submitDailyGuess(
-  puzzleId: string, 
-  guess: string, 
+  puzzleId: string,
+  guess: string,
   hardMode = false
 ): Promise<DailyGuessResponse> {
   const response = await fetch('/api/puzzle/daily/guess', {
@@ -151,7 +141,7 @@ export async function submitDailyGuess(
     headers: createHeaders(),
     body: JSON.stringify({ puzzleId, guess, hardMode })
   });
-  
+
   return handleResponse<DailyGuessResponse>(response);
 }
 
@@ -165,12 +155,12 @@ export async function startArcade(
     headers: createHeaders(),
     body: JSON.stringify({ length, theme, hardMode })
   });
-  
+
   return handleResponse<ArcadeStartResponse>(response);
 }
 
 export async function submitArcadeGuess(
-  puzzleId: string, 
+  puzzleId: string,
   guess: string
 ): Promise<ArcadeGuessResponse> {
   const response = await fetch('/api/arcade/guess', {
@@ -178,24 +168,24 @@ export async function submitArcadeGuess(
     headers: createHeaders(),
     body: JSON.stringify({ puzzleId, guess })
   });
-  
+
   return handleResponse<ArcadeGuessResponse>(response);
 }
 
 export async function getShopCatalog(): Promise<ShopCatalog> {
   // Try to get init data with retry mechanism
   let initData = getTelegramInitData();
-  
+
   // If no init data, wait a bit and try again (Telegram WebApp might be loading)
   if (!initData && typeof window !== 'undefined') {
     await new Promise(resolve => setTimeout(resolve, 100));
     initData = getTelegramInitData();
   }
-  
+
   const response = await fetch('/api/shop/catalog', {
     headers: createHeaders()
   });
-  
+
   return handleResponse<ShopCatalog>(response);
 }
 
@@ -203,7 +193,7 @@ export async function checkDictionaryWord(word: string): Promise<{ valid: boolea
   const response = await fetch(`/api/dict/check?word=${encodeURIComponent(word)}`, {
     headers: createHeaders()
   });
-  
+
   return handleResponse<{ valid: boolean }>(response);
 }
 
@@ -211,7 +201,7 @@ export async function getDictionaryWords(length: 4 | 5 | 6 | 7, theme: ArcadeThe
   const response = await fetch(`/api/dict/words?length=${length}&theme=${theme}`, {
     headers: createHeaders()
   });
-  
+
   const data = await handleResponse<{ words: string[] }>(response);
   return new Set(data.words);
 }
@@ -227,7 +217,7 @@ export async function completeArcadeSession(
     headers: createHeaders(),
     body: JSON.stringify({ puzzleId, result, attemptsUsed, timeMs })
   });
-  
+
   return handleResponse<{ ok: boolean }>(response);
 }
 
@@ -240,7 +230,7 @@ export async function callArcadeHint(sessionId: string): Promise<{
     headers: createHeaders(),
     body: JSON.stringify({ sessionId })
   });
-  
+
   return handleResponse<{
     hints: Array<{ letter: string; position: number }>;
     entitlementsRemaining: number;
@@ -251,7 +241,7 @@ export async function checkArcadeSession(): Promise<ArcadeSessionCheckResponse> 
   const response = await fetch('/api/arcade/session', {
     headers: createHeaders()
   });
-  
+
   return handleResponse<ArcadeSessionCheckResponse>(response);
 }
 
@@ -262,7 +252,7 @@ export async function getArcadeStatus(): Promise<{
   const response = await fetch('/api/arcade/status', {
     headers: createHeaders()
   });
-  
+
   return handleResponse<{
     arcadeCredits: number;
     newGameEntitlements: number;
@@ -277,7 +267,7 @@ export async function unlockArcade(): Promise<{
     method: 'POST',
     headers: createHeaders()
   });
-  
+
   return handleResponse<{
     ok: boolean;
     arcadeCredits: number;
@@ -290,7 +280,7 @@ export async function useExtraTry(sessionId: string): Promise<{ ok: boolean }> {
     headers: createHeaders(),
     body: JSON.stringify({ sessionId })
   });
-  
+
   return handleResponse<{ ok: boolean }>(response);
 }
 
@@ -300,7 +290,7 @@ export async function finishExtraTry(sessionId: string): Promise<{ ok: boolean }
     headers: createHeaders(),
     body: JSON.stringify({ sessionId })
   });
-  
+
   return handleResponse(response);
 }
 
@@ -322,7 +312,7 @@ export async function recordArcadeGuess(
       feedbackMask
     })
   });
-  
+
   return handleResponse<{ ok: boolean }>(response);
 }
 
@@ -332,7 +322,7 @@ export async function purchaseProduct(productId: string): Promise<{ ok: boolean;
     headers: createHeaders(),
     body: JSON.stringify({ productId })
   });
-  
+
   return handleResponse<{ ok: boolean; purchase_id: string; invoice_url: string; stars_amount: number }>(response);
 }
 
@@ -341,7 +331,7 @@ export async function cleanupCancelledPurchase(purchaseId: string): Promise<void
     method: 'DELETE',
     headers: createHeaders(),
   });
-  
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
     throw new Error(error.error || `HTTP ${response.status}`);
@@ -421,7 +411,7 @@ export async function getUserPurchases(): Promise<Purchase[]> {
   const response = await fetch('/api/purchases', {
     headers: createHeaders()
   });
-  
+
   return handleResponse<Purchase[]>(response);
 }
 
@@ -430,7 +420,7 @@ export async function refundPurchase(purchaseId: string): Promise<{ ok: boolean 
     method: 'POST',
     headers: createHeaders()
   });
-  
+
   return handleResponse<{ ok: boolean }>(response);
 }
 
@@ -439,7 +429,7 @@ export async function getUserStatus(): Promise<UserStatus> {
   const response = await fetch('/api/user/status', {
     headers: createHeaders()
   });
-  
+
   return handleResponse<UserStatus>(response);
 }
 
@@ -447,6 +437,6 @@ export async function getActiveBanners(): Promise<Banner[]> {
   const response = await fetch('/api/banners', {
     headers: createHeaders()
   });
-  
+
   return handleResponse<Banner[]>(response);
 }

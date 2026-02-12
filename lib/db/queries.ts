@@ -1,13 +1,81 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './client';
-import type { ShopCatalog } from '../types';
+import type { ShopCatalog, GuessLine } from '../types';
 import { upsertTelegramUser } from './bot';
 
 type Client = SupabaseClient<Database>;
+type GuessRow = Database['public']['Tables']['guesses']['Row'];
+
+/**
+ * Convert a database guess row into a client-facing GuessLine.
+ * Replaces 4× inlined copies of the same JSON.parse + map logic.
+ */
+export function guessRowToLine(guess: GuessRow): GuessLine {
+  return {
+    guess: guess.text_norm,
+    submittedAt: guess.created_at,
+    feedback: JSON.parse(guess.feedback_mask).map((state: string, index: number) => ({
+      index,
+      letter: guess.text_norm[index],
+      state: state as 'correct' | 'present' | 'absent'
+    }))
+  };
+}
+
+/**
+ * Update the user's daily streak after a win.
+ * If they solved yesterday's puzzle, increment; if today's already counted, keep; otherwise reset to 1.
+ */
+export async function updateStreak(client: Client, profileId: string): Promise<void> {
+  const today = new Date().toISOString().split('T')[0];
+
+  const { data: profileData, error: profileError } = await client
+    .from('profiles')
+    .select('streak_current, last_daily_played_at')
+    .eq('profile_id', profileId)
+    .single();
+
+  if (profileError || !profileData) return;
+
+  let newStreak = 1;
+
+  if (profileData.last_daily_played_at) {
+    const lastSolved = new Date(profileData.last_daily_played_at);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (lastSolved.toISOString().split('T')[0] === yesterday.toISOString().split('T')[0]) {
+      newStreak = (profileData.streak_current || 0) + 1;
+    } else if (lastSolved.toISOString().split('T')[0] === today) {
+      newStreak = profileData.streak_current || 1;
+    }
+  }
+
+  await client
+    .from('profiles')
+    .update({
+      streak_current: newStreak,
+      last_daily_played_at: new Date().toISOString()
+    })
+    .eq('profile_id', profileId);
+}
+
+/**
+ * Reset the user's daily streak to 0 after a loss.
+ */
+export async function resetStreak(client: Client, profileId: string): Promise<void> {
+  await client
+    .from('profiles')
+    .update({
+      streak_current: 0,
+      last_daily_played_at: new Date().toISOString()
+    })
+    .eq('profile_id', profileId);
+}
 
 export async function getTodayPuzzle(client: Client): Promise<Database['public']['Tables']['puzzles']['Row']> {
   const today = new Date().toISOString().split('T')[0];
-  
+
   // Get today's daily puzzle
   const { data: puzzle, error: puzzleError } = await client
     .from('puzzles')
@@ -272,18 +340,18 @@ export async function refundPurchase(
     try {
       const { env } = await import('../env');
       const { BOT_TOKEN } = env();
-      
+
       // Extract user_id from provider_payload
-      const providerPayload = typeof purchase.provider_payload === 'string' 
-        ? JSON.parse(purchase.provider_payload) 
+      const providerPayload = typeof purchase.provider_payload === 'string'
+        ? JSON.parse(purchase.provider_payload)
         : purchase.provider_payload;
-      
+
       const userId = providerPayload.user_id;
-      
+
       if (!userId) {
         throw new Error('User ID not found in purchase payload');
       }
-      
+
       const refundResponse = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/refundStarPayment`, {
         method: 'POST',
         headers: {
@@ -294,15 +362,15 @@ export async function refundPurchase(
           telegram_payment_charge_id: purchase.telegram_payment_charge_id
         })
       });
-      
+
       if (!refundResponse.ok) {
         const errorText = await refundResponse.text();
         throw new Error(`Telegram refund failed: ${errorText}`);
       }
-      
+
       // Verify refund was successful
       await refundResponse.json();
-      
+
     } catch (error) {
       console.error('Error calling Telegram refund API');
       throw new Error(`Failed to process refund with Telegram: ${error instanceof Error ? error.message : String(error)}`);

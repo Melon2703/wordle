@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuthContext } from '../../../../lib/auth/validateInitData';
 import { getServiceClient } from '../../../../lib/db/client';
-import { getTodayPuzzle, ensureUserTracked, getSessionGuesses } from '../../../../lib/db/queries';
+import { getTodayPuzzle, ensureUserTracked, getSessionGuesses, guessRowToLine } from '../../../../lib/db/queries';
 import type { DailyPuzzlePayload, GuessLine } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   try {
     const auth = requireAuthContext(request);
     const client = getServiceClient();
-    
+
     // Ensure user profile exists and is tracked
     const { profile } = await ensureUserTracked(client, parseInt(auth.userId), {
       username: auth.parsed.user?.username,
@@ -18,10 +18,10 @@ export async function GET(request: Request) {
       lastName: auth.parsed.user?.last_name,
       languageCode: auth.parsed.user?.language_code
     });
-    
+
     // Get today's puzzle
     const puzzle = await getTodayPuzzle(client);
-    
+
     // Check if user has an existing session
     const { data: session } = await client
       .from('sessions')
@@ -30,35 +30,27 @@ export async function GET(request: Request) {
       .eq('puzzle_id', puzzle.puzzle_id)
       .eq('mode', 'daily')
       .single();
-    
+
     let lines: GuessLine[] = [];
     let status: 'playing' | 'won' | 'lost' = 'playing';
     let attemptsUsed = 0;
     let timeMs: number | undefined;
-    
+
     if (session) {
       // Get existing guesses
       const guesses = await getSessionGuesses(client, session.session_id);
-      lines = guesses.map(guess => ({
-        guess: guess.text_norm,
-        submittedAt: guess.created_at,
-        feedback: JSON.parse(guess.feedback_mask).map((state: string, index: number) => ({
-          index,
-          letter: guess.text_norm[index],
-          state: state as 'correct' | 'present' | 'absent'
-        }))
-      }));
-      
+      lines = guesses.map(guessRowToLine);
+
       attemptsUsed = session.attempts_used;
       // Map database result values to frontend status values
       status = session.result === 'win' ? 'won' : session.result === 'lose' ? 'lost' : 'playing';
-      
+
       // Use time_ms from session if available
       if (session.time_ms) {
         timeMs = session.time_ms;
       }
     }
-    
+
     const payload: DailyPuzzlePayload = {
       puzzleId: puzzle.puzzle_id,
       mode: 'daily',
@@ -78,13 +70,13 @@ export async function GET(request: Request) {
         timeMs
       }
     };
-    
+
     return NextResponse.json(payload, {
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate'
       }
     });
-    
+
   } catch (error) {
     console.error('Daily puzzle GET error:', error);
     return NextResponse.json(
