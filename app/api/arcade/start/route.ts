@@ -80,12 +80,6 @@ export async function POST(request: Request) {
             .from('sessions')
             .delete()
             .eq('session_id', sess.session_id);
-          
-          // Also delete associated guesses
-          await client
-            .from('guesses')
-            .delete()
-            .eq('session_id', sess.session_id);
         }
       }
     }
@@ -109,6 +103,7 @@ export async function POST(request: Request) {
       .from('puzzles')
       .insert({
         mode: 'arcade',
+        profile_id: profile.profile_id,
         letters: length,
         solution_text: randomWord,
         status: 'published',
@@ -143,6 +138,18 @@ export async function POST(request: Request) {
         { error: 'Failed to create arcade session' },
         { status: 500 }
       );
+    }
+
+    // Delete older arcade puzzles for this profile; cascade clears sessions/guesses
+    const { error: puzzleCleanupError } = await client
+      .from('puzzles')
+      .delete()
+      .eq('mode', 'arcade')
+      .eq('profile_id', profile.profile_id)
+      .neq('puzzle_id', puzzle.puzzle_id);
+
+    if (puzzleCleanupError) {
+      console.error('Failed to clean up older arcade puzzles', puzzleCleanupError);
     }
     
     // Get entitlements counts
