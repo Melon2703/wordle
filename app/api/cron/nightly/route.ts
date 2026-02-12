@@ -27,6 +27,10 @@ export async function GET(req: NextRequest): Promise<Response> {
       now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1
     ));
     const tomorrowStr = tomorrowUTC.toISOString().slice(0, 10);
+    const yesterdayUTC = new Date(Date.UTC(
+      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1
+    ));
+    const yesterdayStr = yesterdayUTC.toISOString().slice(0, 10);
     const twoDaysAgoUTC = new Date(Date.UTC(
       now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 2
     ));
@@ -111,6 +115,8 @@ export async function GET(req: NextRequest): Promise<Response> {
     // --- Reset arcade credits for all users (with count) ---
     let profilesUpdated: number | null = null;
     let creditsError: string | null = null;
+    let streakResetUpdated: number | null = null;
+    let streakResetError: string | null = null;
     let dailyCleanupDeleted: number | null = null;
     let dailyCleanupError: string | null = null;
 
@@ -132,7 +138,76 @@ export async function GET(req: NextRequest): Promise<Response> {
       }
     }
 
-    // Delete T-2 daily, not T-1 — keep yesterday’s for users in slower timezones.
+    // --- Reset streaks for users who missed yesterday's puzzle ---
+    if (!dryRun) {
+      // First, find yesterday's puzzle
+      const { data: yesterdayPuzzle, error: yesterdayPuzzleErr } = await client
+        .from('puzzles')
+        .select('puzzle_id')
+        .eq('mode', 'daily')
+        .eq('date', yesterdayStr)
+        .eq('status', 'published')
+        .maybeSingle();
+
+      if (yesterdayPuzzleErr) {
+        console.error('Failed to find yesterday puzzle for streak reset', yesterdayPuzzleErr);
+        streakResetError = 'yesterday_puzzle_lookup_failed';
+      } else if (!yesterdayPuzzle) {
+        console.warn('Yesterday puzzle not found, skipping streak reset', { yesterdayStr });
+        streakResetError = 'yesterday_puzzle_not_found';
+      } else {
+        // First, get all profile_ids that won yesterday's puzzle
+        const { data: winningSessions, error: winningSessionsErr } = await client
+          .from('sessions')
+          .select('profile_id')
+          .eq('puzzle_id', yesterdayPuzzle.puzzle_id)
+          .eq('mode', 'daily')
+          .eq('result', 'win');
+
+        if (winningSessionsErr) {
+          console.error('Failed to query winning sessions for streak reset', winningSessionsErr);
+          streakResetError = 'winning_sessions_query_failed';
+        } else {
+          // Extract unique profile IDs that won
+          const winningProfileIds = [...new Set((winningSessions || []).map(s => s.profile_id))];
+
+          // Build query to reset streaks for profiles with streak > 0 that didn't win
+          let streakResetQuery = client
+            .from('profiles')
+            .update(
+              { streak_current: 0 },
+              { count: 'exact' }
+            )
+            .gt('streak_current', 0);
+
+          // If there are winners, exclude them from the reset
+          if (winningProfileIds.length > 0) {
+            // Filter to exclude winning profiles using not().in()
+            // Format UUIDs properly for SQL IN clause
+            const quotedIds = winningProfileIds.map(id => `"${id}"`).join(',');
+            streakResetQuery = streakResetQuery.not('profile_id', 'in', `(${quotedIds})`);
+          }
+          // If no winners, reset all streaks > 0 (all users missed it)
+
+          const { count: streakResetCount, error: streakResetErr } = await streakResetQuery;
+
+          if (streakResetErr) {
+            console.error('Streak reset failed', streakResetErr);
+            streakResetError = 'streak_reset_failed';
+          } else {
+            streakResetUpdated = streakResetCount ?? null;
+            console.log('Streak reset completed', { 
+              streakResetUpdated, 
+              yesterdayDate: yesterdayStr,
+              puzzleId: yesterdayPuzzle.puzzle_id,
+              winningProfileCount: winningProfileIds.length
+            });
+          }
+        }
+      }
+    }
+
+    // Delete T-2 daily, not T-1 — keep yesterday's for users in slower timezones.
     if (!dryRun) {
       const { error: cleanupDailyErr, count: dailyDeletedCount } = await client
         .from('puzzles')
@@ -163,6 +238,8 @@ export async function GET(req: NextRequest): Promise<Response> {
       resetCycle,
       profilesUpdated,
       creditsError,
+      streakResetUpdated,
+      streakResetError,
       dailyCleanupDeleted,
       dailyCleanupError,
       cleanupTargetDate: twoDaysAgoStr,

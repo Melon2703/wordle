@@ -69,14 +69,12 @@ export function buildDictionaryFallbackKeyboard(baseUrl: string) {
 
 export function buildReminderKeyboard(baseUrl: string) {
   return createInlineKeyboard([
-    [createWebAppButton('Открыть игру', buildWebAppUrl(baseUrl, DAILY_ROUTE))],
-    [createWebAppButton('Настройки уведомлений', buildWebAppUrl(baseUrl, SETTINGS_ROUTE))]
+    [createWebAppButton('Открыть игру', buildWebAppUrl(baseUrl, DAILY_ROUTE))]
   ]);
 }
 
 export function buildReminderFallbackKeyboard(baseUrl: string) {
   return createInlineKeyboard([
-    [createUrlButton('Открыть игру', buildWebAppUrl(baseUrl, DAILY_ROUTE))],
-    [createUrlButton('Настройки уведомлений', buildWebAppUrl(baseUrl, SETTINGS_ROUTE))]
+    [createUrlButton('Открыть игру', buildWebAppUrl(baseUrl, DAILY_ROUTE))]
   ]);
 }
