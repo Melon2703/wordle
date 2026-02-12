@@ -16,8 +16,11 @@ export function GuessRow({ length, feedback, activeGuess, isInvalid }: GuessRowP
 
   return (
     <motion.div
-      className="grid gap-2 md:gap-3"
-      style={{ gridTemplateColumns: `repeat(${length}, minmax(0, 1fr))` }}
+      className="grid justify-center"
+      style={{ 
+        gap: '8px',
+        gridTemplateColumns: `repeat(${length}, 56px)`
+      }}
       variants={{
         shake: {
           x: [-10, 10, -10, 10, 0],

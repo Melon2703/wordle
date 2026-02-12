@@ -1,10 +1,19 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { ThemeBridge } from '@/components/ThemeBridge';
 import { HapticsBridge } from '@/components/HapticsBridge';
 import { ToastCenter } from '@/components/ToastCenter';
+import { BottomNavWrapper } from '@/components/BottomNavWrapper';
+
+// Configure Inter font with Cyrillic support
+const inter = Inter({ 
+  subsets: ['latin', 'cyrillic'],
+  variable: '--font-inter',
+  display: 'swap'
+});
 
 export const metadata: Metadata = {
   title: 'RU Word Puzzle',
@@ -13,7 +22,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ru">
+    <html lang="ru" className={inter.variable}>
       <head>
         {/* Telegram WebApp Script - Required for Telegram Mini Apps */}
         <script src="https://telegram.org/js/telegram-web-app.js" async />
@@ -23,6 +32,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <ThemeBridge />
           <HapticsBridge />
           <ToastCenter>{children}</ToastCenter>
+          <BottomNavWrapper />
         </Providers>
       </body>
     </html>

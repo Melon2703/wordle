@@ -1,4 +1,4 @@
-import type { LetterState, TileFeedback } from '../types';
+import type { LetterState, TileFeedback, GuessLine } from '../types';
 
 function createCounts(word: string): Map<string, number> {
   const result = new Map<string, number>();
@@ -42,4 +42,22 @@ export function evaluateGuess(guess: string, answer: string): TileFeedback[] {
     letter,
     state: states[index]
   }));
+}
+
+const statePriority: Record<LetterState, number> = {
+  correct: 3,
+  present: 2,
+  absent: 1
+};
+
+export function buildKeyboardState(lines: GuessLine[]): Record<string, LetterState> {
+  return lines.reduce<Record<string, LetterState>>((acc, line) => {
+    line.feedback.forEach(({ letter, state }) => {
+      const existing = acc[letter];
+      if (!existing || statePriority[state] > statePriority[existing]) {
+        acc[letter] = state;
+      }
+    });
+    return acc;
+  }, {});
 }
