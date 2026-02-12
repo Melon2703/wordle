@@ -1,241 +1,241 @@
 # Frontend Documentation — Russian Word Puzzle (Telegram Mini App)
 
-**TL;DR:** Next.js (App Router) frontend wired to **TMA.js React SDK**, **TanStack Query**, **Tailwind v4**, **Telegram UI kit**, **shadcn/ui**, **Framer Motion**, and **lucide-react**. Gameplay mirrors a grid+keyboard word puzzle with a soft pastel light theme, rounded tiles/keys, and accessibility-first feedback (icons + color). This file defines the **screen/component map**, **providers**, **UX rules**, and **typed data contracts** expected from the backend APIs.
+Next.js App Router frontend for the RU word puzzle Telegram Mini App. This doc explains the current screen map, shared UI, data flow, and the TypeScript contracts the backend must satisfy.
 
 ---
 
-## 1) Scope & Principles
+## 1. Scope & Principles
 
-- **Frontend-only**: This document specifies UI mechanics, app structure, theming, and the format/types of data expected from the backend.
-- **Fair & accessible**: Color-blind-friendly feedback (icons + color) and AA contrast; touch targets sized for mobile. (WCAG AA 4.5:1 for text; Apple 44pt / Material 48dp targets). citeturn1search6 citeturn1search1turn1search2
-- **Telegram-native**: Uses the official **TMA.js React SDK** for theme, viewport, back button, and haptics hooks. citeturn0search10
-
----
-
-## 2) Tech Stack (Frontend)
-
-- **Framework:** Next.js (App Router).
-- **Telegram SDK:** `@tma.js/sdk-react` (React bindings to Mini Apps client SDK). citeturn0search10
-- **UI kits:** 
-  - `@telegram-apps/telegram-ui` for Telegram‑styled panels/toolbars where a native feel helps. citeturn0search2
-  - `shadcn/ui` for accessible dialogs, sheets, and toasts (Radix-based). citeturn2search8
-- **Styling:** Tailwind CSS **v4** with design tokens (CSS variables) for the pastel light theme. citeturn0search4turn0search20
-- **Data fetching/cache:** TanStack Query (`useQuery`, `useMutation`). citeturn0search13turn0search8turn0search3
-- **Animation:** Framer Motion / Motion.dev (tile flip, row shake, key pop). citeturn0search8
-- **Icons:** `lucide-react` (tree‑shakable SVG icons). citeturn2search1
-
-> For platform background and feature capabilities, see Telegram Mini Apps docs. citeturn0search7turn0search12
+- Telegram-first shell that still works in a browser preview. All privileged flows rely on Telegram `initData`.
+- Gameplay prioritises clarity: color tokens plus text/icons, haptics when available, and timers that never block input.
+- Frontend pulls all state from backend APIs; no guesses are evaluated locally for the daily puzzle.
 
 ---
 
-## 3) App Architecture (Next.js)
+## 2. Tech Stack Snapshot
 
-### 3.1 Directory map
+- **Framework:** Next.js 14 (App Router) with React 18.
+- **State/query:** `@tanstack/react-query` for caching, mutations, and optimistic updates.
+- **Telegram SDK:** core `@tma.js/sdk` (we call `init`, `invoice`, `popup`, `hapticFeedback` directly). No `@tma.js/sdk-react` hooks are in use.
+- **Styling:** Tailwind CSS 3.x plus `lib/theme.css` tokens; utility classes live in `app/globals.css`.
+- **Animation & icons:** `framer-motion` for loaders/celebrations, `lucide-react` for vector icons, `clsx` for deterministic class joins.
+- **Local helpers:** custom `ToastCenter`, `ThemeBridge`, and `HapticsBridge` adapt Telegram runtime features to React components.
+
+---
+
+## 3. App Shell & Providers
+
+### 3.1 Directory map (frontend slice)
 ```
 app/
-  layout.tsx          # Shell: theme, top bar, toasts
-  providers.tsx       # TMA.js, Query, Theme/Haptics bridges
-  page.tsx            # Hub (mode cards, quick stats)
-  daily/page.tsx      # Daily game
-  arcade/page.tsx     # Arcade game
-  leaders/page.tsx    # Leaderboards
-  shop/page.tsx       # Shop (UI only, Stars handled server-side)
-  help/page.tsx       # Rules & RU orthography
+  layout.tsx        # Root shell: theme bridges, header, bottom nav, suspense fallback
+  providers.tsx     # QueryClient + Telegram init + share deep-link handling
+  page.tsx          # Home hub with mode cards, banners, and quick stats
+  daily/page.tsx    # Daily puzzle experience
+  arcade/page.tsx   # Arcade mode with hints / extra tries
+  leaders/page.tsx  # Daily leaderboard surface
+  shop/page.tsx     # Stars shop (Telegram invoice flow)
+  purchases/page.tsx# Purchase history and refunds
 components/
-  GameHeader.tsx | PuzzleGrid/GuessRow/Tile.tsx | KeyboardCyr.tsx
-  StatusBar.tsx  | ResultModal.tsx | ShareCardPreview.tsx
-  PurchaseSheet.tsx | SettingsSheet.tsx | ToastCenter.tsx
-  A11yIcon.tsx   | ThemeBridge.tsx | HapticsBridge.tsx
+  Banner.tsx, BottomNav.tsx, Header.tsx, ToastCenter.tsx
+  PuzzleGrid/{index,GuessRow,Tile}.tsx, KeyboardCyr.tsx
+  ResultScreen.tsx, ShareButton.tsx
+  HintModal.tsx, ExtraTryModal.tsx, SettingsSheet.tsx, RulesSheet.tsx
+  ThemeBridge.tsx, HapticsBridge.tsx, TopCenterIcon.tsx
+lib/
+  api.ts, contracts.ts, types.ts, game/*, deeplink.ts, theme.css
 ```
 
-### 3.2 Providers (bootstrapping)
-- **`@tma.js/sdk-react`**: initialize once; mount features (e.g., BackButton), read **Theme Params** and **Viewport**; optional `DisplayGate` for startup states. citeturn0search10
-- **Theme binding**: Bind Telegram Theme Params → CSS variables (so our palette adapts safely). citeturn0search6
-- **TanStack Query**: global `QueryClientProvider` with route-level queries/mutations. citeturn0search13
+### 3.2 Root layout & wrappers
+- `app/layout.tsx` registers the Inter font, injects the Telegram WebApp script, and wraps pages with:
+  - `Providers` (React Query + Telegram init),
+  - `ThemeBridge` (copies Telegram theme params into CSS vars),
+  - `HapticsBridge` (stores a reference to `Telegram.WebApp.HapticFeedback`),
+  - `Header` (top-layer settings/rules buttons),
+  - `ToastCenter` (global toast portal),
+  - `BottomNavWrapper` (hides the bottom nav on `/`, shows it elsewhere).
+- All page content is rendered inside a React `Suspense` boundary with `LoadingFallback`.
+
+### 3.3 Providers setup (`app/providers.tsx`)
+- Creates a single `QueryClient` (stale time 30s, no refetch on focus).
+- Calls `init({ acceptCustomStyles: true })` from `@tma.js/sdk` the first time the component mounts.
+- After a short delay, inspects Telegram `start_param` to detect share deep links and redirects users into `/daily` or `/arcade`.
 
 ---
 
-## 4) Visual System
+## 4. Screen Overview
 
-### 4.1 Pastel light theme (tokens)
-We apply a gentle white/blue palette with clear contrast and rounded shapes.
-
-```
---bg:#F7FAFF; --panel:#FFFFFF; --text:#0F1C2E; --tile-border:#D7E3F3;
---state-correct:#77C3A3; --state-present:#F2D27A; --state-absent:#C6D0E0;
---key-bg:#E7EEF8; --key-pressed:#D9E6F7; --accent:#7AB6FF;
-```
-- **Contrast**: target WCAG **AA** (≥4.5:1 for text; ≥3:1 for UI components). Validate with WebAIM contrast checker. citeturn1search6turn1search3
-- **Shape/spacing**: tiles 58–64 px, keys 44–48 px; generous gaps and safe‑area padding.
-- **Touch targets**: ≥44 pt (iOS) / ≥48 dp (Material). citeturn1search1turn1search2
-
-### 4.2 Components
-- **PuzzleGrid** → `GuessRow` → `Tile` (states: `correct`, `present`, `absent`; also `hard-violation`).
-- **KeyboardCyr** (on‑screen Cyrillic) mirrors grid length; physical keyboard supported on desktop.
-- **StatusBar / Toasts**: succinct, non‑blocking. (shadcn/ui components) citeturn2search8
-- **Modals/Sheets**: `ResultModal`, `PurchaseSheet`, `SettingsSheet`.
-
-### 4.3 Animations & haptics
-- **Reveal**: flip 120–150ms per tile with slight stagger; **shake** on invalid guess; **press** pop on keys. (Framer Motion patterns) citeturn0search8
-- **Haptics**: light impact on key press; success/error on result/invalid. (Mini Apps haptics) citeturn0search7
+- **Home (`app/page.tsx`):** Fetches `getUserStatus` and active banners, shows Daily/Arcade cards, streak, timers, and CTA badges. Prefetches the daily puzzle for a snappy entry and stores dismissed banners in `localStorage`.
+- **Daily (`app/daily/page.tsx`):** Loads `getDailyPuzzle`, submits guesses via `submitDailyGuess`, updates cache optimistically, and renders `PuzzleGrid` + `KeyboardCyr`. On completion, shows `ResultScreen` and a `ShareButton`.
+- **Arcade (`app/arcade/page.tsx`):** Orchestrates `startArcade`, hint usage, extra tries, session recovery, dictionary validation, and result sharing. Uses local evaluation for speed but still records guesses and completion to the backend.
+- **Leaders (`app/leaders/page.tsx`):** Fetches the current puzzle ID, then `getDailyLeaderboard`, rendering per-player rows with quick attempt/time stats. Gives a profile-open CTA via `openUserProfile`.
+- **Shop (`app/shop/page.tsx`):** Loads catalog (`getShopCatalog`) once Telegram `initData` is confirmed. Purchases call `purchaseProduct`, open the Telegram invoice URL with `invoice.openUrl`, and clean up cancelled purchases.
+- **Purchases (`app/purchases/page.tsx`):** Lists prior purchases via `getUserPurchases`, allows refunds through `refundPurchase`, and surfaces invoice IDs. Relies on Telegram `popup`/`hapticFeedback` helpers when available.
+- **Navigation visibility:** Shop tab and the settings icon only appear for tester Telegram ID `626033046`; the check runs twice (immediate + delayed) to accommodate slow SDK init.
 
 ---
 
-## 5) UX Mechanics (summary)
+## 5. Shared Components & Utilities
 
-- **Input & validation**: type with on‑screen Cyrillic keyboard (and desktop physical keys); enforce word length in UI.
-- **Validation split**: 
-  - **Daily**: server-side validation (fairness/security)
-  - **Arcade**: client-side validation with wordlist from Storage
-- **Feedback**: tiles and keys show **color + small icon** (✓ / • / ×) to avoid relying on color alone.
-- **Hard Mode**: client warns if known greens must be reused or if yellows are mispositioned; server is authoritative.
-- **Scoring UI**: Daily shows attempts (primary) and time (secondary, badge off by default); Arcade shows MMR delta.
-- **RU orthography**: "ё=е" input toggle (answer reveal uses correct character).
-
-Microcopy (RU, compact):
-- **Invalid**: «Слова нет в словаре.»
-- **Too short**: «Слово короче.»
-- **Hard mode**: «Используйте открытые буквы.»
-- **Network**: «Сеть недоступна. Попробуйте позже.»
+- `PuzzleGrid`, `GuessRow`, `Tile`: render attempt history, pending guesses, and final boards (ResultScreen scales the grid down for recaps).
+- `KeyboardCyr`: Cyrillic keyboard with enter/delete controls, dynamic key colors, and optional disable states.
+- `ResultScreen`: shows celebration, stats, shrunken grid, and streak/arcade solved counters.
+- `ShareButton`: calls `/api/share/prepare`, then `Telegram.WebApp.shareMessage`, with fallbacks to open link or copy URL.
+- `Banner`: announcement card with optional CTA, dismiss persistence, and reduced motion support.
+- `ToastCenter`: lightweight toast context; used for errors, validations, mutations, and share feedback.
+- `ThemeBridge`: copies Telegram theme params into `--tg-*` CSS variables so Tailwind classes can rely on them.
+- `HapticsBridge` + `triggerHaptic`: centralised haptic feedback helpers (light/notification patterns).
+- `TopRightIcons`, `SettingsSheet`, `RulesSheet`: local storage–backed preferences (high contrast, haptics toggle, timer visibility, “ё=е” normalization) and onboarding rules.
+- `HintModal`, `ExtraTryModal`, `TopCenterIcon`: arcade-only overlays for hints and extra attempts.
+- `LoadingFallback` & `PuzzleLoader`: animated placeholder grid while queries resolve.
 
 ---
 
-## 6) Data Contracts (expected from backend)
+## 6. Gameplay Flows
 
-> All timestamps **ISO 8601 (UTC)**. Backend is **source of truth** for attempts, timing, solution, and rating.
+### 6.1 Daily mode (`app/daily/page.tsx`)
+1. Query key `['puzzle','daily']` fetches `DailyPuzzlePayload`.
+2. User guesses are collected locally, then `submitDailyGuess` is called. On success we patch cached puzzle state, invalidate the query, and trigger success/error haptics.
+3. Keyboard state derives from accumulated feedback (`buildKeyboardState`).
+4. Result view surfaces attempts, total time, streak, and answer (for losses) plus share CTA.
+5. `getUserStatus` runs alongside to show streaks and time badges and to pre-compute countdowns on the home page.
+
+### 6.2 Arcade mode (`app/arcade/page.tsx`)
+1. Availability: `getArcadeStatus` gates access; `unlockArcade` opens the mode when permitted.
+2. Starting a game (`startArcade`) returns `sessionId`, solution, hint/extra-try entitlements, and hidden attempts (for bots or purchases).
+3. Client caches dictionary words per length (`getDictionaryWords`) to validate guesses offline; normalization respects the “ё=е” toggle (still server-validated).
+4. Guesses are evaluated client-side (`evaluateGuess`) for instant feedback, recorded through `/api/arcade/guess`, and queued in `pendingRecords` so server state stays consistent.
+5. Hints trigger `callArcadeHint` and open the `HintModal`; extra tries call `/api/arcade/extra-try/use` and `/api/arcade/extra-try/finish`.
+6. `checkArcadeSession` restores unfinished sessions on mount; `Finish` finalises games via `/api/arcade/complete`.
+7. When a session ends we show `ResultScreen`, allow replay, and include an arcade share payload (with `arcadeSolved` from `getUserStatus`).
+
+---
+
+## 7. Commerce & Inventory Views
+
+- `getShopCatalog` returns Stars products with badges. `handlePurchase` first creates a purchase (server returns `invoice_url`), then opens the invoice with `invoice.openUrl`. On cancel we call `cleanupCancelledPurchase`.
+- `getUserPurchases` shows each historic purchase with status badges. `refundPurchase` integrates Telegram haptics (`hapticFeedback`) and falls back to browser `confirm` when Telegram popups are unavailable.
+
+---
+
+## 8. Banners & Home Badges
+
+- `getActiveBanners` powers the promo/announcement section; dismissal is persisted to `localStorage` (`dismissed-banners` key) and filtered client-side.
+- Countdown until the next daily puzzle updates every minute based on `userStatus.nextPuzzleAt`.
+- Smart highlights: if streak is zero and status is `not_started`, the daily card gets a ring; if a new puzzle is <30 minutes away, we add urgency copy.
+
+---
+
+## 9. Data Contracts (see `lib/types.ts`)
 
 ```ts
-// Common
 export type LetterState = 'correct' | 'present' | 'absent';
 
-export type TileFeedback = {
-  index: number;     // 0-based
-  letter: string;    // uppercase RU
+export interface TileFeedback {
+  index: number;
+  letter: string;      // uppercase for UI
   state: LetterState;
-};
+}
 
-export type GuessLine = {
-  guess: string;         // uppercase RU, NFC
+export interface GuessLine {
+  guess: string;
   feedback: TileFeedback[];
-  submittedAt: string;   // ISO
-};
-```
+  submittedAt: string; // ISO timestamp
+}
 
-### 6.1 Daily
-```ts
-export type DailyPuzzlePayload = {
+export interface DailyPuzzlePayload {
   puzzleId: string;
   mode: 'daily';
   length: 5;
   maxAttempts: 6;
-  serverNow: string;     // ISO
-  opensAt: string;       // ISO (archive)
-  expiresAt: string;     // ISO (rollover)
+  serverNow: string;
+  opensAt: string;
+  expiresAt: string;
   keyboard: 'ru';
   hardModeAvailable: boolean;
+  answer?: string; // supplied once finished
   yourState: {
     status: 'playing' | 'won' | 'lost';
     attemptsUsed: number;
-    lines: GuessLine[];  // user's guesses only
+    lines: GuessLine[];
+    timeMs?: number;
   };
-};
-// GET /api/puzzle/daily → DailyPuzzlePayload  (cache until expiresAt)
-// POST /api/puzzle/daily/guess { puzzleId, guess, hardMode? } →
-// { puzzleId, line: GuessLine, status, attemptsUsed }
-```
+}
 
-### 6.2 Arcade
-```ts
-export type ArcadeStartRequest = { length: 4|5|6|7; hardMode: boolean };
-export type ArcadeStartResponse = {
+export interface ArcadeStartResponse {
   puzzleId: string;
+  sessionId: string;
   mode: 'arcade';
-  length: 4|5|6|7;
+  length: 4 | 5 | 6;
   maxAttempts: number;
   serverNow: string;
-  solution: string;  // normalized solution for client-side evaluation
-};
-export type ArcadeCompleteRequest = {
+  solution: string;
+  hintsUsed: Array<{ letter: string; position: number }>;
+  hintEntitlementsAvailable: number;
+  extraTryEntitlementsAvailable: number;
+  hiddenAttempts: GuessLine[];
+}
+
+export interface ArcadeGuessResponse {
   puzzleId: string;
-  result: 'won' | 'lost';
+  line: GuessLine;
+  status: 'playing' | 'won' | 'lost';
   attemptsUsed: number;
-  timeMs: number;
-};
-// POST /api/arcade/start { length, hardMode } → ArcadeStartResponse
-// POST /api/arcade/complete { puzzleId, result, attemptsUsed, timeMs } → { ok: boolean }
-```
+  mmrDelta?: number;
+}
 
-### 6.3 Dictionary check (optional UI hint)
-```
-GET /api/dict/check?word=СТРОКА → { valid: boolean }
-```
-
-### 6.4 Leaderboards (Daily)
-```ts
-export type DailyBoardEntry = {
+export interface DailyBoardEntry {
   rank: number;
   userId: string;
   displayName: string;
   attempts: number;
-  timeMs: number;     // server-measured
+  timeMs: number;
   country?: string;
   badges?: string[];
-};
-export type DailyLeaderboard = {
-  puzzleId: string;
-  asOf: string;
-  entries: DailyBoardEntry[];
-  you?: DailyBoardEntry;
-};
-// GET /api/leaderboard/daily?puzzleId=... → DailyLeaderboard
-```
+  profileUrl?: string;
+}
 
-### 6.5 Shop catalog (UI only; Stars handled via server)
-```ts
-export type ProductType = 'ticket' | 'season_pass' | 'cosmetic' | 'analysis' | 'archive';
-export type Product = {
+export interface Product {
   id: string;
-  type: ProductType;
+  type: 'ticket' | 'season_pass' | 'cosmetic' | 'analysis' | 'archive';
   title: string;
   subtitle?: string;
-  priceStars: number;       // integer
-  recurring?: 'monthly'|'seasonal';
-  badge?: 'new'|'popular';
-};
-export type ShopCatalog = { products: Product[]; asOf: string };
-// GET /api/shop/catalog → ShopCatalog
-// POST /api/shop/purchase { productId } → { ok: boolean }
+  priceStars: number;
+  recurring?: 'monthly' | 'seasonal';
+  badge?: 'new' | 'popular';
+}
 ```
 
----
-
-## 7) Query & Caching Policy (TanStack Query)
-
-- **Daily puzzle**: key `['puzzle','daily', dateKey]`; **stale** until `expiresAt`; no refetch on focus. citeturn0search13
-- **Arcade**: key `['puzzle','arcade', puzzleId]`; refetch on guess mutation.
-- **Leaderboards**: refetch every 30–60s while result modal is open.
-- **Mutations**: invalidate relevant keys on success (e.g., `submitGuess` → puzzle & leaderboard). citeturn0search3
+Keep backend contracts aligned with these interfaces; `lib/contracts.ts` re-exports them for API handlers and fixtures.
 
 ---
 
-## 8) Accessibility Checklist (frontend)
+## 10. Query Keys & Cache Policy
 
-- **Color + icon** for feedback (never color alone).
-- **Contrast**: text ≥4.5:1; component boundaries ≥3:1; verify with WebAIM checker. citeturn1search6turn1search3
-- **Touch targets**: ≥44pt (iOS), ≥48dp (Material). citeturn1search1turn1search2
-- **Keyboard/Focus**: modals and sheets trap focus; Escape/back‑button closes safely (shadcn/ui). citeturn2search4
+- `['puzzle','daily']` — `staleTime` 30s; manual invalidation after each guess.
+- `['user','status']` — reused across home/daily/arcade; stale for 30s.
+- `['leaderboard','daily', puzzleId]` — enabled when puzzleId is known.
+- `['shop','catalog']` — gated until Telegram `initData` is present.
+- `['purchases']` — invalidated after refunds or purchases.
+- `['arcade','incomplete-session']` — restores sessions once per mount.
+- `['arcade','status']` (implicit via `getArcadeStatus`) and hint/extra-try mutations invalidate relevant session state manually.
 
 ---
 
-## 9) References (selected)
+## 11. Settings, Accessibility & Haptics
 
-- **TMA.js React SDK** — package & usage. citeturn0search10
-- **Theme Params binding** — create CSS variables from Telegram theme. citeturn0search6
-- **TanStack Query** — quick start, useQuery/useMutation. citeturn0search13turn0search8turn0search3
-- **Tailwind v4** — release & upgrade guide. citeturn0search4turn0search20
-- **Telegram UI kit** — components for Telegram‑styled shell. citeturn0search2
-- **shadcn/ui** — components (dialogs, sheets, toasts). citeturn2search8
-- **Framer Motion** — animation primitives. citeturn0search8
-- **lucide-react** — icon package (tree‑shakable). citeturn2search1
-- **Telegram Mini Apps (platform)** — overview & capabilities. citeturn0search7turn0search12
-- **Accessibility** — WCAG contrast, touch target sizes, WebAIM checker. citeturn1search6turn1search1turn1search2turn1search3
+- `SettingsSheet` persists preferences to `localStorage` (`wordle-settings`). High contrast toggles `document.documentElement.dataset.contrast`, which maps to overrides in `lib/theme.css`.
+- Haptics: `KeyboardCyr` and mutation handlers route through `triggerHaptic`. When Telegram Haptics is unavailable the calls are no-ops.
+- `RulesSheet` doubles as onboarding; once a user confirms, we set `wordle-onboarding-completed`.
+- UI sizing targets ~44px touch areas. `Banner` and top buttons respect `prefers-reduced-motion`.
+
+---
+
+## 12. Share & Deep Links
+
+- `ShareButton` prepares share payloads via `/api/share/prepare`, handing the resulting `preparedMessageId` to `Telegram.WebApp.shareMessage`. Fallbacks copy URLs or open Telegram share links.
+- `lib/deeplink` detects `/start` parameters with a share payload. `Providers` decodes it and navigates users into the correct mode on load (`/daily` vs `/arcade`).
+
+---
+
+For backend expectations, cross-reference `docs/backend` (leaderboards, share payloads, arcade entitlement rules). Keep this document updated when new routes, settings, or SDK adjustments land.
