@@ -214,9 +214,14 @@ export async function listShopProducts(client: Client): Promise<ShopCatalog> {
     throw new Error('Failed to fetch products');
   }
 
+  const products = data || [];
+  console.log(`[listShopProducts] Found ${products.length} active products in database:`, 
+    products.map(p => ({ id: p.product_id, title: p.title_ru, active: p.active }))
+  );
+
   return {
     asOf: new Date().toISOString(),
-    products: (data || []).map(product => ({
+    products: products.map(product => ({
       id: product.product_id,
       type: product.type,
       title: product.title_ru,
