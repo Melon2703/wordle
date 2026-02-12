@@ -20,7 +20,9 @@ Backend is implemented with Next.js App Router (Node runtime) and Supabase. It a
 Required env vars (`lib/env.ts`):
 - `BOT_TOKEN` — Telegram Bot token (used for init data validation, invoices, refunds, inline messages).
 - `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` — service role credentials for database and Storage access.
-- `WEBHOOK_SECRET_PATH` — secret segment for the Telegram webhook route.
+- `WEBHOOK_SECRET_PATH` — secret segment for the legacy Telegram Stars webhook route.
+- `WEBHOOK_SECRET` — secret header (`X-Telegram-Bot-Api-Secret-Token`) for the command webhook (`/api/bot/webhook`).
+- `MINI_APP_URL` — public base URL of the deployed mini app (used for `web_app` buttons and menu links).
 
 Optional:
 - `USE_MOCK_AUTH` — when `"true"`, the backend returns a hard-coded Telegram profile for local development.
@@ -95,6 +97,8 @@ All Route Handlers opt into `export const runtime = 'nodejs';`.
   - Processes Telegram Bot webhook payloads; expects path segment equal to `WEBHOOK_SECRET_PATH`. Current logic handles:
     - `successful_payment`: mark purchase as paid, persist charge IDs, and upsert a matching entitlement.
     - `pre_checkout_query`: approves Stars payments (all valid payloads return `ok: true`).
+- `POST /api/bot/webhook`  
+  - Telegram command webhook for private chats. Verifies `X-Telegram-Bot-Api-Secret-Token === WEBHOOK_SECRET`, routes `/start`, `/play`, `/help`, `/dictionary`, and `/random`. Replies with Mini App `web_app` keyboards, updates `telegram_users`/`notification_prefs`, and configures the per-chat menu button.
 
 ### 3.6 Sharing
 - `POST /api/share/prepare`  
@@ -108,6 +112,8 @@ All Route Handlers opt into `export const runtime = 'nodejs';`.
     1. Ensure tomorrow’s daily puzzle exists (create from Storage word list if missing).
     2. Maintain the “used words” list in Storage to avoid repeats; resets cycle if exhausted.
     3. Reset `profiles.arcade_credits` to `3` for all users.
+- `GET /api/cron/daily-notify`  
+  - Scheduled at 08:00 UTC via Vercel Cron (`vercel.json`). Authenticated with `CRON_SECRET`. Selects opted-in users, respects per-chat throttling (≤1 msg/sec) and Telegram rate limits, sends reminder with Mini App buttons, then stamps `notification_prefs.last_daily_sent`.
 
 ---
 
@@ -138,6 +144,10 @@ The generated types in `lib/db/types.ts` map 1:1 to Supabase tables. Key entitie
   - Stars transactions with status (`pending` → `paid` → `refunded`), invoice payloads, and charge IDs. Webhook updates these rows.
 - **entitlements**
   - Inventory/ownership per profile (`arcade_hint`, `arcade_extra_try`, `arcade_new_game`, etc.). Refund and webhook flows both modify this table.
+- **telegram_users**
+  - Mirrors Telegram profile metadata for users who start the bot. Columns include `telegram_id`, `profile_id`, `first_seen_at`, `last_seen_at`, `language_code`, plus optional name fields. Updated from `/api/bot/webhook`.
+- **notification_prefs**
+  - Stores reminder settings per profile (`daily_reminder_enabled`, `tz_offset_minutes`, `last_daily_sent`). Defaults are inserted on first bot interaction; cron jobs update the timestamps after successful sends.
 - **saved_words**
   - Personal dictionary entries keyed by `saved_id`. Columns store the user-facing word (`word_text`), the normalised form (`word_norm`, used for dedupe), generated `length`, `source` (`daily`/`arcade`/`manual`), optional `puzzle_id`, and timestamps. Foreign key on `profile_id` cascades deletes, unique index on (`profile_id`, `word_norm`) enforces idempotent inserts.
 
@@ -153,6 +163,7 @@ The generated types in `lib/db/types.ts` map 1:1 to Supabase tables. Key entitie
 ## 6. Operational Notes
 
 - **Logging:** Route Handlers log warnings for Supabase table absence (useful while migrations are in flux) and errors around purchases, streak updates, and cron jobs. Webhook, refund, and cleanup routes include verbose debug output.
+- **Telegram setup:** `npm run bot:webhook` calls `setWebhook` with the configured URL/secret and prints `getWebhookInfo` for verification. Pass `WEBHOOK_URL` when invoking the script (deployment URL + `/api/bot/webhook`).
 - **Idempotency:** Purchase, refund, hint, and extra-try routes guard against duplicate processing by checking existing session state and consumption counts before mutating.
 - **Testing hooks:** `USE_MOCK_AUTH` + `TEMP_ARCADE_UNLIMITED` make it possible to test flows locally without Telegram or gating.
 - **Limitations:** Rate limiting is per-instance (no shared store). The cron route currently only checks that `VERCEL_CRON_SECRET` is set; consider validating request headers in production.

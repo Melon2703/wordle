@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit --pretty",
-    "format": "prettier --check ."
+    "format": "prettier --check .",
+    "bot:webhook": "node scripts/setup-telegram-webhook.mjs"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",

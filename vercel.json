@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/nightly",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/daily-notify",
+      "schedule": "0 8 * * *"
     }
   ]
 }

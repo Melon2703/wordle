@@ -2,7 +2,9 @@ const requiredKeys = [
   'BOT_TOKEN',
   'SUPABASE_URL',
   'SUPABASE_SERVICE_KEY',
-  'WEBHOOK_SECRET_PATH'
+  'WEBHOOK_SECRET_PATH',
+  'WEBHOOK_SECRET',
+  'MINI_APP_URL'
 ] satisfies Array<keyof NodeJS.ProcessEnv>;
 
 const optionalKeys = [
