@@ -1,22 +1,25 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
 import { PuzzleLoader } from '@/components/PuzzleLoader';
+import { LoadingFallback } from '@/components/LoadingFallback';
 import { ResultScreen } from '@/components/ResultScreen';
 import { ShareButton } from '@/components/ShareButton';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { Button, Card, Heading, Text } from '@/components/ui';
-import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess, getArcadeStatus, unlockArcade, useExtraTry as callUseExtraTry, finishExtraTry } from '@/lib/api';
+import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess, getArcadeStatus, unlockArcade, useExtraTry as callUseExtraTry, finishExtraTry, purchaseProduct, cleanupCancelledPurchase } from '@/lib/api';
+import { invoice } from '@tma.js/sdk';
 import { HintModal } from '@/components/HintModal';
 import { ExtraTryModal } from '@/components/ExtraTryModal';
 import { TopCenterIcon } from '@/components/TopCenterIcon';
 import { buildKeyboardState } from '@/lib/game/feedback';
 import { evaluateGuess, normalizeGuess, validateDictionary } from '@/lib/game/feedback.client';
 import type { ArcadeStartResponse, GuessLine, ArcadeTheme } from '@/lib/contracts';
+import { hasTelegramInitData, waitForTelegramInitData } from '@/lib/telegram';
 
 const allLengths: Array<ArcadeStartResponse['length']> = [4, 5, 6];
 const defaultLength: ArcadeStartResponse['length'] = 5;
@@ -30,6 +33,7 @@ const getDictionaryKey = (length: ArcadeStartResponse['length'], theme: ArcadeTh
 
 export default function ArcadePage() {
   const toast = useToast();
+  const queryClient = useQueryClient();
   const [activeLength, setActiveLength] = useState<ArcadeStartResponse['length']>(defaultLength);
   const [activeTheme, setActiveTheme] = useState<ArcadeTheme>(defaultTheme);
   const [session, setSession] = useState<ArcadeStartResponse | null>(null);
@@ -50,6 +54,8 @@ export default function ArcadePage() {
   const [extraTryEntitlements, setExtraTryEntitlements] = useState(0);
   const [showExtraTryModal, setShowExtraTryModal] = useState(false);
   const [isUsingExtraTry, setIsUsingExtraTry] = useState(false);
+  const [isStatusLoading, setIsStatusLoading] = useState(true);
+  const [isTelegramReady, setIsTelegramReady] = useState(() => hasTelegramInitData());
   
   // Track pending record requests
   const pendingRecords = useRef<Promise<unknown>[]>([]);
@@ -57,16 +63,78 @@ export default function ArcadePage() {
 
   // Check arcade availability on mount
   useEffect(() => {
+    let isMounted = true;
+
+    setIsStatusLoading(true);
+
     getArcadeStatus()
       .then(status => {
+        if (!isMounted) {
+          return;
+        }
         const credits = Math.max(0, Math.min(status.arcadeCredits ?? 0, maxArcadeCredits));
         setArcadeCredits(credits);
         setNewGameEntitlements(status.newGameEntitlements);
       })
-        .catch(() => {
+      .catch(() => {
         // Error loading arcade status
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsStatusLoading(false);
+        }
       });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  useEffect(() => {
+    if (isTelegramReady) {
+      return;
+    }
+
+    let isMounted = true;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const pollTelegram = () => {
+      if (!isMounted) {
+        return;
+      }
+
+      if (hasTelegramInitData()) {
+        setIsTelegramReady(true);
+        return;
+      }
+
+      timeoutId = setTimeout(pollTelegram, 100);
+    };
+
+    pollTelegram();
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isTelegramReady]);
+
+  const ensureTelegramReady = useCallback(async () => {
+    if (isTelegramReady) {
+      return true;
+    }
+
+    const ready = await waitForTelegramInitData({ timeoutMs: 4000, intervalMs: 100 });
+    if (!ready) {
+      toast.notify('Телеграм еще загружается, попробуйте чуть позже');
+      return false;
+    }
+
+    setIsTelegramReady(true);
+    return true;
+  }, [isTelegramReady, toast]);
 
   // Check Telegram user ID to determine available word lengths
   useEffect(() => {
@@ -124,6 +192,9 @@ export default function ArcadePage() {
           toast.notify('Не удалось загрузить словарь. Проверка слов недоступна.');
         }
       }
+
+      queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+      queryClient.invalidateQueries({ queryKey: ['arcade', 'status'] });
     },
     onError: () => {
       toast.notify('Не удалось запустить аркаду.');
@@ -148,7 +219,7 @@ export default function ArcadePage() {
   };
 
   // Check for incomplete arcade session on mount
-  const { data: incompleteSession } = useQuery({
+  const { data: incompleteSession, isLoading: isIncompleteSessionLoading } = useQuery({
     queryKey: ['arcade', 'incomplete-session'],
     queryFn: checkArcadeSession,
     staleTime: 30 * 1000,
@@ -246,6 +317,10 @@ export default function ArcadePage() {
   const keyboardState = buildKeyboardState(lines);
   const length = session?.length ?? activeLength;
 
+  if (isStatusLoading || isIncompleteSessionLoading) {
+    return <LoadingFallback length={activeLength} />;
+  }
+
   const handleUseHint = async () => {
     if (!session?.sessionId) return;
     
@@ -254,11 +329,35 @@ export default function ArcadePage() {
       const response = await callArcadeHint(session.sessionId);
       setSession(prev => prev ? { ...prev, hintsUsed: response.hints } : null);
       setHintEntitlementsRemaining(response.entitlementsRemaining);
+      queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
     } catch {
       toast.notify('Не удалось использовать подсказку');
     } finally {
       setIsLoadingHint(false);
     }
+  };
+
+  const handleHintPurchaseComplete = async () => {
+    // Refresh hint entitlements after purchase
+    if (session?.sessionId) {
+      try {
+        const sessionData = await checkArcadeSession();
+        if (sessionData.hasIncomplete && sessionData.session) {
+          const updatedSession = sessionData.session;
+          setHintEntitlementsRemaining(updatedSession.hintEntitlementsAvailable);
+          // Also update session state if needed
+          setSession(prev => prev ? {
+            ...prev,
+            hintEntitlementsAvailable: updatedSession.hintEntitlementsAvailable
+          } : null);
+          queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+        }
+      } catch {
+        // If session check fails, we can't refresh entitlements
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ['purchases'] });
+    queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
   };
 
   const handleUnlockArcade = async () => {
@@ -270,6 +369,7 @@ export default function ArcadePage() {
       setArcadeCredits(replenishedCredits);
       setNewGameEntitlements(prev => Math.max(prev - 1, 0));
       toast.notify('Игры восстановлены!');
+      queryClient.invalidateQueries({ queryKey: ['arcade', 'status'] });
     } catch {
       toast.notify('Не удалось разблокировать аркаду');
     } finally {
@@ -277,8 +377,37 @@ export default function ArcadePage() {
     }
   };
 
-  const handleBuyGames = () => {
-    window.location.href = '/shop';
+  const handleBuyGames = async () => {
+    const ready = await ensureTelegramReady();
+    if (!ready) {
+      return;
+    }
+
+    try {
+      const purchaseResult = await purchaseProduct('arcade_new_game');
+      const invoiceUrl = purchaseResult.invoice_url;
+      
+      const result = await invoice.openUrl(invoiceUrl);
+      
+      if (result === 'paid') {
+        toast.notify('Покупка завершена успешно!');
+        const status = await getArcadeStatus();
+        const credits = Math.max(0, Math.min(status.arcadeCredits ?? 0, maxArcadeCredits));
+        setArcadeCredits(credits);
+        setNewGameEntitlements(status.newGameEntitlements);
+        queryClient.invalidateQueries({ queryKey: ['arcade', 'status'] });
+        queryClient.invalidateQueries({ queryKey: ['purchases'] });
+      } else {
+        try {
+          await cleanupCancelledPurchase(purchaseResult.purchase_id);
+        } catch {
+          // Don't fail the whole operation if cleanup fails
+        }
+        toast.notify('Покупка отменена');
+      }
+    } catch {
+      toast.notify('Ошибка при покупке');
+    }
   };
 
   const handleUseExtraTry = async () => {
@@ -294,6 +423,7 @@ export default function ArcadePage() {
       pendingRecords.current = [];
       setExtraTryEntitlements(prev => Math.max(prev - 1, 0));
       setShowExtraTryModal(false);
+      queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
       
       toast.notify('Попытка добавлена!');
     } catch {
@@ -311,6 +441,8 @@ export default function ArcadePage() {
       await finishExtraTry(session.sessionId);
       setShowExtraTryModal(false);
       setShowResult(true);
+      queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+      queryClient.invalidateQueries({ queryKey: ['user', 'status'] });
       
       // finishExtraTry already marks the session as complete, no need to call completeArcadeSession
     } catch {
@@ -320,8 +452,59 @@ export default function ArcadePage() {
     }
   };
 
-  const handleBuyExtraTries = () => {
-    window.location.href = '/shop';
+  const handleBuyExtraTries = async () => {
+    const ready = await ensureTelegramReady();
+    if (!ready) {
+      return;
+    }
+
+    try {
+      const purchaseResult = await purchaseProduct('arcade_extra_try');
+      const invoiceUrl = purchaseResult.invoice_url;
+      
+      const result = await invoice.openUrl(invoiceUrl);
+      
+      if (result === 'paid') {
+        toast.notify('Покупка завершена успешно!');
+        let shouldAutoUseExtraTry = false;
+        // Refresh session to get updated entitlements
+        if (session?.sessionId) {
+          try {
+            const sessionData = await checkArcadeSession();
+            if (sessionData.hasIncomplete && sessionData.session) {
+              setExtraTryEntitlements(sessionData.session.extraTryEntitlementsAvailable);
+              shouldAutoUseExtraTry = sessionData.session.extraTryEntitlementsAvailable > 0;
+              queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+            }
+          } catch {
+            // Fallback: refresh arcade status
+            try {
+              const fallbackStatus = await getArcadeStatus();
+              const credits = Math.max(0, Math.min(fallbackStatus.arcadeCredits ?? 0, maxArcadeCredits));
+              setArcadeCredits(credits);
+              setNewGameEntitlements(fallbackStatus.newGameEntitlements);
+            } catch {
+              // ignore fallback failures
+            }
+          }
+        }
+        queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+        queryClient.invalidateQueries({ queryKey: ['arcade', 'status'] });
+        queryClient.invalidateQueries({ queryKey: ['purchases'] });
+        if (shouldAutoUseExtraTry) {
+          await handleUseExtraTry();
+        }
+      } else {
+        try {
+          await cleanupCancelledPurchase(purchaseResult.purchase_id);
+        } catch {
+          // Don't fail the whole operation if cleanup fails
+        }
+        toast.notify('Покупка отменена');
+      }
+    } catch {
+      toast.notify('Ошибка при покупке');
+    }
   };
 
   const handleStart = async () => {
@@ -409,7 +592,9 @@ export default function ArcadePage() {
         submittedGuess, // original input
         normalizedGuess, // normalized
         feedbackMask
-      ).catch(() => {
+      ).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+      }).catch(() => {
         // Error recording guess (non-critical)
       }).finally(() => {
         // Remove from pending array when done
@@ -440,6 +625,10 @@ export default function ArcadePage() {
         if (sessionStartTime) {
           const timeMs = Date.now() - sessionStartTime;
           completeArcadeSession(session.puzzleId, 'won', lines.length + 1, timeMs)
+            .then(() => {
+              queryClient.invalidateQueries({ queryKey: ['user', 'status'] });
+              queryClient.invalidateQueries({ queryKey: ['arcade', 'incomplete-session'] });
+            })
             .catch(() => {
               // Don't show error to user - game already completed locally
             });
@@ -473,6 +662,8 @@ export default function ArcadePage() {
               entitlementsRemaining={hintEntitlementsRemaining}
               onUseHint={handleUseHint}
               isLoading={isLoadingHint}
+              onPurchaseComplete={handleHintPurchaseComplete}
+              purchaseDisabled={!isTelegramReady}
             />
 
             {/* Extra Try Modal */}
@@ -483,6 +674,7 @@ export default function ArcadePage() {
               onBuyTries={handleBuyExtraTries}
               entitlementsRemaining={extraTryEntitlements}
               isLoading={isUsingExtraTry}
+              purchaseDisabled={!isTelegramReady}
             />
 
             {/* Hint Icon */}
@@ -616,6 +808,7 @@ export default function ArcadePage() {
                     fullWidth
                     variant="primary"
                     onClick={handleBuyGames}
+                    disabled={!isTelegramReady}
                   >
                     Купить игры
                   </Button>

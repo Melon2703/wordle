@@ -10,6 +10,7 @@ interface ExtraTryModalProps {
   onBuyTries: () => void;
   entitlementsRemaining: number;
   isLoading: boolean;
+  purchaseDisabled?: boolean;
 }
 
 export function ExtraTryModal({
@@ -18,7 +19,8 @@ export function ExtraTryModal({
   onFinish,
   onBuyTries,
   entitlementsRemaining,
-  isLoading
+  isLoading,
+  purchaseDisabled = false
 }: ExtraTryModalProps) {
   const [confirming, setConfirming] = useState(false);
 
@@ -80,7 +82,7 @@ export function ExtraTryModal({
               fullWidth
               variant="primary"
               onClick={onBuyTries}
-              disabled={isLoading}
+              disabled={isLoading || purchaseDisabled}
             >
               Купить попытки
             </Button>

@@ -1,10 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Heading, Text } from '@/components/ui';
 import { X } from 'lucide-react';
 import { Tile } from '@/components/PuzzleGrid/Tile';
 import type { Hint } from '@/lib/contracts';
+import { purchaseProduct, cleanupCancelledPurchase } from '@/lib/api';
+import { invoice } from '@tma.js/sdk';
+import { useToast } from '@/components/ToastCenter';
+import { waitForTelegramInitData } from '@/lib/telegram';
 
 interface HintModalProps {
   isOpen: boolean;
@@ -13,6 +18,8 @@ interface HintModalProps {
   entitlementsRemaining: number;
   onUseHint: () => Promise<void>;
   isLoading: boolean;
+  onPurchaseComplete?: () => Promise<void>;
+  purchaseDisabled?: boolean;
 }
 
 export function HintModal({
@@ -21,15 +28,61 @@ export function HintModal({
   hints,
   entitlementsRemaining,
   onUseHint,
-  isLoading
+  isLoading,
+  onPurchaseComplete,
+  purchaseDisabled = false
 }: HintModalProps) {
   const [confirming, setConfirming] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const { notify } = useToast();
+  const queryClient = useQueryClient();
 
   if (!isOpen) return null;
 
   const handleUseHint = async () => {
     setConfirming(false);
     await onUseHint();
+  };
+
+  const handlePurchase = async () => {
+    if (purchaseDisabled) {
+      notify('Телеграм еще загружается, попробуйте чуть позже');
+      return;
+    }
+
+    setIsPurchasing(true);
+    try {
+      const ready = await waitForTelegramInitData();
+      if (!ready) {
+        notify('Телеграм еще загружается, попробуйте чуть позже');
+        return;
+      }
+
+      const purchaseResult = await purchaseProduct('arcade_hint');
+      const invoiceUrl = purchaseResult.invoice_url;
+      
+      const result = await invoice.openUrl(invoiceUrl);
+      
+      if (result === 'paid') {
+        notify('Покупка завершена успешно!');
+        queryClient.invalidateQueries({ queryKey: ['purchases'] });
+        setConfirming(false);
+        if (onPurchaseComplete) {
+          await onPurchaseComplete();
+        }
+      } else {
+        try {
+          await cleanupCancelledPurchase(purchaseResult.purchase_id);
+        } catch {
+          // Don't fail the whole operation if cleanup fails
+        }
+        notify('Покупка отменена');
+      }
+    } catch {
+      notify('Ошибка при покупке');
+    } finally {
+      setIsPurchasing(false);
+    }
   };
 
   const canShowHintButton = hints.length < 5 && entitlementsRemaining > 0;
@@ -108,9 +161,10 @@ export function HintModal({
             <Button
               fullWidth
               variant="secondary"
-              onClick={() => window.location.href = '/shop'}
+              onClick={handlePurchase}
+              disabled={isPurchasing || isLoading || purchaseDisabled}
             >
-              Купить подсказки
+              {isPurchasing ? 'Покупка...' : 'Купить подсказки'}
             </Button>
           )}
         </div>
@@ -118,4 +172,3 @@ export function HintModal({
     </div>
   );
 }
-
