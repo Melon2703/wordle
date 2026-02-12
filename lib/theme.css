@@ -1,0 +1,19 @@
+/* Palette derived from docs/frontend/Frontend_Documentation.md §4.1 */
+:root {
+  --bg: #f7faff;
+  --panel: #ffffff;
+  --text: #0f1c2e;
+  --tile-border: #d7e3f3;
+  --state-correct: #77c3a3;
+  --state-present: #f2d27a;
+  --state-absent: #c6d0e0;
+  --key-bg: #e7eef8;
+  --key-pressed: #d9e6f7;
+  --accent: #7ab6ff;
+}
+
+:root[data-contrast='high'] {
+  --state-correct: #3f9e73;
+  --state-present: #c7951a;
+  --state-absent: #7a889d;
+}

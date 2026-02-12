@@ -1,0 +1,606 @@
+openapi: 3.1.0
+info:
+  title: RU Word Puzzle Backend API
+  version: 0.1.0
+  description: >
+    Contract-first OpenAPI spec for the Telegram Mini App backend.
+    Follows OAS 3.1 to enable code generation for server stubs and client SDKs.
+    Authentication uses Telegram Mini Apps init data (validated server-side).
+servers:
+  - url: https://your-vercel-app.vercel.app
+    description: Production (Vercel)
+  - url: http://localhost:3000
+    description: Local dev
+tags:
+  - name: puzzles
+    description: Daily/Arcade puzzle endpoints
+  - name: leaderboard
+    description: Leaderboards
+  - name: dictionary
+    description: Dictionary utilities
+  - name: shop
+    description: Stars catalog and purchase
+  - name: system
+    description: Webhooks and jobs
+paths:
+  /api/puzzle/daily:
+    get:
+      tags: [puzzles]
+      summary: Get daily puzzle state for the current user
+      operationId: getDailyPuzzle
+      security:
+        - InitDataHeader: []
+        - InitDataQuery: []
+      responses:
+        '200':
+          description: Daily puzzle payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyPuzzlePayload'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/puzzle/daily/guess:
+    post:
+      tags: [puzzles]
+      summary: Submit a guess for the daily puzzle
+      operationId: postDailyGuess
+      security:
+        - InitDataHeader: []
+        - InitDataQuery: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyGuessRequest'
+      responses:
+        '200':
+          description: Guess result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyGuessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '409':
+          description: Daily session locked or attempts limit reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/arcade/start:
+    post:
+      tags: [puzzles]
+      summary: Start an arcade session
+      operationId: startArcade
+      security:
+        - InitDataHeader: []
+        - InitDataQuery: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArcadeStartRequest'
+      responses:
+        '200':
+          description: Arcade session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArcadeStartResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/arcade/guess:
+    post:
+      tags: [puzzles]
+      summary: Submit a guess for the arcade session
+      operationId: postArcadeGuess
+      security:
+        - InitDataHeader: []
+        - InitDataQuery: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArcadeGuessRequest'
+      responses:
+        '200':
+          description: Guess result (arcade)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArcadeGuessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/leaderboard/daily:
+    get:
+      tags: [leaderboard]
+      summary: Get the daily leaderboard for a puzzle
+      operationId: getDailyLeaderboard
+      security:
+        - InitDataHeader: []
+        - InitDataQuery: []
+      parameters:
+        - in: query
+          name: puzzleId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: pageSize
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Daily leaderboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyLeaderboard'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/dict/check:
+    get:
+      tags: [dictionary]
+      summary: Check if a word is valid (dictionary membership only)
+      operationId: checkDictionaryWord
+      security:
+        - InitDataHeader: []
+        - InitDataQuery: []
+      parameters:
+        - in: query
+          name: word
+          required: true
+          schema:
+            type: string
+            minLength: 2
+      responses:
+        '200':
+          description: Dictionary check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DictCheckResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/shop/catalog:
+    get:
+      tags: [shop]
+      summary: Get shop catalog (digital goods via Stars)
+      operationId: getShopCatalog
+      security:
+        - InitDataHeader: []
+        - InitDataQuery: []
+      responses:
+        '200':
+          description: Shop catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopCatalog'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/shop/purchase:
+    post:
+      tags: [shop]
+      summary: Create a Stars invoice for a product
+      operationId: createPurchase
+      security:
+        - InitDataHeader: []
+        - InitDataQuery: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseRequest'
+      responses:
+        '200':
+          description: A purchase has been created (invoice issued)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/tg/webhook/{secret}:
+    post:
+      tags: [system]
+      summary: Telegram Bot API webhook endpoint (Stars updates, etc.)
+      operationId: telegramWebhook
+      parameters:
+        - in: path
+          name: secret
+          required: true
+          schema:
+            type: string
+            minLength: 16
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Telegram update payload (subset)
+              additionalProperties: true
+      responses:
+        '200':
+          description: Webhook processed
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/cron/nightly:
+    get:
+      tags: [system]
+      summary: Nightly rollover job (invoked by Vercel Cron)
+      operationId: nightlyRollover
+      responses:
+        '200':
+          description: Nightly rollover executed
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    InitDataHeader:
+      type: apiKey
+      in: header
+      name: X-Telegram-Init-Data
+      description: >
+        Signed init data from Telegram Mini Apps. Must be validated on the server.
+    InitDataQuery:
+      type: apiKey
+      in: query
+      name: initData
+      description: >
+        Signed init data from Telegram Mini Apps (query string form). Must be validated on the server.
+  responses:
+    BadRequest:
+      description: Invalid input supplied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedError:
+      description: Init data missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServerError:
+      description: Server-side failure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    # ---------- Common ----------
+    LetterState:
+      type: string
+      enum: [correct, present, absent]
+    TileFeedback:
+      type: object
+      properties:
+        index:
+          type: integer
+          minimum: 0
+        letter:
+          type: string
+          minLength: 1
+          maxLength: 1
+          description: Uppercase RU letter
+        state:
+          $ref: '#/components/schemas/LetterState'
+      required: [index, letter, state]
+      additionalProperties: false
+    GuessLine:
+      type: object
+      properties:
+        guess:
+          type: string
+          description: Uppercase RU word (NFC)
+        feedback:
+          type: array
+          items:
+            $ref: '#/components/schemas/TileFeedback'
+        submittedAt:
+          type: string
+          format: date-time
+      required: [guess, feedback, submittedAt]
+      additionalProperties: false
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+      required: [code, message]
+      additionalProperties: true
+
+    # ---------- Daily ----------
+    DailyPuzzlePayload:
+      type: object
+      properties:
+        puzzleId:
+          type: string
+          format: uuid
+        mode:
+          type: string
+          enum: [daily]
+        length:
+          type: integer
+          enum: [5]
+        maxAttempts:
+          type: integer
+          default: 6
+        serverNow:
+          type: string
+          format: date-time
+        opensAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        keyboard:
+          type: string
+          enum: [ru]
+        hardModeAvailable:
+          type: boolean
+        yourState:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [playing, won, lost]
+            attemptsUsed:
+              type: integer
+              minimum: 0
+            lines:
+              type: array
+              items:
+                $ref: '#/components/schemas/GuessLine'
+          required: [status, attemptsUsed, lines]
+          additionalProperties: false
+      required: [puzzleId, mode, length, maxAttempts, serverNow, expiresAt, keyboard, hardModeAvailable, yourState]
+      additionalProperties: false
+    DailyGuessRequest:
+      type: object
+      properties:
+        puzzleId:
+          type: string
+          format: uuid
+        guess:
+          type: string
+        hardMode:
+          type: boolean
+          default: false
+      required: [puzzleId, guess]
+      additionalProperties: false
+    DailyGuessResponse:
+      type: object
+      properties:
+        puzzleId:
+          type: string
+          format: uuid
+        line:
+          $ref: '#/components/schemas/GuessLine'
+        status:
+          type: string
+          enum: [playing, won, lost]
+        attemptsUsed:
+          type: integer
+      required: [puzzleId, line, status, attemptsUsed]
+      additionalProperties: false
+
+    # ---------- Arcade ----------
+    ArcadeStartRequest:
+      type: object
+      properties:
+        length:
+          type: integer
+          enum: [4,5,6,7]
+        hardMode:
+          type: boolean
+          default: false
+      required: [length, hardMode]
+      additionalProperties: false
+    ArcadeStartResponse:
+      type: object
+      properties:
+        puzzleId:
+          type: string
+          format: uuid
+        mode:
+          type: string
+          enum: [arcade]
+        length:
+          type: integer
+          enum: [4,5,6,7]
+        maxAttempts:
+          type: integer
+        serverNow:
+          type: string
+          format: date-time
+      required: [puzzleId, mode, length, maxAttempts, serverNow]
+      additionalProperties: false
+    ArcadeGuessRequest:
+      type: object
+      properties:
+        puzzleId:
+          type: string
+          format: uuid
+        guess:
+          type: string
+      required: [puzzleId, guess]
+      additionalProperties: false
+    ArcadeGuessResponse:
+      type: object
+      properties:
+        puzzleId:
+          type: string
+          format: uuid
+        line:
+          $ref: '#/components/schemas/GuessLine'
+        status:
+          type: string
+          enum: [playing, won, lost]
+        attemptsUsed:
+          type: integer
+        mmrDelta:
+          type: integer
+          description: Present only on final state
+      required: [puzzleId, line, status, attemptsUsed]
+      additionalProperties: false
+
+    # ---------- Leaderboards ----------
+    DailyBoardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+          minimum: 1
+        userId:
+          type: string
+          description: Internal or telegram-based id
+        displayName:
+          type: string
+        attempts:
+          type: integer
+        timeMs:
+          type: integer
+          minimum: 0
+        country:
+          type: string
+          nullable: true
+        badges:
+          type: array
+          items:
+            type: string
+          nullable: true
+      required: [rank, userId, displayName, attempts, timeMs]
+      additionalProperties: false
+    DailyLeaderboard:
+      type: object
+      properties:
+        puzzleId:
+          type: string
+          format: uuid
+        asOf:
+          type: string
+          format: date-time
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyBoardEntry'
+        you:
+          $ref: '#/components/schemas/DailyBoardEntry'
+      required: [puzzleId, asOf, entries]
+      additionalProperties: false
+
+    # ---------- Dictionary ----------
+    DictCheckResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+      required: [valid]
+      additionalProperties: false
+
+    # ---------- Shop ----------
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [ticket, season_pass, cosmetic, analysis, archive]
+        title:
+          type: string
+        subtitle:
+          type: string
+          nullable: true
+        priceStars:
+          type: integer
+          minimum: 0
+        recurring:
+          type: string
+          enum: [monthly, seasonal]
+          nullable: true
+        badge:
+          type: string
+          enum: [new, popular]
+          nullable: true
+      required: [id, type, title, priceStars]
+      additionalProperties: false
+    ShopCatalog:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        asOf:
+          type: string
+          format: date-time
+      required: [products, asOf]
+      additionalProperties: false
+    PurchaseRequest:
+      type: object
+      properties:
+        productId:
+          type: string
+      required: [productId]
+      additionalProperties: false
+    PurchaseResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required: [ok]
+      additionalProperties: false

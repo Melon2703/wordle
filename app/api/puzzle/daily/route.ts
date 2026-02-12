@@ -1,0 +1,80 @@
+import { NextResponse } from 'next/server';
+import { requireAuthContext } from '../../../../lib/auth/validateInitData';
+import { getServiceClient } from '../../../../lib/db/client';
+import { getTodayPuzzle, getOrCreateProfile, getSessionGuesses } from '../../../../lib/db/queries';
+import type { DailyPuzzlePayload, GuessLine } from '../../../../lib/contracts';
+
+export const runtime = 'nodejs';
+
+export async function GET(request: Request) {
+  try {
+    const auth = requireAuthContext(request);
+    const client = getServiceClient();
+    
+    // Get or create user profile
+    const profile = await getOrCreateProfile(client, parseInt(auth.userId), auth.parsed.user?.username);
+    
+    // Get today's puzzle
+    const { puzzle } = await getTodayPuzzle(client);
+    
+    // Check if user has an existing session
+    const { data: session } = await client
+      .from('sessions')
+      .select('*')
+      .eq('profile_id', profile.profile_id)
+      .eq('puzzle_id', puzzle.puzzle_id)
+      .eq('mode', 'daily')
+      .single();
+    
+    let lines: GuessLine[] = [];
+    let status: 'playing' | 'won' | 'lost' = 'playing';
+    let attemptsUsed = 0;
+    
+    if (session) {
+      // Get existing guesses
+      const guesses = await getSessionGuesses(client, session.session_id);
+      lines = guesses.map(guess => ({
+        guess: guess.text_norm,
+        submittedAt: guess.created_at,
+        feedback: JSON.parse(guess.feedback_mask).map((state: string, index: number) => ({
+          index,
+          letter: guess.text_norm[index],
+          state: state as 'correct' | 'present' | 'absent'
+        }))
+      }));
+      
+      attemptsUsed = session.attempts_used;
+      status = session.result as 'playing' | 'won' | 'lost' || 'playing';
+    }
+    
+    const payload: DailyPuzzlePayload = {
+      puzzleId: puzzle.puzzle_id,
+      mode: 'daily',
+      length: puzzle.letters as 5,
+      maxAttempts: 6,
+      serverNow: new Date().toISOString(),
+      opensAt: puzzle.date ? new Date(puzzle.date).toISOString() : new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
+      keyboard: 'ru',
+      hardModeAvailable: true,
+      yourState: {
+        status,
+        attemptsUsed,
+        lines
+      }
+    };
+    
+    return NextResponse.json(payload, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+    
+  } catch (error) {
+    console.error('Daily puzzle GET error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch daily puzzle' },
+      { status: 500 }
+    );
+  }
+}
