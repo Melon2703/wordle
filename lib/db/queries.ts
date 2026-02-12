@@ -111,6 +111,13 @@ export async function recordDailyGuess(
     .single();
 
   if (error || !data) {
+    console.error('Failed to record guess:', {
+      error: error?.message,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint,
+      params
+    });
     throw new Error('Failed to record guess');
   }
 
@@ -120,7 +127,7 @@ export async function recordDailyGuess(
 export async function updateSessionResult(
   client: Client,
   sessionId: string,
-  result: 'win' | 'lost' | 'abandon',
+  result: 'win' | 'lose' | 'abandon',
   attemptsUsed: number,
   timeMs?: number
 ): Promise<void> {
@@ -135,6 +142,16 @@ export async function updateSessionResult(
     .eq('session_id', sessionId);
 
   if (error) {
+    console.error('Failed to update session result:', {
+      error: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      sessionId,
+      result,
+      attemptsUsed,
+      timeMs
+    });
     throw new Error('Failed to update session result');
   }
 }

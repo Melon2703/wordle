@@ -127,8 +127,11 @@ export async function POST(request: NextRequest) {
     // Generate engaging caption with HTML bold formatting
     let caption = '';
     if (body.mode === 'daily') {
-      if (body.streak === 1) {
-        // First time
+      if (body.status === 'lost') {
+        // Loss message - use \n instead of <br> (Telegram doesn't support <br> in HTML mode)
+        caption = `Слово оказалось сложнее, чем я думал 😅\nСможете ли вы? 🤔`;
+      } else if (body.streak === 1) {
+        // First time win
         caption = `🎉 Решил свою первую загадку! Потребовалось <b>${body.attemptsUsed} попыток</b>. Попробуй и ты!`;
       } else if (body.streak && body.streak > 1) {
         // Has streak

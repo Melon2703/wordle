@@ -70,6 +70,8 @@ export async function GET(request: Request) {
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
       keyboard: 'ru',
       hardModeAvailable: true,
+      // Include answer when game is lost or won (for display)
+      answer: status !== 'playing' ? puzzle.solution_text : undefined,
       yourState: {
         status,
         attemptsUsed,

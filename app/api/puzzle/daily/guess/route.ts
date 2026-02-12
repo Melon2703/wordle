@@ -110,6 +110,17 @@ export async function POST(request: Request) {
     
     // Get existing guesses for hard mode validation
     const existingGuesses = await getSessionGuesses(client, session.session_id);
+    
+    // Check for duplicate words (case-insensitive)
+    const guessForComparison = guessForLookup.toLowerCase();
+    const isDuplicate = existingGuesses.some(g => g.text_norm.toLowerCase() === guessForComparison);
+    if (isDuplicate) {
+      return NextResponse.json(
+        { error: 'Вы уже пробовали это слово' },
+        { status: 400 }
+      );
+    }
+    
     const existingLines: GuessLine[] = existingGuesses.map(guess => ({
       guess: guess.text_norm,
       submittedAt: guess.created_at,
@@ -159,12 +170,14 @@ export async function POST(request: Request) {
       await updateSessionResult(
         client,
         session.session_id,
-        isWin ? 'win' : 'lost',
+        isWin ? 'win' : 'lose',
         newAttemptsUsed,
         timeMs
       );
+    }
 
-      // Update streak when puzzle is completed
+    // Update streak ONLY on win
+    if (isWin) {
       try {
         const today = new Date().toISOString().split('T')[0];
         
@@ -207,7 +220,25 @@ export async function POST(request: Request) {
         console.warn('⚠️ Failed to update streak:', error);
         // Don't fail the request if streak update fails
       }
-    } else {
+    }
+
+    // Reset streak on loss
+    if (isLost) {
+      try {
+        await client
+          .from('profiles')
+          .update({
+            streak_current: 0,
+            last_daily_played_at: new Date().toISOString()
+          })
+          .eq('profile_id', profile.profile_id);
+      } catch (error) {
+        console.warn('⚠️ Failed to reset streak on loss:', error);
+        // Don't fail the request if streak reset fails
+      }
+    }
+    
+    if (!isWin && !isLost) {
       // Update attempts count
       await client
         .from('sessions')
