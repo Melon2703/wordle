@@ -63,13 +63,6 @@ export async function GET(request: Request) {
     
     const extraTryEntitlementsAvailable = extraTryCount || 0;
     
-    // Convert hidden_attempts from database format
-    const hiddenAttempts: GuessLine[] = (session.hidden_attempts || []).map((attempt: { guess: string; submittedAt: string; feedback: Array<{index: number; letter: string; state: 'correct' | 'present' | 'absent'}> }) => ({
-      guess: attempt.guess,
-      submittedAt: attempt.submittedAt,
-      feedback: attempt.feedback
-    }));
-    
     // Build response
     const arcadeSession: ArcadeStartResponse = {
       puzzleId: puzzle.puzzle_id,
@@ -81,8 +74,7 @@ export async function GET(request: Request) {
       solution: puzzle.solution_norm, // normalized solution for client-side evaluation
       hintsUsed: (session.hints_used as Array<{letter: string; position: number}>) || [],
       hintEntitlementsAvailable,
-      extraTryEntitlementsAvailable,
-      hiddenAttempts
+      extraTryEntitlementsAvailable
     };
     
     return NextResponse.json({
@@ -106,4 +98,3 @@ export async function GET(request: Request) {
     );
   }
 }
-

@@ -385,7 +385,8 @@ export async function getOrCreateProfile(
       telegram_id: telegramId,
       username: username || null,
       first_name: firstName || null,
-      last_name: lastName || null
+      last_name: lastName || null,
+      arcade_credits: 3
     })
     .select()
     .single();

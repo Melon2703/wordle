@@ -16,7 +16,7 @@ export interface Database {
           streak_current: number;
           streak_max: number;
           last_daily_played_at: string | null;
-          is_arcade_available: boolean;
+          arcade_credits: number;
           is_banned: boolean;
           ban_reason: string | null;
           ban_expires_at: string | null;
@@ -35,7 +35,7 @@ export interface Database {
           streak_current?: number;
           streak_max?: number;
           last_daily_played_at?: string | null;
-          is_arcade_available?: boolean;
+          arcade_credits?: number;
           is_banned?: boolean;
           ban_reason?: string | null;
           ban_expires_at?: string | null;
@@ -54,7 +54,7 @@ export interface Database {
           streak_current?: number;
           streak_max?: number;
           last_daily_played_at?: string | null;
-          is_arcade_available?: boolean;
+          arcade_credits?: number;
           is_banned?: boolean;
           ban_reason?: string | null;
           ban_expires_at?: string | null;
@@ -121,7 +121,6 @@ export interface Database {
           verified: boolean;
           suspicion: string[] | null;
           hints_used: Array<{letter: string; position: number}> | null;
-          hidden_attempts: Array<{guess: string; feedback: Array<{index: number; letter: string; state: 'correct' | 'present' | 'absent'}>; submittedAt: string}> | null;
           created_at: string;
         };
         Insert: {
@@ -142,7 +141,6 @@ export interface Database {
           verified?: boolean;
           suspicion?: string[] | null;
           hints_used?: Array<{letter: string; position: number}> | null;
-          hidden_attempts?: Array<{guess: string; feedback: Array<{index: number; letter: string; state: 'correct' | 'present' | 'absent'}>; submittedAt: string}> | null;
           created_at?: string;
         };
         Update: {
@@ -163,7 +161,6 @@ export interface Database {
           verified?: boolean;
           suspicion?: string[] | null;
           hints_used?: Array<{letter: string; position: number}> | null;
-          hidden_attempts?: Array<{guess: string; feedback: Array<{index: number; letter: string; state: 'correct' | 'present' | 'absent'}>; submittedAt: string}> | null;
           created_at?: string;
         };
       };

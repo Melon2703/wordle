@@ -98,8 +98,7 @@ export const sampleArcadeStart: ArcadeStartResponse = {
   solution: 'СЛОВО',
   hintsUsed: [],
   hintEntitlementsAvailable: 0,
-  extraTryEntitlementsAvailable: 0,
-  hiddenAttempts: []
+  extraTryEntitlementsAvailable: 0
 };
 
 export const sampleArcadeGuess: ArcadeGuessResponse = {

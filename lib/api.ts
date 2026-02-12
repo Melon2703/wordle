@@ -304,7 +304,7 @@ export async function checkArcadeSession(): Promise<ArcadeSessionCheckResponse> 
 }
 
 export async function getArcadeStatus(): Promise<{
-  isArcadeAvailable: boolean;
+  arcadeCredits: number;
   newGameEntitlements: number;
 }> {
   const response = await fetch('/api/arcade/status', {
@@ -312,14 +312,14 @@ export async function getArcadeStatus(): Promise<{
   });
   
   return handleResponse<{
-    isArcadeAvailable: boolean;
+    arcadeCredits: number;
     newGameEntitlements: number;
   }>(response);
 }
 
 export async function unlockArcade(): Promise<{
   ok: boolean;
-  isArcadeAvailable: boolean;
+  arcadeCredits: number;
 }> {
   const response = await fetch('/api/arcade/unlock', {
     method: 'POST',
@@ -328,21 +328,18 @@ export async function unlockArcade(): Promise<{
   
   return handleResponse<{
     ok: boolean;
-    isArcadeAvailable: boolean;
+    arcadeCredits: number;
   }>(response);
 }
 
-export async function useExtraTry(
-  sessionId: string,
-  failedAttempt: { guess: string; feedback: Array<{index: number; letter: string; state: 'correct' | 'present' | 'absent'}>; submittedAt: string }
-): Promise<{ hiddenAttempts: Array<{ guess: string; feedback: Array<{index: number; letter: string; state: 'correct' | 'present' | 'absent'}>; submittedAt: string }> }> {
+export async function useExtraTry(sessionId: string): Promise<{ ok: boolean }> {
   const response = await fetch('/api/arcade/extra-try/use', {
     method: 'POST',
     headers: createHeaders(),
-    body: JSON.stringify({ sessionId, failedAttempt })
+    body: JSON.stringify({ sessionId })
   });
   
-  return handleResponse(response);
+  return handleResponse<{ ok: boolean }>(response);
 }
 
 export async function finishExtraTry(sessionId: string): Promise<{ ok: boolean }> {

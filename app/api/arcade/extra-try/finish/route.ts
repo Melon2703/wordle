@@ -46,11 +46,10 @@ export async function POST(request: Request) {
       );
     }
     
-    // Clear hidden_attempts and mark session as complete
+    // Mark session as complete
     const { error: updateError } = await client
       .from('sessions')
       .update({ 
-        hidden_attempts: [],
         result: 'lose',
         ended_at: new Date().toISOString()
       })
@@ -77,4 +76,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

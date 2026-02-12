@@ -49,13 +49,15 @@ export async function POST(request: Request) {
       );
     }
     
-    // Set arcade available to true
-    const { error: updateError } = await client
+    // Restore credits to the full allotment
+    const { data: updatedProfile, error: updateError } = await client
       .from('profiles')
-      .update({ is_arcade_available: true })
-      .eq('profile_id', profile.profile_id);
+      .update({ arcade_credits: 3 })
+      .eq('profile_id', profile.profile_id)
+      .select('arcade_credits')
+      .single();
     
-    if (updateError) {
+    if (updateError || !updatedProfile) {
       return NextResponse.json(
         { error: 'Failed to unlock arcade' },
         { status: 500 }
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
     
     const response: ArcadeUnlockResponse = {
       ok: true,
-      isArcadeAvailable: true
+      arcadeCredits: updatedProfile.arcade_credits ?? 0
     };
     
     return NextResponse.json(response);
@@ -77,4 +79,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
