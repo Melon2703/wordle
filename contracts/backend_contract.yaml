@@ -315,6 +315,118 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '500':
           $ref: '#/components/responses/ServerError'
+  /api/share/card:
+    get:
+      tags: [system]
+      summary: Generate share card image (internal)
+      description: Returns a PNG image for sharing results. Used internally by /api/share/prepare.
+      operationId: generateShareCard
+      parameters:
+        - in: query
+          name: mode
+          required: true
+          schema:
+            type: string
+            enum: [daily, arcade]
+        - in: query
+          name: attempts
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: status
+          required: true
+          schema:
+            type: string
+            enum: [won, lost]
+        - in: query
+          name: timeMs
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+        - in: query
+          name: streak
+          required: false
+          schema:
+            type: integer
+        - in: query
+          name: arcadeSolved
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: PNG image (800x418)
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/share/prepare:
+    post:
+      tags: [system]
+      summary: Prepare share message via Telegram bot
+      description: Creates a prepared inline message with image and deep link for sharing
+      operationId: prepareShare
+      security:
+        - InitDataHeader: []
+        - InitDataQuery: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  type: string
+                  enum: [daily, arcade]
+                puzzleId:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+                  enum: [won, lost]
+                attemptsUsed:
+                  type: integer
+                  minimum: 1
+                timeMs:
+                  type: integer
+                  minimum: 0
+                lines:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/GuessLine'
+                streak:
+                  type: integer
+                arcadeSolved:
+                  type: integer
+              required: [mode, puzzleId, status, attemptsUsed, lines]
+      responses:
+        '200':
+          description: Share message prepared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  preparedMessageId:
+                    type: string
+                required: [ok, preparedMessageId]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
 components:
   securitySchemes:
     InitDataHeader:

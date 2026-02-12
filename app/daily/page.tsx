@@ -6,8 +6,10 @@ import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
 import { LoadingFallback } from '@/components/LoadingFallback';
 import { ResultScreen } from '@/components/ResultScreen';
+import { ShareButton } from '@/components/ShareButton';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
+import { Button } from '@/components/ui';
 import { getDailyPuzzle, submitDailyGuess, getUserStatus } from '@/lib/api';
 import { buildKeyboardState } from '@/lib/game/feedback';
 import type { DailyPuzzlePayload } from '@/lib/contracts';
@@ -131,16 +133,17 @@ export default function DailyPage() {
 
   if (error) {
     return (
-      <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800">
+      <main className="page-container">
         <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
-            <p className="text-sm opacity-70">Не удалось загрузить загадку</p>
-            <button 
+            <p className="text-caption">Не удалось загрузить загадку</p>
+            <Button 
+              variant="ghost"
               onClick={() => queryClient.invalidateQueries({ queryKey: ['puzzle', 'daily'] })}
-              className="mt-2 text-sm text-blue-500 underline"
+              className="mt-2"
             >
               Попробовать снова
-            </button>
+            </Button>
           </div>
         </div>
       </main>
@@ -148,8 +151,8 @@ export default function DailyPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">
-      <section className="flex flex-1 flex-col px-2 mx-auto w-full max-w-lg">
+    <main className="page-container">
+      <section className="flex flex-1 flex-col px-4 mx-auto w-full max-w-lg">
         {/* Result Screen */}
         {isGameCompleted && (
           <div className="transition-all duration-500 ease-in-out opacity-100 translate-y-0">
@@ -181,27 +184,22 @@ export default function DailyPage() {
         {!isGameCompleted && <div className="flex-1" />}
 
         {/* Share Button - only show when game is completed */}
-        {isGameCompleted && (
-          <>
-            <div className="flex-1" />
-            <div className="mb-4">
-              <button
-                type="button"
-                disabled
-                className="w-full rounded-xl bg-gray-300 px-4 py-3 text-sm font-semibold text-gray-500 cursor-not-allowed"
-                title="Share functionality coming soon"
-              >
-                Поделиться результатом
-              </button>
-              <p className="text-xs text-slate-500 text-center mt-2">
-                Функция поделиться будет доступна в следующих обновлениях
-              </p>
-            </div>
-          </>
+        {isGameCompleted && data && data.yourState.status !== 'playing' && (
+          <div className="mt-auto">
+            <ShareButton
+              mode="daily"
+              puzzleId={data.puzzleId}
+              status={data.yourState.status}
+              attemptsUsed={lines.length}
+              timeMs={data.yourState.timeMs}
+              lines={lines}
+              streak={userStatus?.streak}
+            />
+          </div>
         )}
 
         {/* Keyboard with animation */}
-        <div className={`transition-all duration-300 ${
+        <div className={`transition-all duration-300 -mx-4 ${
           isGameCompleted ? 'opacity-0 pointer-events-none h-0 overflow-hidden' : 'opacity-100'
         }`}>
           <KeyboardCyr

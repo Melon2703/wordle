@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
 import { PuzzleLoader } from '@/components/PuzzleLoader';
 import { ResultScreen } from '@/components/ResultScreen';
+import { ShareButton } from '@/components/ShareButton';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
+import { Button, Card, Heading, Text } from '@/components/ui';
 import { startArcade, completeArcadeSession, getDictionaryWords } from '@/lib/api';
 import { buildKeyboardState } from '@/lib/game/feedback';
 import { evaluateGuess, normalizeGuess, validateDictionary } from '@/lib/game/feedback.client';
@@ -93,6 +95,13 @@ export default function ArcadePage() {
     };
   };
 
+  // Get user status for arcade solved count
+  const { data: userStatus } = useQuery({
+    queryKey: ['user', 'status'],
+    queryFn: () => fetch('/api/user/status').then(res => res.json()),
+    staleTime: 30 * 1000,
+  });
+
   const keyboardState = buildKeyboardState(lines);
   const length = session?.length ?? activeLength ?? 5; // Default to 5 for UI purposes when no selection
 
@@ -104,16 +113,6 @@ export default function ArcadePage() {
       // Reset activeLength when API call fails
       setActiveLength(null);
     }
-  };
-
-  const handleNewGame = (len: ArcadeStartResponse['length']) => {
-    setShowResult(false);
-    setSession(null);
-    setLines([]);
-    setCurrentGuess('');
-    setSessionStartTime(null);
-    setIsSubmitting(false);
-    handleStart(len);
   };
 
   const handleKey = (letter: string) => {
@@ -196,8 +195,8 @@ export default function ArcadePage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">
-      <section className="flex flex-1 flex-col px-2 mx-auto w-full max-w-lg">
+    <main className="page-container">
+        <section className="flex flex-1 flex-col px-4 mx-auto w-full max-w-lg">
         {session ? (
           <>
             {/* Result Screen */}
@@ -208,7 +207,7 @@ export default function ArcadePage() {
                   attemptsUsed={lines.length}
                   mode="arcade"
                   timeMs={sessionStartTime ? Date.now() - sessionStartTime : undefined}
-                  onNewGame={handleNewGame}
+                  arcadeSolved={userStatus?.arcadeSolved}
                   length={length}
                   lines={lines}
                 />
@@ -228,28 +227,30 @@ export default function ArcadePage() {
 
             {!showResult && <div className="flex-1" />}
 
-            {/* Share Button - only show when game is completed */}
-            {showResult && (
-              <>
-                <div className="flex-1" />
-                <div className="mb-4">
-                  <button
-                    type="button"
-                    disabled
-                    className="w-full rounded-xl bg-gray-300 px-4 py-3 text-sm font-semibold text-gray-500 cursor-not-allowed"
-                    title="Share functionality coming soon"
-                  >
-                    Поделиться результатом
-                  </button>
-                  <p className="text-xs text-slate-500 text-center mt-2">
-                    Функция поделиться будет доступна в следующих обновлениях
-                  </p>
+            {/* Arcade Result Buttons - positioned at bottom above nav */}
+            {showResult && session && (
+              <div className="mt-auto">
+                <div className="grid grid-cols-2 gap-3">
+                  <Button fullWidth onClick={() => window.location.href = '/arcade'}>
+                    Новая игра
+                  </Button>
+                  <ShareButton
+                    mode="arcade"
+                    puzzleId={session.puzzleId}
+                    status={lines.length > 0 && lines[lines.length - 1].feedback.every(f => f.state === 'correct') ? 'won' : 'lost'}
+                    attemptsUsed={lines.length}
+                    timeMs={sessionStartTime ? Date.now() - sessionStartTime : undefined}
+                    lines={lines}
+                    arcadeSolved={userStatus?.arcadeSolved}
+                  />
                 </div>
-              </>
+              </div>
             )}
 
+            {/* Share Button - only show when game is completed */}
+
             {/* Keyboard with animation */}
-            <div className={`transition-all duration-300 ${
+            <div className={`transition-all duration-300 -mx-4 ${
               showResult ? 'opacity-0 pointer-events-none h-0 overflow-hidden' : 'opacity-100'
             }`}>
               <KeyboardCyr 
@@ -266,41 +267,38 @@ export default function ArcadePage() {
           <>
             {/* Title and subtitle header - only shown when no session */}
             <div className="mb-6">
-              <h1 className="text-3xl font-semibold font-sans">Аркада</h1>
-              <p className="mt-2 text-lg font-sans">Неограниченные попытки и гибкая длина слов</p>
+              <Heading level={2}>Аркада</Heading>
+              <Text className="mt-2">Неограниченные попытки и гибкая длина слов</Text>
             </div>
 
-            <div className="rounded-3xl border border-dashed border-blue-200 bg-white px-4 py-10 text-center text-sm opacity-80">
-            {startArcadeMutation.isPending ? (
-              <div className="flex justify-center">
-                <PuzzleLoader length={activeLength ?? 5} />
-              </div>
-            ) : (
-              <>
-                <p className="mb-6">Выберите длину слова, чтобы начать новую игру</p>
-                
-                {/* Word length selector */}
+            <Card padding="lg" className="text-center">
+              {startArcadeMutation.isPending ? (
                 <div className="flex justify-center">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {availableLengths.map((len) => (
-                      <button
-                        key={len}
-                        type="button"
-                        onClick={() => handleStart(len)}
-                        className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                          len === activeLength 
-                            ? 'bg-blue-500 text-white' 
-                            : 'bg-blue-100 text-slate-800 hover:bg-blue-200'
-                        }`}
-                      >
-                        {len} букв
-                      </button>
-                    ))}
-                  </div>
+                  <PuzzleLoader length={activeLength ?? 5} />
                 </div>
-              </>
-            )}
-          </div>
+              ) : (
+                <>
+                  <Text className="mb-6">Выберите длину слова, чтобы начать новую игру</Text>
+                  
+                  {/* Word length selector */}
+                  <div className="flex justify-center">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {availableLengths.map((len) => (
+                        <Button
+                          key={len}
+                          onClick={() => handleStart(len)}
+                          variant={len === activeLength ? 'primary' : 'secondary'}
+                          size="sm"
+                          className="rounded-full"
+                        >
+                          {len} букв
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </Card>
           </>
         )}
       </section>

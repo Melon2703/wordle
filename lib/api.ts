@@ -31,6 +31,7 @@ interface TelegramWebApp {
     }>;
   }, callback?: (buttonId: string) => void) => void;
   openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
+  openTelegramLink?: (url: string) => void;
 }
 
 interface TelegramWindow {
@@ -43,13 +44,13 @@ interface TelegramWindow {
 }
 
 // Helper function to open user profile with confirmation
-export async function openUserProfile(telegramId: string, displayName: string): Promise<void> {
+export async function openUserProfile(username: string, displayName: string): Promise<void> {
   if (typeof window === 'undefined') {
     return;
   }
 
   const tg = (window as TelegramWindow).Telegram?.WebApp;
-  if (!tg?.showPopup || !tg?.openLink) {
+  if (!tg?.showPopup || !tg?.openTelegramLink) {
     return;
   }
 
@@ -63,8 +64,8 @@ export async function openUserProfile(telegramId: string, displayName: string): 
       ]
     }, (buttonId) => {
       if (buttonId === 'open') {
-        const profileUrl = `https://t.me/user?id=${telegramId}`;
-        tg.openLink?.(profileUrl);
+        const profileUrl = `https://t.me/${username}`;
+        tg.openTelegramLink?.(profileUrl);
       }
     });
   } catch (error) {

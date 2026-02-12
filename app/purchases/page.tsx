@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { getUserPurchases, refundPurchase, type Purchase } from '@/lib/api';
 import { useToast } from '@/components/ToastCenter';
 import { LoadingFallback } from '@/components/LoadingFallback';
+import { Button, Card, Heading, Text, Badge } from '@/components/ui';
 import { popup, hapticFeedback } from '@tma.js/sdk';
 
 export default function PurchasesPage() {
@@ -100,16 +101,6 @@ export default function PurchasesPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid': return 'text-green-600 bg-green-100';
-      case 'refunded': return 'text-red-600 bg-red-100';
-      case 'pending': return 'text-yellow-600 bg-yellow-100';
-      case 'failed': return 'text-gray-600 bg-gray-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
   const getStatusText = (status: string) => {
     switch (status) {
       case 'paid': return 'Завершена';
@@ -117,6 +108,16 @@ export default function PurchasesPage() {
       case 'pending': return 'Ожидает';
       case 'failed': return 'Неудачна';
       default: return status;
+    }
+  };
+
+  const getStatusVariant = (status: string): 'default' | 'success' | 'warning' | 'danger' | 'info' => {
+    switch (status) {
+      case 'paid': return 'success';
+      case 'refunded': return 'danger';
+      case 'pending': return 'warning';
+      case 'failed': return 'danger';
+      default: return 'default';
     }
   };
 
@@ -130,62 +131,64 @@ export default function PurchasesPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">
-      <section className="flex flex-1 flex-col gap-4 px-4 py-6">
-            <h1 className="text-xl font-semibold font-sans">Покупки</h1>
+    <main className="page-container">
+      <section className="section-container">
+        <Heading level={2}>Покупки</Heading>
         {purchases && purchases.length > 0 ? (
-          <div className="space-y-3">
+          <div className="card-gap">
             {purchases.map((purchase: Purchase) => (
-              <div
-                key={purchase.purchase_id}
-                className="rounded-2xl border border-blue-200 bg-white p-4"
-              >
+              <Card key={purchase.purchase_id} padding="md">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-sm">
+                      <Heading level={3}>
                         {purchase.products?.title_ru || 'Неизвестный товар'}
-                      </h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(purchase.status)}`}>
+                      </Heading>
+                      <Badge 
+                        variant={getStatusVariant(purchase.status)} 
+                        size="sm"
+                      >
                         {getStatusText(purchase.status)}
-                      </span>
+                      </Badge>
                     </div>
-                    <div className="text-xs opacity-70 space-y-1">
-                      <div>⭐ {purchase.stars_amount} звезд</div>
-                      <div>ID покупки: {purchase.purchase_id}</div>
-                      <div>Дата: {new Date(purchase.created_at).toLocaleDateString('ru-RU')}</div>
+                    <div className="space-y-1">
+                      <Text variant="caption">⭐ {purchase.stars_amount} звезд</Text>
+                      <Text variant="caption">ID покупки: {purchase.purchase_id}</Text>
+                      <Text variant="caption">Дата: {new Date(purchase.created_at).toLocaleDateString('ru-RU')}</Text>
                       {purchase.telegram_invoice_id && (
-                        <div>ID счета: {purchase.telegram_invoice_id}</div>
+                        <Text variant="caption">ID счета: {purchase.telegram_invoice_id}</Text>
                       )}
                       {purchase.completed_at && (
-                        <div>Завершена: {new Date(purchase.completed_at).toLocaleDateString('ru-RU')}</div>
+                        <Text variant="caption">Завершена: {new Date(purchase.completed_at).toLocaleDateString('ru-RU')}</Text>
                       )}
                       {purchase.refunded_at && (
-                        <div>Возвращена: {new Date(purchase.refunded_at).toLocaleDateString('ru-RU')}</div>
+                        <Text variant="caption">Возвращена: {new Date(purchase.refunded_at).toLocaleDateString('ru-RU')}</Text>
                       )}
                     </div>
                   </div>
                   {purchase.status === 'paid' && (
-                    <button
+                    <Button
+                      variant="danger"
+                      size="sm"
                       onClick={() => handleRefund(
                         purchase.purchase_id, 
                         purchase.products?.title_ru || 'Неизвестный товар',
                         purchase.stars_amount
                       )}
                       disabled={refundMutation.isPending}
-                      className="ml-3 px-3 py-1 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="ml-3"
                     >
                       {refundMutation.isPending ? 'Возврат...' : 'Вернуть'}
-                    </button>
+                    </Button>
                   )}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         ) : (
-          <p className="rounded-3xl border border-dashed border-blue-200 bg-white px-4 py-10 text-center text-sm opacity-70">
-            У вас пока нет покупок
-          </p>
+          <Card variant="dashed" padding="lg" className="text-center">
+            <Text variant="caption">У вас пока нет покупок</Text>
+          </Card>
         )}
       </section>
     </main>

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { getShopCatalog, purchaseProduct, cleanupCancelledPurchase } from '@/lib/api';
 import { useToast } from '@/components/ToastCenter';
 import { LoadingFallback } from '@/components/LoadingFallback';
+import { Button, Card, Heading, Text, Badge } from '@/components/ui';
 import { invoice } from '@tma.js/sdk';
 
 export default function ShopPage() {
@@ -96,33 +97,34 @@ export default function ShopPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">
-      <section className="grid flex-1 gap-4 px-4 py-6">
-            <h1 className="text-xl font-semibold font-sans">Магазин</h1>
+    <main className="page-container">
+      <section className="section-container">
+        <Heading level={2}>Магазин</Heading>
         {data?.products.map((product) => (
-          <article
-            key={product.id}
-            className="rounded-3xl border border-blue-200 bg-white p-5 shadow-sm"
-          >
+          <Card key={product.id} padding="md">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{product.title}</h2>
-              {product.badge ? (
-                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold uppercase">
+              <Heading level={3}>{product.title}</Heading>
+              {product.badge && (
+                <Badge variant="info" size="sm" className="uppercase">
                   {product.badge}
-                </span>
-              ) : null}
+                </Badge>
+              )}
             </div>
-            {product.subtitle ? <p className="mt-2 text-sm opacity-70">{product.subtitle}</p> : null}
-            <p className="mt-4 text-sm font-semibold">⭐ {product.priceStars}</p>
-            <button
-              type="button"
+            {product.subtitle && (
+              <Text variant="caption" className="mt-2">
+                {product.subtitle}
+              </Text>
+            )}
+            <Text className="mt-4 font-semibold">⭐ {product.priceStars}</Text>
+            <Button
+              fullWidth
               onClick={() => handlePurchase(product.id)}
               disabled={purchaseMutation.isPending}
-              className="mt-4 w-full rounded-xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mt-4"
             >
               {purchaseMutation.isPending ? 'Покупка...' : 'Получить'}
-            </button>
-          </article>
+            </Button>
+          </Card>
         ))}
       </section>
     </main>

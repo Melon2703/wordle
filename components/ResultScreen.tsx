@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import type { GuessLine } from '@/lib/contracts';
 import { PuzzleGrid } from './PuzzleGrid';
 import { RisingStar } from './FiringStarAnimations';
-import { Flame } from 'lucide-react';
+import { Card, Heading, Text } from '@/components/ui';
 
 interface ResultScreenProps {
   status: 'won' | 'lost';
@@ -13,13 +12,11 @@ interface ResultScreenProps {
   mode: 'daily' | 'arcade';
   timeMs?: number;
   streak?: number;
-  onNewGame?: (length: 4 | 5 | 6) => void;
+  arcadeSolved?: number;
   // Grid props
   length: number;
   lines: GuessLine[];
 }
-
-const lengths: Array<4 | 5 | 6> = [4, 5, 6];
 
 export function ResultScreen({ 
   status, 
@@ -28,12 +25,10 @@ export function ResultScreen({
   mode, 
   timeMs, 
   streak,
-  onNewGame,
+  arcadeSolved,
   length,
   lines
 }: ResultScreenProps) {
-  const [selectedLength, setSelectedLength] = useState<4 | 5 | 6>(5);
-
   const resultCopy = status === 'won' ? 'Победа!' : 'Попробуйте снова';
   
   const formatTime = (ms: number) => {
@@ -42,12 +37,6 @@ export function ResultScreen({
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}м ${remainingSeconds}с`;
-  };
-
-  const handleNewGame = () => {
-    if (onNewGame) {
-      onNewGame(selectedLength);
-    }
   };
 
   return (
@@ -61,42 +50,43 @@ export function ResultScreen({
             <span className="text-2xl">💭</span>
           )}
         </div>
-        <h2 className="text-2xl font-bold text-slate-800 font-sans">{resultCopy}</h2>
+        <Heading level={2}>{resultCopy}</Heading>
         {status === 'lost' && mode === 'arcade' && (
-          <p className="mt-2 text-sm text-slate-600 font-sans">
+          <Text className="mt-2">
             Можете потренироваться в режиме Аркада.
-          </p>
+          </Text>
         )}
         {status === 'lost' && answer && (
-          <p className="mt-3 text-sm text-slate-600 font-sans">Сегодняшнее слово: {answer}</p>
+          <Text className="mt-3">Сегодняшнее слово: {answer}</Text>
         )}
       </div>
 
       {/* Statistics Section */}
-      <div className="bg-white rounded-2xl border border-blue-200 p-5 mb-6">
-        <h3 className="text-sm font-semibold text-slate-800 mb-4">Статистика</h3>
-        <div className="space-y-3 text-sm">
-          <div className="flex justify-between items-center">
-            <span className="text-slate-600">Попыток использовано:</span>
-            <span className="font-medium text-slate-800">{attemptsUsed}</span>
+      <Card padding="md" className="mb-6">
+        <div className="grid grid-cols-3 gap-4">
+          {/* Попытки */}
+          <div className="text-center">
+            <Text variant="caption" className="block mb-1">Попытки</Text>
+            <Text className="font-semibold text-lg">{attemptsUsed}</Text>
           </div>
-          {timeMs && (
-            <div className="flex justify-between items-center">
-              <span className="text-slate-600">Время:</span>
-              <span className="font-medium text-slate-800">{formatTime(timeMs)}</span>
-            </div>
-          )}
-          {mode === 'daily' && streak !== undefined && (
-            <div className="flex justify-between items-center">
-              <span className="text-slate-600 flex items-center gap-1">
-                Серия:
-                <Flame className="w-4 h-4 text-orange-500" />
-              </span>
-              <span className="font-medium text-slate-800">{streak}</span>
-            </div>
-          )}
+          
+          {/* Время */}
+          <div className="text-center">
+            <Text variant="caption" className="block mb-1">Время</Text>
+            <Text className="font-semibold text-lg">{timeMs ? formatTime(timeMs) : '-'}</Text>
+          </div>
+          
+          {/* Серия (daily) or Аркад решено (arcade) */}
+          <div className="text-center">
+            <Text variant="caption" className="block mb-1">
+              {mode === 'daily' ? 'Серия' : 'Аркад решено'}
+            </Text>
+            <Text className="font-semibold text-lg">
+              {mode === 'daily' ? (streak ?? '-') : (arcadeSolved ?? '-')}
+            </Text>
+          </div>
         </div>
-      </div>
+      </Card>
 
       {/* Grid */}
       <div className="flex justify-center mb-6">
@@ -109,36 +99,6 @@ export function ResultScreen({
           />
         </div>
       </div>
-
-      {/* Arcade New Game Selector */}
-      {mode === 'arcade' && onNewGame && (
-        <div className="bg-white rounded-2xl border border-blue-200 p-5">
-          <h3 className="text-sm font-semibold text-slate-800 mb-4">Новая игра</h3>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {lengths.map((len) => (
-              <button
-                key={len}
-                type="button"
-                onClick={() => setSelectedLength(len)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                  len === selectedLength 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-blue-100 text-slate-800 hover:bg-blue-200'
-                }`}
-              >
-                {len} букв
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={handleNewGame}
-            className="w-full rounded-xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-600"
-          >
-            Начать новую игру
-          </button>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,47 +1,41 @@
 'use client';
 
-import { Flame } from 'lucide-react';
+import { Card, Text } from '@/components/ui';
 
 interface UserStatsCardProps {
   rank?: number;          // User's rank in leaderboard (undefined if not ranked)
-  totalPlayers: number;   // Total players in leaderboard
   streak: number;         // Current streak
   arcadeSolved: number;   // Total arcade puzzles solved
 }
 
 export function UserStatsCard({
   rank,
-  totalPlayers,
   streak,
   arcadeSolved
 }: UserStatsCardProps) {
   return (
-    <div className="rounded-2xl border border-blue-200 bg-white p-5 shadow-sm">
-      <h3 className="text-sm font-semibold text-slate-800 mb-4">Ваша статистика</h3>
-      <div className="space-y-3 text-sm">
-        {/* Rank */}
-        <div className="flex items-center justify-between">
-          <span className="text-slate-600">Место:</span>
-          <span className="font-medium text-slate-800">
-            {rank ? `#${rank} / ${totalPlayers}` : 'Не в рейтинге'}
-          </span>
+    <Card padding="md">
+      <div className="grid grid-cols-3 gap-4">
+        {/* Место */}
+        <div className="text-center">
+          <Text variant="caption" className="block mb-1">Место</Text>
+          <Text className="font-semibold text-lg">
+            {rank ? `#${rank}` : '-'}
+          </Text>
         </div>
-
-        {/* Streak */}
-        <div className="flex items-center justify-between">
-          <span className="text-slate-600 flex items-center gap-1">
-            Серия:
-            <Flame className="w-4 h-4 text-orange-500" />
-          </span>
-          <span className="font-medium text-slate-800">{streak}</span>
+        
+        {/* Серия */}
+        <div className="text-center">
+          <Text variant="caption" className="block mb-1">Серия</Text>
+          <Text className="font-semibold text-lg">{streak}</Text>
         </div>
-
-        {/* Arcade puzzles solved */}
-        <div className="flex items-center justify-between">
-          <span className="text-slate-600">Аркада решено:</span>
-          <span className="font-medium text-slate-800">{arcadeSolved}</span>
+        
+        {/* Аркад решено */}
+        <div className="text-center">
+          <Text variant="caption" className="block mb-1">Аркад решено</Text>
+          <Text className="font-semibold text-lg">{arcadeSolved}</Text>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
