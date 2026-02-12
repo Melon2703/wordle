@@ -150,9 +150,16 @@ export type ArcadeStartResponse = {
   length: 4|5|6|7;
   maxAttempts: number;
   serverNow: string;
+  solution: string;  // normalized solution for client-side evaluation
 };
-// POST /api/arcade/start → ArcadeStartResponse
-// POST /api/arcade/guess { puzzleId, guess } → Daily-like response + { mmrDelta?: number }
+export type ArcadeCompleteRequest = {
+  puzzleId: string;
+  result: 'won' | 'lost';
+  attemptsUsed: number;
+  timeMs: number;
+};
+// POST /api/arcade/start { length, hardMode } → ArcadeStartResponse
+// POST /api/arcade/complete { puzzleId, result, attemptsUsed, timeMs } → { ok: boolean }
 ```
 
 ### 6.3 Dictionary check (optional UI hint)

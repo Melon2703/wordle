@@ -27,6 +27,7 @@ export interface DailyPuzzlePayload {
     status: 'playing' | 'won' | 'lost';
     attemptsUsed: number;
     lines: GuessLine[];
+    timeMs?: number;
   };
 }
 
@@ -43,6 +44,7 @@ export interface ArcadeStartResponse {
   length: 4 | 5 | 6 | 7;
   maxAttempts: number;
   serverNow: string;
+  solution: string;
 }
 
 export interface ArcadeGuessResponse {
@@ -61,6 +63,7 @@ export interface DailyBoardEntry {
   timeMs: number;
   country?: string;
   badges?: string[];
+  profileUrl?: string;
 }
 
 export interface DailyLeaderboard {

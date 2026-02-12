@@ -9,9 +9,11 @@ interface GuessRowProps {
   feedback?: TileFeedback[];
   activeGuess?: string;
   isInvalid?: boolean;
+  isPending?: boolean;
+  pendingGuess?: string;
 }
 
-export function GuessRow({ length, feedback, activeGuess, isInvalid }: GuessRowProps) {
+export function GuessRow({ length, feedback, activeGuess, isInvalid, isPending, pendingGuess }: GuessRowProps) {
   const placeholders = Array.from({ length });
 
   return (
@@ -31,13 +33,15 @@ export function GuessRow({ length, feedback, activeGuess, isInvalid }: GuessRowP
     >
       {placeholders.map((_, index) => {
         const item = feedback?.find((entry) => entry.index === index);
-        const letter = item?.letter ?? activeGuess?.[index];
+        const letter = item?.letter ?? activeGuess?.[index] ?? pendingGuess?.[index];
+        const isFlashing = isPending && !feedback;
         return (
           <Tile 
             key={index} 
             letter={letter} 
             state={item?.state} 
             delay={feedback ? index : 0}
+            isFlashing={isFlashing}
           />
         );
       })}

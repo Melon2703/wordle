@@ -1,0 +1,1 @@
+export { RisingStar } from './RisingStar';

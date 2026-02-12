@@ -24,7 +24,13 @@ export async function POST(request: Request) {
     }
     
     // Get or create user profile
-    const profile = await getOrCreateProfile(client, parseInt(auth.userId), auth.parsed.user?.username);
+    const profile = await getOrCreateProfile(
+      client, 
+      parseInt(auth.userId), 
+      auth.parsed.user?.username,
+      auth.parsed.user?.first_name,
+      auth.parsed.user?.last_name
+    );
     
     // Load dictionary
     const dictionary = await loadDictionary();
@@ -100,7 +106,8 @@ export async function POST(request: Request) {
       mode: 'arcade',
       length: length as 4 | 5 | 6 | 7,
       maxAttempts: length + 1, // Allow one extra attempt for arcade
-      serverNow: new Date().toISOString()
+      serverNow: new Date().toISOString(),
+      solution: randomAnswer
     };
     
     return NextResponse.json(response);

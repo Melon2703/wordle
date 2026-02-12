@@ -1,5 +1,7 @@
 'use client';
 
+import { RisingStar } from './FiringStarAnimations';
+
 interface ResultModalProps {
   open: boolean;
   status: 'playing' | 'won' | 'lost';
@@ -23,8 +25,12 @@ export function ResultModal({ open, status, attemptsUsed, answer, onClose }: Res
     >
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500">
-            <span className="text-2xl">⭐</span>
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center">
+            {status === 'won' ? (
+              <RisingStar size={64} />
+            ) : (
+              <span className="text-2xl">💭</span>
+            )}
           </div>
               <h2 className="text-2xl font-bold text-slate-800 font-sans">{resultCopy}</h2>
           <p className="mt-2 text-sm text-slate-600 font-sans">

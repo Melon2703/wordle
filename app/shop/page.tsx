@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { getShopCatalog, purchaseProduct, cleanupCancelledPurchase } from '@/lib/api';
 import { useToast } from '@/components/ToastCenter';
+import { LoadingFallback } from '@/components/LoadingFallback';
 import { invoice } from '@tma.js/sdk';
 
 export default function ShopPage() {
@@ -27,7 +28,7 @@ export default function ShopPage() {
     checkTelegramReady();
   }, []);
 
-  const { data } = useQuery({ 
+  const { data, isLoading } = useQuery({ 
     queryKey: ['shop', 'catalog'], 
     queryFn: getShopCatalog,
     enabled: isTelegramReady // Only run when Telegram is ready
@@ -85,15 +86,20 @@ export default function ShopPage() {
     }
   };
 
+  // Show loading state while Telegram is initializing or data is loading
+  if (!isTelegramReady) {
+    return <LoadingFallback length={5} />;
+  }
+
+  if (isLoading) {
+    return <LoadingFallback length={5} />;
+  }
+
   return (
     <main className="flex min-h-screen flex-col bg-blue-50 text-slate-800 pb-20">
       <section className="grid flex-1 gap-4 px-4 py-6">
             <h1 className="text-xl font-semibold font-sans">Магазин</h1>
-        {!isTelegramReady ? (
-          <p className="rounded-3xl border border-dashed border-blue-200 bg-white px-4 py-10 text-center text-sm opacity-70">
-            Инициализация Telegram...
-          </p>
-        ) : data?.products.map((product) => (
+        {data?.products.map((product) => (
           <article
             key={product.id}
             className="rounded-3xl border border-blue-200 bg-white p-5 shadow-sm"
@@ -118,11 +124,6 @@ export default function ShopPage() {
             </button>
           </article>
         ))}
-        {isTelegramReady && !data ? (
-          <p className="rounded-3xl border border-dashed border-blue-200 bg-white px-4 py-10 text-center text-sm opacity-70">
-            Каталог загружается…
-          </p>
-        ) : null}
       </section>
     </main>
   );

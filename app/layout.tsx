@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { Suspense } from 'react';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
@@ -7,6 +8,7 @@ import { ThemeBridge } from '@/components/ThemeBridge';
 import { HapticsBridge } from '@/components/HapticsBridge';
 import { ToastCenter } from '@/components/ToastCenter';
 import { BottomNavWrapper } from '@/components/BottomNavWrapper';
+import { LoadingFallback } from '@/components/LoadingFallback';
 
 // Configure Inter font with Cyrillic support
 const inter = Inter({ 
@@ -31,7 +33,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Providers>
           <ThemeBridge />
           <HapticsBridge />
-          <ToastCenter>{children}</ToastCenter>
+          <ToastCenter>
+            <Suspense fallback={<LoadingFallback length={5} />}>
+              {children}
+            </Suspense>
+          </ToastCenter>
           <BottomNavWrapper />
         </Providers>
       </body>

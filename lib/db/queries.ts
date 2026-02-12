@@ -159,7 +159,7 @@ export async function fetchDailyLeaderboard(
       profile_id,
       attempts_used,
       time_ms,
-      profiles!inner(username)
+      profiles!inner(telegram_id, username, first_name)
     `)
     .eq('puzzle_id', puzzleId)
     .eq('result', 'win')
@@ -171,13 +171,30 @@ export async function fetchDailyLeaderboard(
     throw new Error(`Failed to fetch leaderboard: ${error.message}`);
   }
 
-  const entries = (data || []).map((session, index) => ({
-    rank: index + 1,
-    userId: session.profile_id,
-    displayName: session.profiles?.[0]?.username || 'Аноним',
-    attempts: session.attempts_used,
-    timeMs: session.time_ms || 0
-  }));
+  const entries = (data || []).map((session, index) => {
+    const profile = session.profiles as Database['public']['Tables']['profiles']['Row'];
+    
+    // Build display name: @username if available, else first_name, else "Аноним"
+    let displayName = 'Аноним';
+    let profileUrl: string | undefined;
+    
+    if (profile.username) {
+      displayName = `@${profile.username}`;
+      profileUrl = `https://t.me/user?id=${profile.telegram_id}`;
+    } else if (profile.first_name) {
+      displayName = profile.first_name;
+      profileUrl = `https://t.me/user?id=${profile.telegram_id}`;
+    }
+    
+    return {
+      rank: index + 1,
+      userId: session.profile_id,
+      displayName,
+      attempts: session.attempts_used,
+      timeMs: session.time_ms || 0,
+      profileUrl
+    };
+  });
 
   return {
     puzzleId,
@@ -326,7 +343,9 @@ export async function refundPurchase(
 export async function getOrCreateProfile(
   client: Client,
   telegramId: number,
-  username?: string
+  username?: string,
+  firstName?: string,
+  lastName?: string
 ): Promise<Database['public']['Tables']['profiles']['Row']> {
   // Try to find existing profile
   const { data: existing, error: findError } = await client
@@ -340,7 +359,23 @@ export async function getOrCreateProfile(
   }
 
   if (existing && !findError) {
-    return existing;
+    // Update existing profile with latest data
+    const { data: updated, error: updateError } = await client
+      .from('profiles')
+      .update({
+        username: username || null,
+        first_name: firstName || null,
+        last_name: lastName || null
+      })
+      .eq('profile_id', existing.profile_id)
+      .select()
+      .single();
+
+    if (updateError) {
+      throw new Error(`Failed to update profile: ${updateError.message}`);
+    }
+
+    return updated;
   }
 
   // Create new profile
@@ -348,7 +383,9 @@ export async function getOrCreateProfile(
     .from('profiles')
     .insert({
       telegram_id: telegramId,
-      username: username || null
+      username: username || null,
+      first_name: firstName || null,
+      last_name: lastName || null
     })
     .select()
     .single();

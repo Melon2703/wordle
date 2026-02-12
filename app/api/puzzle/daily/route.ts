@@ -12,7 +12,13 @@ export async function GET(request: Request) {
     const client = getServiceClient();
     
     // Get or create user profile
-    const profile = await getOrCreateProfile(client, parseInt(auth.userId), auth.parsed.user?.username);
+    const profile = await getOrCreateProfile(
+      client, 
+      parseInt(auth.userId), 
+      auth.parsed.user?.username,
+      auth.parsed.user?.first_name,
+      auth.parsed.user?.last_name
+    );
     
     // Get today's puzzle
     const { puzzle } = await getTodayPuzzle(client);
@@ -29,6 +35,7 @@ export async function GET(request: Request) {
     let lines: GuessLine[] = [];
     let status: 'playing' | 'won' | 'lost' = 'playing';
     let attemptsUsed = 0;
+    let timeMs: number | undefined;
     
     if (session) {
       // Get existing guesses
@@ -44,7 +51,13 @@ export async function GET(request: Request) {
       }));
       
       attemptsUsed = session.attempts_used;
-      status = session.result as 'playing' | 'won' | 'lost' || 'playing';
+      // Map database result values to frontend status values
+      status = session.result === 'win' ? 'won' : session.result === 'lose' ? 'lost' : 'playing';
+      
+      // Use time_ms from session if available
+      if (session.time_ms) {
+        timeMs = session.time_ms;
+      }
     }
     
     const payload: DailyPuzzlePayload = {
@@ -60,7 +73,8 @@ export async function GET(request: Request) {
       yourState: {
         status,
         attemptsUsed,
-        lines
+        lines,
+        timeMs
       }
     };
     
