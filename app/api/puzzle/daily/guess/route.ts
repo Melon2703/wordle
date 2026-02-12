@@ -151,13 +151,24 @@ export async function POST(request: Request) {
     const feedbackMask = JSON.stringify(feedback.map(f => f.state));
     
     // Record guess
-    const guessRecord = await recordDailyGuess(client, {
-      sessionId: session.session_id,
-      guessIndex: session.attempts_used + 1,
-      textInput: guess,
-      textNorm: normalizedGuess,
-      feedbackMask
-    });
+    let guessRecord;
+    try {
+      guessRecord = await recordDailyGuess(client, {
+        sessionId: session.session_id,
+        guessIndex: session.attempts_used + 1,
+        textInput: guess,
+        textNorm: normalizedGuess,
+        feedbackMask
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'DUPLICATE_GUESS') {
+        return NextResponse.json(
+          { error: 'Вы уже пробовали это слово' },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
     
     // Check if won
     const isWin = feedback.every(f => f.state === 'correct');

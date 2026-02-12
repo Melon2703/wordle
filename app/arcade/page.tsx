@@ -572,6 +572,16 @@ export default function ArcadePage() {
       return;
     }
     
+    // Check for duplicate words (case-insensitive)
+    const normalizedSubmittedGuess = normalizeGuess(submittedGuess, false).toLowerCase();
+    const isDuplicate = lines.some(line => 
+      normalizeGuess(line.guess, false).toLowerCase() === normalizedSubmittedGuess
+    );
+    if (isDuplicate) {
+      toast.notify('Вы уже пробовали это слово');
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {

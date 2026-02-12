@@ -46,13 +46,23 @@ export async function POST(request: Request) {
     }
     
     // Record the guess
-    await recordArcadeGuess(client, {
-      sessionId,
-      guessIndex,
-      textInput,
-      textNorm,
-      feedbackMask
-    });
+    try {
+      await recordArcadeGuess(client, {
+        sessionId,
+        guessIndex,
+        textInput,
+        textNorm,
+        feedbackMask
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'DUPLICATE_GUESS') {
+        return NextResponse.json(
+          { error: 'Вы уже пробовали это слово' },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
     
     return NextResponse.json({ ok: true });
     
