@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { requireAuthContext } from '@/lib/auth/validateInitData';
 import { getServiceClient } from '@/lib/db/client';
+import { ensureUserTracked } from '@/lib/db/queries';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,26 +20,37 @@ export async function GET(request: NextRequest) {
     nextPuzzleAt.setUTCDate(nextPuzzleAt.getUTCDate() + 1);
     nextPuzzleAt.setUTCHours(0, 0, 0, 0);
 
-    // Get user's profile_id (UUID) from telegram_id (bigint)
+    // Ensure user profile exists and is tracked
     let profileId: string | null = null;
     try {
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('profile_id')
-        .eq('telegram_id', userId)
-        .single();
-      
-      if (profileError) {
-        if (profileError.code === 'PGRST205') {
-          console.warn('⚠️ profiles table not found, using defaults');
-        } else {
-          console.error('Error fetching profile:', profileError);
-        }
-      } else if (profile) {
-        profileId = profile.profile_id;
-      }
+      const { profile } = await ensureUserTracked(supabase, parseInt(userId), {
+        username: authContext.parsed.user?.username,
+        firstName: authContext.parsed.user?.first_name,
+        lastName: authContext.parsed.user?.last_name,
+        languageCode: authContext.parsed.user?.language_code
+      });
+      profileId = profile.profile_id;
     } catch (error) {
-      console.warn('⚠️ Failed to get profile_id');
+      // If profile creation fails, try to get existing profile as fallback
+      try {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('profile_id')
+          .eq('telegram_id', userId)
+          .single();
+        
+        if (profileError) {
+          if (profileError.code === 'PGRST205') {
+            console.warn('⚠️ profiles table not found, using defaults');
+          } else {
+            console.error('Error fetching profile:', profileError);
+          }
+        } else if (profile) {
+          profileId = profile.profile_id;
+        }
+      } catch (fallbackError) {
+        console.warn('⚠️ Failed to get profile_id', fallbackError);
+      }
     }
 
     // Try to get today's daily puzzle ID first

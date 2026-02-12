@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './client';
 import type { ShopCatalog } from '../contracts';
+import { upsertTelegramUser } from './bot';
 
 type Client = SupabaseClient<Database>;
 
@@ -389,6 +390,66 @@ export async function getOrCreateProfile(
   }
 
   return data;
+}
+
+/**
+ * Ensures a user profile exists and is tracked in telegram_users table.
+ * This function combines getOrCreateProfile and upsertTelegramUser to ensure
+ * user data is consistently tracked regardless of how the user accesses the app.
+ * 
+ * @param client - Supabase client
+ * @param telegramId - Telegram user ID
+ * @param userData - Optional user data from Telegram (username, first_name, last_name, language_code)
+ * @returns Profile and tracking status
+ */
+export async function ensureUserTracked(
+  client: Client,
+  telegramId: number,
+  userData?: {
+    username?: string;
+    firstName?: string;
+    lastName?: string;
+    languageCode?: string;
+  }
+): Promise<{
+  profile: Database['public']['Tables']['profiles']['Row'];
+  tracked: boolean;
+}> {
+  // Get or create profile
+  const profile = await getOrCreateProfile(
+    client,
+    telegramId,
+    userData?.username,
+    userData?.firstName,
+    userData?.lastName
+  );
+
+  // Track user in telegram_users table
+  let tracked = false;
+  try {
+    await upsertTelegramUser(client, {
+      profileId: profile.profile_id,
+      telegramId,
+      username: userData?.username ?? null,
+      firstName: userData?.firstName ?? null,
+      lastName: userData?.lastName ?? null,
+      languageCode: userData?.languageCode ?? null
+    });
+    tracked = true;
+  } catch (error) {
+    // Log error but don't fail the request - profile creation is more critical
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorDetails = error instanceof Error ? error.stack : undefined;
+    console.error('Failed to track user in telegram_users table', {
+      telegramId,
+      profileId: profile.profile_id,
+      error: errorMessage,
+      stack: errorDetails,
+      userData
+    });
+  }
+
+  return { profile, tracked };
 }
 
 export async function getSessionGuesses(

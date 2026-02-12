@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuthContext } from '../../../../lib/auth/validateInitData';
 import { getServiceClient } from '../../../../lib/db/client';
-import { getOrCreateProfile } from '../../../../lib/db/queries';
+import { ensureUserTracked } from '../../../../lib/db/queries';
 import { loadPuzzleAnswers } from '../../../../lib/dict/loader';
 import { TEMP_ARCADE_UNLIMITED } from '../../../../lib/env';
 import type { ArcadeStartResponse } from '../../../../lib/contracts';
@@ -38,14 +38,13 @@ export async function POST(request: Request) {
     }
     const arcadeTheme: ArcadeTheme = theme;
     
-    // Get or create user profile
-    const profile = await getOrCreateProfile(
-      client, 
-      parseInt(auth.userId), 
-      auth.parsed.user?.username,
-      auth.parsed.user?.first_name,
-      auth.parsed.user?.last_name
-    );
+    // Ensure user profile exists and is tracked
+    const { profile } = await ensureUserTracked(client, parseInt(auth.userId), {
+      username: auth.parsed.user?.username,
+      firstName: auth.parsed.user?.first_name,
+      lastName: auth.parsed.user?.last_name,
+      languageCode: auth.parsed.user?.language_code
+    });
     
     const startingCredits = profile.arcade_credits ?? 0;
     

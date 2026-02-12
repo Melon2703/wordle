@@ -31,73 +31,66 @@ export async function upsertTelegramUser(
   const { telegramId, profileId } = payload;
   const now = nowIso();
 
-  const updateResult = await client
+  const insertPayload = {
+    telegram_id: telegramId,
+    profile_id: profileId,
+    username: payload.username ?? null,
+    first_name: payload.firstName ?? null,
+    last_name: payload.lastName ?? null,
+    language_code: payload.languageCode ?? null
+    // started_at and last_seen_at have defaults, so we don't need to set them on insert
+  };
+
+  const insertResult = await client
     .from('telegram_users')
-    .update({
-      profile_id: profileId,
-      username: payload.username ?? null,
-      first_name: payload.firstName ?? null,
-      last_name: payload.lastName ?? null,
-      language_code: payload.languageCode ?? null,
-      last_seen_at: now
-    })
-    .eq('telegram_id', telegramId)
-    .select()
-    .maybeSingle();
+    .insert(insertPayload)
+    .select('started_at')
+    .single();
 
-  if (updateResult.error && updateResult.error.code !== 'PGRST116') {
-    throw new Error(`Failed to update telegram_users: ${updateResult.error.message}`);
-  }
+  let created = true;
 
-  const created = !updateResult.data;
+  if (insertResult.error) {
+    if (insertResult.error.code !== '23505') {
+      throw new Error(`Failed to insert telegram_users: ${insertResult.error.message}`);
+    }
 
-  if (created) {
-    const insertResult = await client
+    created = false;
+
+    // Update existing user - preserve started_at, update last_seen_at
+    const updateResult = await client
       .from('telegram_users')
-      .insert({
-        telegram_id: telegramId,
+      .update({
         profile_id: profileId,
         username: payload.username ?? null,
         first_name: payload.firstName ?? null,
         last_name: payload.lastName ?? null,
         language_code: payload.languageCode ?? null,
-        first_seen_at: now,
         last_seen_at: now
+        // Don't update started_at - preserve the original timestamp
       })
-      .select()
-      .single();
+      .eq('telegram_id', telegramId);
 
-    if (insertResult.error) {
-      throw new Error(`Failed to insert telegram_users: ${insertResult.error.message}`);
+    if (updateResult.error) {
+      throw new Error(`Failed to update telegram_users: ${updateResult.error.message}`);
     }
   }
 
-  // Ensure notification preferences record exists (default opt-in)
   const prefsResult = await client
     .from('notification_prefs')
-    .select('profile_id')
-    .eq('profile_id', profileId)
-    .maybeSingle();
-
-  if (prefsResult.error && prefsResult.error.code !== 'PGRST116') {
-    throw new Error(`Failed to check notification_prefs: ${prefsResult.error.message}`);
-  }
-
-  if (!prefsResult.data) {
-    const insertPrefs = await client
-      .from('notification_prefs')
-      .insert({
+    .upsert(
+      {
         profile_id: profileId,
         daily_reminder_enabled: true,
         tz_offset_minutes: 0,
         last_daily_sent: null
-      });
+      },
+      { onConflict: 'profile_id', ignoreDuplicates: true }
+    );
 
-    if (insertPrefs.error) {
-      throw new Error(
-        `Failed to insert notification_prefs: ${insertPrefs.error.message}`
-      );
-    }
+  if (prefsResult.error) {
+    throw new Error(
+      `Failed to upsert notification_prefs: ${prefsResult.error.message}`
+    );
   }
 
   return { created };
@@ -115,8 +108,10 @@ export async function getReminderCandidates(
         telegram_id,
         profile_id,
         language_code,
-        profiles!inner(is_banned),
-        notification_prefs(daily_reminder_enabled, tz_offset_minutes, last_daily_sent)
+        profiles!inner(
+          is_banned,
+          notification_prefs(daily_reminder_enabled, tz_offset_minutes, last_daily_sent)
+        )
       `
     )
     .limit(limit * 4);
@@ -129,12 +124,14 @@ export async function getReminderCandidates(
     telegram_id: number | null;
     profile_id: string | null;
     language_code?: string | null;
-    profiles?: { is_banned?: boolean } | null;
-    notification_prefs?: Array<{
-      daily_reminder_enabled?: boolean | null;
-      tz_offset_minutes?: number | null;
-      last_daily_sent?: string | null;
-    }> | null;
+    profiles?: {
+      is_banned?: boolean;
+      notification_prefs?: Array<{
+        daily_reminder_enabled?: boolean | null;
+        tz_offset_minutes?: number | null;
+        last_daily_sent?: string | null;
+      }> | null;
+    } | null;
   }>;
 
   const candidates: ReminderCandidate[] = [];
@@ -148,7 +145,7 @@ export async function getReminderCandidates(
       continue;
     }
 
-    const prefs = row.notification_prefs?.[0];
+    const prefs = row.profiles?.notification_prefs?.[0];
     const enabled = prefs?.daily_reminder_enabled ?? true;
     if (!enabled) {
       continue;

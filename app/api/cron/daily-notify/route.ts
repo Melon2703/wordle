@@ -29,10 +29,11 @@ type Summary = {
 export async function GET(request: NextRequest): Promise<Response> {
   const { MINI_APP_URL } = env();
 
-  const expectedSecret = process.env.CRON_SECRET ? `Bearer ${process.env.CRON_SECRET}` : null;
-  const authHeader = request.headers.get('authorization');
-
-  if (!expectedSecret || authHeader !== expectedSecret) {
+  // --- Auth guard (Vercel Cron sends Authorization: Bearer <CRON_SECRET>) ---
+  const auth = request.headers.get('authorization');
+  const expected = `Bearer ${process.env.CRON_SECRET}`;
+  if (auth !== expected) {
+    console.log('Daily notify rejected', { hasAuth: !!auth });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

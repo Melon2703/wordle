@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { env } from '@/lib/env';
 import { getServiceClient } from '@/lib/db/client';
-import { getOrCreateProfile, listSavedWords, getTodayPuzzle } from '@/lib/db/queries';
+import { ensureUserTracked, listSavedWords, getTodayPuzzle } from '@/lib/db/queries';
 import {
   sendTelegramMessage,
   setMenuButton,
@@ -11,7 +11,6 @@ import {
   TelegramApiError
 } from '@/lib/server/telegram';
 import { loadDictionary, loadUsedWords } from '@/lib/dict/loader';
-import { upsertTelegramUser } from '@/lib/db/bot';
 import {
   START_MESSAGE,
   HELP_MESSAGE,
@@ -137,25 +136,27 @@ async function handleUpdate(update: TelegramUpdate, miniAppUrl: string): Promise
 
   const client = getServiceClient();
 
-  const profile = await getOrCreateProfile(
-    client,
-    user.id,
-    user.username,
-    user.first_name,
-    user.last_name
-  );
+  // Ensure user profile exists and is tracked in telegram_users
+  const { profile, tracked } = await ensureUserTracked(client, user.id, {
+    username: user.username,
+    firstName: user.first_name,
+    lastName: user.last_name,
+    languageCode: user.language_code
+  });
 
-  try {
-    await upsertTelegramUser(client, {
-      profileId: profile.profile_id,
+  if (!tracked) {
+    // Log detailed error information for debugging
+    const errorDetails = {
       telegramId: user.id,
-      username: user.username ?? null,
-      firstName: user.first_name ?? null,
-      lastName: user.last_name ?? null,
-      languageCode: user.language_code ?? null
-    });
-  } catch (error) {
-    console.error('Failed to upsert telegram_users row', error);
+      profileId: profile.profile_id,
+      username: user.username,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      languageCode: user.language_code,
+      command,
+      updateId: update.update_id
+    };
+    console.error('⚠️ Failed to track user in telegram_users table', errorDetails);
   }
 
   switch (command) {
