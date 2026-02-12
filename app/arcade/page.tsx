@@ -16,19 +16,28 @@ import { ExtraTryModal } from '@/components/ExtraTryModal';
 import { TopCenterIcon } from '@/components/TopCenterIcon';
 import { buildKeyboardState } from '@/lib/game/feedback';
 import { evaluateGuess, normalizeGuess, validateDictionary } from '@/lib/game/feedback.client';
-import type { ArcadeStartResponse, GuessLine } from '@/lib/contracts';
+import type { ArcadeStartResponse, GuessLine, ArcadeTheme } from '@/lib/contracts';
 
 const allLengths: Array<ArcadeStartResponse['length']> = [4, 5, 6];
+const defaultLength: ArcadeStartResponse['length'] = 5;
+const defaultTheme: ArcadeTheme = 'common';
+const themeOptions: Array<{ value: ArcadeTheme; label: string }> = [
+  { value: 'common', label: 'Обычные слова' },
+  { value: 'music', label: 'Музыка' }
+];
+
+const getDictionaryKey = (length: ArcadeStartResponse['length'], theme: ArcadeTheme) => `${theme}-${length}`;
 
 export default function ArcadePage() {
   const toast = useToast();
-  const [activeLength, setActiveLength] = useState<ArcadeStartResponse['length'] | null>(null);
+  const [activeLength, setActiveLength] = useState<ArcadeStartResponse['length']>(defaultLength);
+  const [activeTheme, setActiveTheme] = useState<ArcadeTheme>(defaultTheme);
   const [session, setSession] = useState<ArcadeStartResponse | null>(null);
   const [lines, setLines] = useState<GuessLine[]>([]);
   const [currentGuess, setCurrentGuess] = useState('');
   const [showResult, setShowResult] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
-  const [dictionaryCache, setDictionaryCache] = useState<Map<number, Set<string>>>(new Map());
+  const [dictionaryCache, setDictionaryCache] = useState<Map<string, Set<string>>>(new Map());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableLengths, setAvailableLengths] = useState<Array<ArcadeStartResponse['length']>>([5]);
   const [isHintModalOpen, setIsHintModalOpen] = useState(false);
@@ -54,8 +63,8 @@ export default function ArcadePage() {
         setArcadeCredits(credits);
         setNewGameEntitlements(status.newGameEntitlements);
       })
-      .catch(error => {
-        console.error('Failed to get arcade status:', error);
+        .catch(() => {
+        // Error loading arcade status
       });
   }, []);
 
@@ -80,8 +89,18 @@ export default function ArcadePage() {
     return () => clearTimeout(timeout);
   }, []);
 
+  useEffect(() => {
+    if (availableLengths.length === 0) {
+      return;
+    }
+
+    if (!availableLengths.includes(activeLength)) {
+      setActiveLength(availableLengths[0]);
+    }
+  }, [availableLengths, activeLength]);
+
   const startArcadeMutation = useMutation({
-    mutationFn: (len: ArcadeStartResponse['length']) => startArcade(len, false),
+    mutationFn: ({ length, theme }: { length: ArcadeStartResponse['length']; theme: ArcadeTheme }) => startArcade(length, theme, false),
     onSuccess: async (sessionData) => {
       setSession(sessionData);
       setHintEntitlementsRemaining(sessionData.hintEntitlementsAvailable);
@@ -92,21 +111,22 @@ export default function ArcadePage() {
       setIsSubmitting(false);
       
       // Fetch dictionary if not cached
-      if (!dictionaryCache.has(sessionData.length)) {
+      const cacheKey = getDictionaryKey(sessionData.length, sessionData.theme);
+      if (!dictionaryCache.has(cacheKey)) {
         try {
-          const dictionary = await getDictionaryWords(sessionData.length);
-          setDictionaryCache(prev => new Map(prev).set(sessionData.length, dictionary));
-        } catch (error) {
-          console.error('Failed to load dictionary:', error);
+          const dictionary = await getDictionaryWords(sessionData.length, sessionData.theme);
+          setDictionaryCache(prev => {
+            const next = new Map(prev);
+            next.set(cacheKey, dictionary);
+            return next;
+          });
+        } catch {
           toast.notify('Не удалось загрузить словарь. Проверка слов недоступна.');
         }
       }
     },
-    onError: (error) => {
-      console.error(error);
+    onError: () => {
       toast.notify('Не удалось запустить аркаду.');
-      // Reset activeLength when mutation fails
-      setActiveLength(null);
     }
   });
 
@@ -140,7 +160,6 @@ export default function ArcadePage() {
       try {
         // Validate session data
         if (!incompleteSession.session.solution || !incompleteSession.session.sessionId) {
-          console.error('Invalid session data detected');
           toast.notify('Не удалось восстановить игру. Начните новую.');
           return;
         }
@@ -149,6 +168,17 @@ export default function ArcadePage() {
         setLines(incompleteSession.lines);
         setHintEntitlementsRemaining(incompleteSession.session.hintEntitlementsAvailable);
         setExtraTryEntitlements(incompleteSession.session.extraTryEntitlementsAvailable);
+        
+        // Check if this is a last-attempt loss that should show the extra try modal
+        if (incompleteSession.lines.length > 0) {
+          const lastLine = incompleteSession.lines[incompleteSession.lines.length - 1];
+          const isWin = lastLine.feedback.every(f => f.state === 'correct');
+          const isLastAttempt = incompleteSession.lines.length >= incompleteSession.session.maxAttempts;
+          
+          if (!isWin && isLastAttempt) {
+            setShowExtraTryModal(true);
+          }
+        }
         
         // Set session start time
         if (incompleteSession.startedAt) {
@@ -159,32 +189,52 @@ export default function ArcadePage() {
           setSessionStartTime(Date.now());
         }
         
-        // Set active length
+        const sessionTheme = incompleteSession.session.theme ?? defaultTheme;
+
+        // Set active selectors to match restored session
         setActiveLength(incompleteSession.session.length);
+        setActiveTheme(sessionTheme);
         
         // Fetch dictionary if not cached
-        if (!dictionaryCache.has(incompleteSession.session.length)) {
-          getDictionaryWords(incompleteSession.session.length)
+        const cacheKey = getDictionaryKey(incompleteSession.session.length, sessionTheme);
+        if (!dictionaryCache.has(cacheKey)) {
+          getDictionaryWords(incompleteSession.session.length, sessionTheme)
             .then(dictionary => {
-              setDictionaryCache(prev => new Map(prev).set(incompleteSession.session!.length, dictionary));
+              setDictionaryCache(prev => {
+                const next = new Map(prev);
+                next.set(cacheKey, dictionary);
+                return next;
+              });
             })
-            .catch(error => {
-              console.error('Failed to load dictionary:', error);
+            .catch(() => {
               toast.notify('Не удалось загрузить словарь. Проверка слов недоступна.');
             });
         }
         
-      } catch (error) {
-        console.error('Error restoring session:', error);
+      } catch {
         toast.notify('Ошибка при восстановлении игры. Начните новую.');
         // Clear the invalid session state
         setSession(null);
         setLines([]);
         setSessionStartTime(null);
-        setActiveLength(null);
+        setActiveLength(defaultLength);
+        setActiveTheme(defaultTheme);
       }
     }
   }, [incompleteSession, dictionaryCache, toast]);
+
+  // Guard effect to ensure modal state stays consistent with session+lines
+  useEffect(() => {
+    if (session && lines.length > 0 && !showResult) {
+      const lastLine = lines[lines.length - 1];
+      const isWin = lastLine.feedback.every(f => f.state === 'correct');
+      const isLastAttempt = lines.length >= session.maxAttempts;
+      
+      if (!isWin && isLastAttempt && !showExtraTryModal) {
+        setShowExtraTryModal(true);
+      }
+    }
+  }, [session, lines, showResult, showExtraTryModal]);
 
   // Get user status for arcade solved count
   const { data: userStatus } = useQuery({
@@ -194,7 +244,7 @@ export default function ArcadePage() {
   });
 
   const keyboardState = buildKeyboardState(lines);
-  const length = session?.length ?? activeLength ?? 5; // Default to 5 for UI purposes when no selection
+  const length = session?.length ?? activeLength;
 
   const handleUseHint = async () => {
     if (!session?.sessionId) return;
@@ -204,8 +254,7 @@ export default function ArcadePage() {
       const response = await callArcadeHint(session.sessionId);
       setSession(prev => prev ? { ...prev, hintsUsed: response.hints } : null);
       setHintEntitlementsRemaining(response.entitlementsRemaining);
-    } catch (error) {
-      console.error('Failed to use hint:', error);
+    } catch {
       toast.notify('Не удалось использовать подсказку');
     } finally {
       setIsLoadingHint(false);
@@ -221,8 +270,7 @@ export default function ArcadePage() {
       setArcadeCredits(replenishedCredits);
       setNewGameEntitlements(prev => Math.max(prev - 1, 0));
       toast.notify('Игры восстановлены!');
-    } catch (error) {
-      console.error('Failed to unlock arcade:', error);
+    } catch {
       toast.notify('Не удалось разблокировать аркаду');
     } finally {
       setIsUnlocking(false);
@@ -248,8 +296,7 @@ export default function ArcadePage() {
       setShowExtraTryModal(false);
       
       toast.notify('Попытка добавлена!');
-    } catch (error) {
-      console.error('Failed to use extra try:', error);
+    } catch {
       toast.notify('Не удалось использовать попытку');
     } finally {
       setIsUsingExtraTry(false);
@@ -266,8 +313,7 @@ export default function ArcadePage() {
       setShowResult(true);
       
       // finishExtraTry already marks the session as complete, no need to call completeArcadeSession
-    } catch (error) {
-      console.error('Failed to finish game:', error);
+    } catch {
       toast.notify('Ошибка завершения игры');
     } finally {
       setIsUsingExtraTry(false);
@@ -278,18 +324,24 @@ export default function ArcadePage() {
     window.location.href = '/shop';
   };
 
-  const handleStart = async (len: ArcadeStartResponse['length']) => {
-    if (!session && arcadeCredits <= 0) {
+  const handleStart = async () => {
+    if (session) {
+      return;
+    }
+
+    if (arcadeCredits <= 0) {
       toast.notify('Бесплатных игр не осталось. Пополните запас, чтобы продолжить.');
       return;
     }
-    
-    setActiveLength(len);
+
+    if (startArcadeMutation.isPending) {
+      return;
+    }
+
     try {
-      await startArcadeMutation.mutateAsync(len);
+      await startArcadeMutation.mutateAsync({ length: activeLength, theme: activeTheme });
     } catch (error) {
-      // Reset activeLength when API call fails
-      setActiveLength(null);
+      // handled by mutation.onError toast
     }
   };
 
@@ -328,7 +380,8 @@ export default function ArcadePage() {
     setCurrentGuess('');
     
     // Validate dictionary if available
-    const dictionary = dictionaryCache.get(session.length);
+    const cacheKey = getDictionaryKey(session.length, session.theme);
+    const dictionary = dictionaryCache.get(cacheKey);
     if (dictionary && !validateDictionary(submittedGuess, dictionary)) {
       toast.notify('Слово не найдено в словаре.');
       return;
@@ -356,8 +409,8 @@ export default function ArcadePage() {
         submittedGuess, // original input
         normalizedGuess, // normalized
         feedbackMask
-      ).catch(error => {
-        console.error('Failed to record guess:', error);
+      ).catch(() => {
+        // Error recording guess (non-critical)
       }).finally(() => {
         // Remove from pending array when done
         pendingRecords.current = pendingRecords.current.filter(p => p !== recordPromise);
@@ -370,8 +423,8 @@ export default function ArcadePage() {
       if (isLastAttempt) {
         try {
           await Promise.all(pendingRecords.current);
-        } catch (error) {
-          console.error('Failed to complete all record requests:', error);
+        } catch {
+          // Error completing record requests (non-critical)
         }
       }
       
@@ -387,11 +440,7 @@ export default function ArcadePage() {
         if (sessionStartTime) {
           const timeMs = Date.now() - sessionStartTime;
           completeArcadeSession(session.puzzleId, 'won', lines.length + 1, timeMs)
-            .then(() => {
-              console.log('✅ Arcade session recorded successfully');
-            })
-            .catch((error) => {
-              console.error('❌ Failed to record arcade session:', error);
+            .catch(() => {
               // Don't show error to user - game already completed locally
             });
         }
@@ -519,84 +568,111 @@ export default function ArcadePage() {
               <Text className="mt-2">Неограниченные попытки и гибкая длина слов</Text>
             </div>
 
-            <Card padding="lg" className="text-center">
-              {startArcadeMutation.isPending ? (
+            {startArcadeMutation.isPending ? (
+              <Card padding="lg" className="text-center">
                 <div className="flex justify-center">
-                  <PuzzleLoader length={activeLength ?? 5} />
+                  <PuzzleLoader length={activeLength} />
                 </div>
-              ) : arcadeCredits <= 0 ? (
-                <>
-                  <Heading level={3} className="mb-4">Бесплатные игры закончились</Heading>
-                  <Text className="mb-6">Пополните запас, чтобы продолжить играть в аркаду.</Text>
-                  
-                  {newGameEntitlements > 0 ? (
-                    <>
-                      {!isConfirmingUnlock ? (
+              </Card>
+            ) : arcadeCredits <= 0 ? (
+              <Card padding="lg" className="text-center">
+                <Heading level={3} className="mb-4">Бесплатные игры закончились</Heading>
+                <Text className="mb-6">Пополните запас, чтобы продолжить играть в аркаду.</Text>
+                
+                {newGameEntitlements > 0 ? (
+                  <>
+                    {!isConfirmingUnlock ? (
+                      <Button
+                        fullWidth
+                        variant="primary"
+                        onClick={() => setIsConfirmingUnlock(true)}
+                        disabled={isUnlocking}
+                      >
+                        {isUnlocking ? 'Загрузка...' : `Восстановить игры (${newGameEntitlements} шт.)`}
+                      </Button>
+                    ) : (
+                      <div className="flex gap-2">
                         <Button
-                          fullWidth
-                          variant="primary"
-                          onClick={() => setIsConfirmingUnlock(true)}
+                          variant="secondary"
+                          onClick={() => setIsConfirmingUnlock(false)}
+                          className="flex-1"
                           disabled={isUnlocking}
                         >
-                          {isUnlocking ? 'Загрузка...' : `Восстановить игры (${newGameEntitlements} шт.)`}
+                          Отмена
                         </Button>
-                      ) : (
-                        <div className="flex gap-2">
-                          <Button
-                            variant="secondary"
-                            onClick={() => setIsConfirmingUnlock(false)}
-                            className="flex-1"
-                            disabled={isUnlocking}
-                          >
-                            Отмена
-                          </Button>
-                          <Button
-                            variant="primary"
-                            onClick={handleUnlockArcade}
-                            disabled={isUnlocking}
-                            className="flex-1"
-                          >
-                            {isUnlocking ? 'Загрузка...' : 'Восстановить'}
-                          </Button>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <Button
-                      fullWidth
-                      variant="primary"
-                      onClick={handleBuyGames}
-                    >
-                      Купить игры
-                    </Button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <Text className="mb-2">
-                    Сегодня у вас {Math.max(arcadeCredits, 0)} из {maxArcadeCredits} бесплатных игр.
-                  </Text>
-                  <Text className="mb-6">Выберите длину слова, чтобы начать новую игру</Text>
-                  
-                  {/* Word length selector */}
-                  <div className="flex justify-center">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {availableLengths.map((len) => (
                         <Button
-                          key={len}
-                          onClick={() => handleStart(len)}
-                          variant={len === activeLength ? 'primary' : 'secondary'}
-                          size="sm"
-                          className="rounded-full"
+                          variant="primary"
+                          onClick={handleUnlockArcade}
+                          disabled={isUnlocking}
+                          className="flex-1"
                         >
-                          {len} букв
+                          {isUnlocking ? 'Загрузка...' : 'Восстановить'}
                         </Button>
-                      ))}
-                    </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <Button
+                    fullWidth
+                    variant="primary"
+                    onClick={handleBuyGames}
+                  >
+                    Купить игры
+                  </Button>
+                )}
+              </Card>
+            ) : (
+              <div className="flex flex-col gap-4">
+                <Card padding="lg" className="text-center">
+                  <Text className="mb-4">Выберите длину слова</Text>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {availableLengths.map((len) => (
+                      <Button
+                        key={len}
+                        onClick={() => setActiveLength(len)}
+                        variant={len === activeLength ? 'primary' : 'secondary'}
+                        size="sm"
+                        className="rounded-full"
+                        disabled={startArcadeMutation.isPending}
+                      >
+                        {len} букв
+                      </Button>
+                    ))}
                   </div>
-                </>
-              )}
-            </Card>
+                </Card>
+
+                <Card padding="lg" className="text-center">
+                  <Text className="mb-4">Выберите тему слов</Text>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {themeOptions.map((option) => (
+                      <Button
+                        key={option.value}
+                        onClick={() => setActiveTheme(option.value)}
+                        variant={option.value === activeTheme ? 'primary' : 'secondary'}
+                        size="sm"
+                        className="rounded-full"
+                        disabled={startArcadeMutation.isPending}
+                      >
+                        {option.label}
+                      </Button>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {arcadeCredits > 0 && (
+              <div className="mt-auto pt-6">
+                <Button
+                  fullWidth
+                  variant="primary"
+                  onClick={handleStart}
+                  disabled={startArcadeMutation.isPending}
+                >
+                  Начать игру
+                </Button>
+              </div>
+            )}
           </>
         )}
       </section>

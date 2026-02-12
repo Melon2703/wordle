@@ -545,10 +545,13 @@ components:
         length:
           type: integer
           enum: [4,5,6]
+        theme:
+          type: string
+          enum: [common, music]
         hardMode:
           type: boolean
           default: false
-      required: [length, hardMode]
+      required: [length, theme, hardMode]
       additionalProperties: false
     ArcadeStartResponse:
       type: object
@@ -570,7 +573,10 @@ components:
         solution:
           type: string
           description: Normalized solution word for client-side evaluation
-      required: [puzzleId, mode, length, maxAttempts, serverNow, solution]
+        theme:
+          type: string
+          enum: [common, music]
+      required: [puzzleId, mode, length, maxAttempts, serverNow, solution, theme]
       additionalProperties: false
     ArcadeGuessRequest:
       type: object

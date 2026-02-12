@@ -18,10 +18,8 @@ export default function PurchasesPage() {
     const checkTelegramReady = () => {
       const tg = (window as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
       if (tg && tg.initData) {
-        console.log('✅ Purchases Page - Telegram WebApp is ready');
         setIsTelegramReady(true);
       } else {
-        console.log('⏳ Purchases Page - Waiting for Telegram WebApp...');
         setTimeout(checkTelegramReady, 100);
       }
     };
@@ -38,9 +36,7 @@ export default function PurchasesPage() {
 
   const refundMutation = useMutation({
     mutationFn: refundPurchase,
-    onSuccess: (data) => {
-      console.log('✅ Refund successful:', data);
-      
+    onSuccess: () => {
       // Haptic feedback for success
       if (hapticFeedback.isSupported()) {
         hapticFeedback.notificationOccurred('success');
@@ -49,9 +45,7 @@ export default function PurchasesPage() {
       notify('Возврат обработан успешно');
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
     },
-    onError: (error) => {
-      console.error('❌ Refund failed:', error);
-      
+    onError: () => {
       // Haptic feedback for error
       if (hapticFeedback.isSupported()) {
         hapticFeedback.notificationOccurred('error');
@@ -62,8 +56,6 @@ export default function PurchasesPage() {
   });
 
   const handleRefund = async (purchaseId: string, productTitle: string, starsAmount: number) => {
-    console.log('💸 Refund Debug - Starting refund for purchase:', purchaseId);
-    
     // Haptic feedback for button press
     if (hapticFeedback.isSupported()) {
       hapticFeedback.impactOccurred('medium');
@@ -71,7 +63,6 @@ export default function PurchasesPage() {
     
     // Check if popup is supported
     if (!popup.isSupported()) {
-      console.log('❌ Popup not supported, using fallback confirmation');
       if (confirm('Вы уверены, что хотите вернуть эту покупку?')) {
         refundMutation.mutate(purchaseId);
       }
@@ -82,18 +73,14 @@ export default function PurchasesPage() {
       // Use standard browser confirmation for now
       const confirmed = confirm(`Вы уверены, что хотите вернуть "${productTitle}" за ⭐ ${starsAmount}?`);
       
-      console.log('💸 Refund Debug - Confirmation result:', confirmed);
-      
       if (confirmed) {
-        console.log('✅ Refund confirmed, processing...');
         refundMutation.mutate(purchaseId);
       } else {
-        console.log('❌ Refund cancelled by user');
         notify('Возврат отменен');
       }
       
     } catch (error) {
-      console.error('❌ Refund popup error:', error);
+      console.error('Refund confirmation error');
       // Fallback to standard confirmation
       if (confirm('Вы уверены, что хотите вернуть эту покупку?')) {
         refundMutation.mutate(purchaseId);

@@ -19,10 +19,8 @@ export default function ShopPage() {
       const tg = (window as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
 
       if (tg && tg.initData) {
-        console.log('✅ Shop Page - Telegram WebApp is ready');
         setIsTelegramReady(true);
       } else {
-        console.log('⏳ Shop Page - Waiting for Telegram WebApp...');
         setTimeout(checkTelegramReady, 100);
       }
     };
@@ -38,52 +36,40 @@ export default function ShopPage() {
 
   const purchaseMutation = useMutation({
     mutationFn: purchaseProduct,
-    onSuccess: (data) => {
-      console.log('✅ Purchase successful:', data);
+    onSuccess: () => {
       notify('Покупка завершена успешно!');
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
     },
-    onError: (error) => {
-      console.error('❌ Purchase failed:', error);
+    onError: () => {
       notify('Ошибка при покупке');
     }
   });
 
   const handlePurchase = async (productId: string) => {
-    console.log('🛒 Shop Page - Starting purchase for:', productId);
-    
     try {
       // First, create the purchase record via API
       const purchaseResult = await purchaseProduct(productId);
-      console.log('✅ Purchase record created:', purchaseResult);
       
       // Use the real invoice URL from Telegram Bot API
       const invoiceUrl = purchaseResult.invoice_url;
       
-      console.log('🛒 Opening Telegram invoice:', invoiceUrl);
-      
       // Open the invoice using TMA.js SDK (correct method for invoice links)
       const result = await invoice.openUrl(invoiceUrl);
-      console.log('💰 Invoice result:', result);
       
       if (result === 'paid') {
         notify('Покупка завершена успешно!');
         queryClient.invalidateQueries({ queryKey: ['purchases'] });
       } else {
         // Payment was cancelled - clean up the pending purchase
-        console.log('❌ Payment cancelled, cleaning up pending purchase');
         try {
           await cleanupCancelledPurchase(purchaseResult.purchase_id);
-          console.log('✅ Cleanup successful');
-        } catch (cleanupError) {
-          console.error('❌ Cleanup failed:', cleanupError);
+        } catch {
           // Don't fail the whole operation if cleanup fails
         }
         notify('Покупка отменена');
       }
       
-    } catch (error) {
-      console.error('❌ Purchase failed:', error);
+    } catch {
       notify('Ошибка при покупке');
     }
   };

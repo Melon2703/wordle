@@ -10,8 +10,23 @@ import {
 import { evaluateGuess } from '../../../../lib/game/feedback';
 import { normalizeGuess, validateHardMode } from '../../../../lib/game/policies';
 import { consumeRateLimit } from '../../../../lib/rate-limit';
-import { loadDictionary } from '../../../../lib/dict/loader';
+import { loadDictionary, loadThemeWordSet } from '../../../../lib/dict/loader';
 import type { ArcadeGuessResponse, GuessLine } from '../../../../lib/contracts';
+import type { ArcadeTheme } from '../../../../lib/types';
+import { ARCADE_THEMES } from '../../../../lib/types';
+
+function parseArcadeTheme(seed: string | null): ArcadeTheme {
+  if (!seed) {
+    return 'common';
+  }
+
+  const [, candidate] = seed.split('-');
+  if (candidate && (ARCADE_THEMES as readonly string[]).includes(candidate)) {
+    return candidate as ArcadeTheme;
+  }
+
+  return 'common';
+}
 
 export const runtime = 'nodejs';
 
@@ -77,10 +92,20 @@ export async function POST(request: Request) {
     }
     
     // Validate dictionary membership using Storage wordlist
-    const dictionary = await loadDictionary();
-    const guessForLookup = normalizedGuess.toLowerCase(); // Convert to lowercase for lookup
-    
-    if (!dictionary.allowed.has(guessForLookup)) {
+    const guessForLookup = normalizedGuess.toLowerCase().replace(/ё/g, 'е'); // Convert to lowercase and normalize ё→е for lookup
+
+    const theme = parseArcadeTheme(puzzle.seed);
+
+    let wordIsAllowed: boolean;
+    if (theme === 'common') {
+      const dictionary = await loadDictionary();
+      wordIsAllowed = dictionary.allowed.has(guessForLookup);
+    } else {
+      const themeWords = await loadThemeWordSet(theme);
+      wordIsAllowed = themeWords.has(guessForLookup);
+    }
+
+    if (!wordIsAllowed) {
       return NextResponse.json(
         { error: 'Слово не найдено в словаре' },
         { status: 400 }
