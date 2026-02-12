@@ -163,6 +163,50 @@ export async function POST(request: Request) {
         newAttemptsUsed,
         timeMs
       );
+
+      // Update streak when puzzle is completed
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Get user's current streak and last solved date
+        const { data: profileData, error: profileError } = await client
+          .from('profiles')
+          .select('streak_current, last_daily_played_at')
+          .eq('profile_id', profile.profile_id)
+          .single();
+        
+        if (!profileError && profileData) {
+          let newStreak = 1;
+          
+          if (profileData.last_daily_played_at) {
+            const lastSolved = new Date(profileData.last_daily_played_at);
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            // If solved yesterday, increment streak
+            if (lastSolved.toISOString().split('T')[0] === yesterday.toISOString().split('T')[0]) {
+              newStreak = (profileData.streak_current || 0) + 1;
+            }
+            // If solved today already, keep current streak
+            else if (lastSolved.toISOString().split('T')[0] === today) {
+              newStreak = profileData.streak_current || 1;
+            }
+            // Otherwise, reset to 1
+          }
+          
+          // Update profile with new streak
+          await client
+            .from('profiles')
+            .update({
+              streak_current: newStreak,
+              last_daily_played_at: new Date().toISOString()
+            })
+            .eq('profile_id', profile.profile_id);
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to update streak:', error);
+        // Don't fail the request if streak update fails
+      }
     } else {
       // Update attempts count
       await client

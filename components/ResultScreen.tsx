@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { GuessLine } from '@/lib/contracts';
 import { PuzzleGrid } from './PuzzleGrid';
 import { RisingStar } from './FiringStarAnimations';
+import { Flame } from 'lucide-react';
 
 interface ResultScreenProps {
   status: 'won' | 'lost';
@@ -11,6 +12,7 @@ interface ResultScreenProps {
   answer?: string;
   mode: 'daily' | 'arcade';
   timeMs?: number;
+  streak?: number;
   onNewGame?: (length: 4 | 5 | 6) => void;
   // Grid props
   length: number;
@@ -25,6 +27,7 @@ export function ResultScreen({
   answer, 
   mode, 
   timeMs, 
+  streak,
   onNewGame,
   length,
   lines
@@ -81,6 +84,15 @@ export function ResultScreen({
             <div className="flex justify-between items-center">
               <span className="text-slate-600">Время:</span>
               <span className="font-medium text-slate-800">{formatTime(timeMs)}</span>
+            </div>
+          )}
+          {mode === 'daily' && streak !== undefined && (
+            <div className="flex justify-between items-center">
+              <span className="text-slate-600 flex items-center gap-1">
+                Серия:
+                <Flame className="w-4 h-4 text-orange-500" />
+              </span>
+              <span className="font-medium text-slate-800">{streak}</span>
             </div>
           )}
         </div>
