@@ -109,7 +109,8 @@ export async function POST(request: Request) {
         mode: 'arcade',
         hard_mode: hardMode,
         started_at: new Date().toISOString(),
-        hints_used: []
+        hints_used: [],
+        hidden_attempts: []
       })
       .select()
       .single();
@@ -121,14 +122,22 @@ export async function POST(request: Request) {
       );
     }
     
-    // Get hint entitlements count
-    const { count: entitlementsCount } = await client
-      .from('entitlements')
-      .select('*', { count: 'exact', head: true })
-      .eq('profile_id', profile.profile_id)
-      .eq('product_id', 'arcade_hint');
+    // Get entitlements counts
+    const [hintResult, extraTryResult] = await Promise.all([
+      client
+        .from('entitlements')
+        .select('*', { count: 'exact', head: true })
+        .eq('profile_id', profile.profile_id)
+        .eq('product_id', 'arcade_hint'),
+      client
+        .from('entitlements')
+        .select('*', { count: 'exact', head: true })
+        .eq('profile_id', profile.profile_id)
+        .eq('product_id', 'arcade_extra_try')
+    ]);
     
-    const hintEntitlementsAvailable = entitlementsCount || 0;
+    const hintEntitlementsAvailable = hintResult.count || 0;
+    const extraTryEntitlementsAvailable = extraTryResult.count || 0;
     
     // Set arcade available to false (user used their daily game)
     await client
@@ -145,7 +154,9 @@ export async function POST(request: Request) {
       serverNow: new Date().toISOString(),
       solution: randomWord.toLowerCase().replace(/ё/g, 'е'), // normalized for client validation
       hintsUsed: [],
-      hintEntitlementsAvailable
+      hintEntitlementsAvailable,
+      extraTryEntitlementsAvailable,
+      hiddenAttempts: []
     };
     
     return NextResponse.json(response);

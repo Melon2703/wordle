@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
@@ -10,8 +10,9 @@ import { ShareButton } from '@/components/ShareButton';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { Button, Card, Heading, Text } from '@/components/ui';
-import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess, getArcadeStatus, unlockArcade } from '@/lib/api';
+import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess, getArcadeStatus, unlockArcade, useExtraTry as callUseExtraTry, finishExtraTry } from '@/lib/api';
 import { HintModal } from '@/components/HintModal';
+import { ExtraTryModal } from '@/components/ExtraTryModal';
 import { TopCenterIcon } from '@/components/TopCenterIcon';
 import { buildKeyboardState } from '@/lib/game/feedback';
 import { evaluateGuess, normalizeGuess, validateDictionary } from '@/lib/game/feedback.client';
@@ -37,6 +38,14 @@ export default function ArcadePage() {
   const [newGameEntitlements, setNewGameEntitlements] = useState(0);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [isConfirmingUnlock, setIsConfirmingUnlock] = useState(false);
+  const [hiddenAttempts, setHiddenAttempts] = useState<GuessLine[]>([]);
+  const [extraTryEntitlements, setExtraTryEntitlements] = useState(0);
+  const [showExtraTryModal, setShowExtraTryModal] = useState(false);
+  const [pendingFailedAttempt, setPendingFailedAttempt] = useState<GuessLine | null>(null);
+  const [isUsingExtraTry, setIsUsingExtraTry] = useState(false);
+  
+  // Track pending record requests
+  const pendingRecords = useRef<Promise<unknown>[]>([]);
 
   // Check arcade availability on mount
   useEffect(() => {
@@ -76,6 +85,8 @@ export default function ArcadePage() {
     onSuccess: async (sessionData) => {
       setSession(sessionData);
       setHintEntitlementsRemaining(sessionData.hintEntitlementsAvailable);
+      setExtraTryEntitlements(sessionData.extraTryEntitlementsAvailable);
+      setHiddenAttempts(sessionData.hiddenAttempts || []);
       setLines([]);
       setCurrentGuess('');
       setSessionStartTime(Date.now());
@@ -138,6 +149,8 @@ export default function ArcadePage() {
         setSession(incompleteSession.session);
         setLines(incompleteSession.lines);
         setHintEntitlementsRemaining(incompleteSession.session.hintEntitlementsAvailable);
+        setExtraTryEntitlements(incompleteSession.session.extraTryEntitlementsAvailable);
+        setHiddenAttempts(incompleteSession.session.hiddenAttempts);
         
         // Set session start time
         if (incompleteSession.startedAt) {
@@ -182,7 +195,8 @@ export default function ArcadePage() {
     staleTime: 30 * 1000,
   });
 
-  const keyboardState = buildKeyboardState(lines);
+  const allAttempts = [...lines, ...hiddenAttempts];
+  const keyboardState = buildKeyboardState(allAttempts);
   const length = session?.length ?? activeLength ?? 5; // Default to 5 for UI purposes when no selection
 
   const handleUseHint = async () => {
@@ -221,6 +235,59 @@ export default function ArcadePage() {
     window.location.href = '/shop';
   };
 
+  const handleUseExtraTry = async () => {
+    if (!session?.sessionId || !pendingFailedAttempt) return;
+    
+    setIsUsingExtraTry(true);
+    try {
+      const response = await callUseExtraTry(session.sessionId, pendingFailedAttempt);
+      
+      // Update hidden attempts from backend response
+      setHiddenAttempts(response.hiddenAttempts);
+      
+      // Remove last line from display
+      setLines(prev => prev.slice(0, -1));
+      
+      // Clear pending
+      setPendingFailedAttempt(null);
+      
+      setExtraTryEntitlements(prev => prev - 1);
+      setShowExtraTryModal(false);
+      
+      toast.notify('Попытка добавлена!');
+    } catch (error) {
+      console.error('Failed to use extra try:', error);
+      toast.notify('Не удалось использовать попытку');
+    } finally {
+      setIsUsingExtraTry(false);
+    }
+  };
+
+  const handleFinishGame = async () => {
+    if (!session?.sessionId) return;
+    
+    setIsUsingExtraTry(true);
+    try {
+      await finishExtraTry(session.sessionId);
+      
+      setHiddenAttempts([]);
+      setPendingFailedAttempt(null);
+      setShowExtraTryModal(false);
+      setShowResult(true);
+      
+      // finishExtraTry already marks the session as complete, no need to call completeArcadeSession
+    } catch (error) {
+      console.error('Failed to finish game:', error);
+      toast.notify('Ошибка завершения игры');
+    } finally {
+      setIsUsingExtraTry(false);
+    }
+  };
+
+  const handleBuyExtraTries = () => {
+    window.location.href = '/shop';
+  };
+
   const handleStart = async (len: ArcadeStartResponse['length']) => {
     setActiveLength(len);
     try {
@@ -245,7 +312,7 @@ export default function ArcadePage() {
     setCurrentGuess((prev) => prev.slice(0, -1));
   };
 
-  const handleEnter = () => {
+  const handleEnter = async () => {
     if (!session) {
       toast.notify('Сначала начните игру.');
       return;
@@ -261,11 +328,14 @@ export default function ArcadePage() {
       return;
     }
     
+    // Store guess in local variable and clear currentGuess immediately
+    const submittedGuess = currentGuess;
+    setCurrentGuess('');
+    
     // Validate dictionary if available
     const dictionary = dictionaryCache.get(session.length);
-    if (dictionary && !validateDictionary(currentGuess, dictionary)) {
+    if (dictionary && !validateDictionary(submittedGuess, dictionary)) {
       toast.notify('Слово не найдено в словаре.');
-      setCurrentGuess('');
       return;
     }
     
@@ -273,37 +343,55 @@ export default function ArcadePage() {
     
     try {
       // Evaluate guess locally
-      const line = evaluateGuessLocally(currentGuess);
+      const line = evaluateGuessLocally(submittedGuess);
       setLines(prev => [...prev, line]);
       
-      // Record guess in database (background, non-blocking)
+      // Record guess in database
       const guessIndex = lines.length + 1;
       const feedbackMask = JSON.stringify(line.feedback.map(f => f.state));
-      const normalizedGuess = normalizeGuess(currentGuess, false);
+      const normalizedGuess = normalizeGuess(submittedGuess, false);
       
-      recordArcadeGuess(
+      // Check if this is the last attempt
+      const isLastAttempt = lines.length + 1 >= session.maxAttempts;
+      
+      // Create the record promise
+      const recordPromise = recordArcadeGuess(
         session.sessionId,
         guessIndex,
-        currentGuess, // original input
+        submittedGuess, // original input
         normalizedGuess, // normalized
         feedbackMask
       ).catch(error => {
         console.error('Failed to record guess:', error);
-        // Don't block UI - game continues locally
+      }).finally(() => {
+        // Remove from pending array when done
+        pendingRecords.current = pendingRecords.current.filter(p => p !== recordPromise);
       });
+      
+      // Add to pending array
+      pendingRecords.current.push(recordPromise);
+      
+      // If this is the last attempt, await ALL pending records before proceeding
+      if (isLastAttempt) {
+        try {
+          await Promise.all(pendingRecords.current);
+        } catch (error) {
+          console.error('Failed to complete all record requests:', error);
+        }
+      }
       
       // Check win/loss
       const isWin = line.feedback.every(f => f.state === 'correct');
-      const isLost = !isWin && lines.length + 1 >= session.maxAttempts;
+      const isLost = !isWin && isLastAttempt;
       
-      if (isWin || isLost) {
+      if (isWin) {
         triggerHaptic('success');
         setShowResult(true);
         
         // Record session completion in background
         if (sessionStartTime) {
           const timeMs = Date.now() - sessionStartTime;
-          completeArcadeSession(session.puzzleId, isWin ? 'won' : 'lost', lines.length + 1, timeMs)
+          completeArcadeSession(session.puzzleId, 'won', lines.length + 1, timeMs)
             .then(() => {
               console.log('✅ Arcade session recorded successfully');
             })
@@ -312,11 +400,14 @@ export default function ArcadePage() {
               // Don't show error to user - game already completed locally
             });
         }
+      } else if (isLost) {
+        // Always show extra try modal on last failed attempt
+        setPendingFailedAttempt(line);
+        setShowExtraTryModal(true);
+        triggerHaptic('error');
       } else {
         triggerHaptic('light');
       }
-      
-      setCurrentGuess('');
     } catch (error) {
       triggerHaptic('error');
       const errorMessage = error instanceof Error ? error.message : 'Ошибка при обработке догадки';
@@ -341,6 +432,16 @@ export default function ArcadePage() {
               isLoading={isLoadingHint}
             />
 
+            {/* Extra Try Modal */}
+            <ExtraTryModal
+              isOpen={showExtraTryModal}
+              onUseTry={handleUseExtraTry}
+              onFinish={handleFinishGame}
+              onBuyTries={handleBuyExtraTries}
+              entitlementsRemaining={extraTryEntitlements}
+              isLoading={isUsingExtraTry}
+            />
+
             {/* Hint Icon */}
             {!showResult && (
               <div className="fixed top-0 left-0 right-0 z-50 pointer-events-none h-12">
@@ -357,6 +458,7 @@ export default function ArcadePage() {
                 <ResultScreen
                   status={lines.length > 0 && lines[lines.length - 1].feedback.every(f => f.state === 'correct') ? 'won' : 'lost'}
                   attemptsUsed={lines.length}
+                  answer={session.solution.toUpperCase()}
                   mode="arcade"
                   timeMs={sessionStartTime ? Date.now() - sessionStartTime : undefined}
                   arcadeSolved={userStatus?.arcadeSolved}

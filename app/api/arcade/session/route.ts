@@ -54,6 +54,22 @@ export async function GET(request: Request) {
     // Get hint entitlements count
     const hintEntitlementsAvailable = await getHintEntitlementsCount(client, profile.profile_id);
     
+    // Get extra try entitlements count
+    const { count: extraTryCount } = await client
+      .from('entitlements')
+      .select('*', { count: 'exact', head: true })
+      .eq('profile_id', profile.profile_id)
+      .eq('product_id', 'arcade_extra_try');
+    
+    const extraTryEntitlementsAvailable = extraTryCount || 0;
+    
+    // Convert hidden_attempts from database format
+    const hiddenAttempts: GuessLine[] = (session.hidden_attempts || []).map((attempt: { guess: string; submittedAt: string; feedback: Array<{index: number; letter: string; state: 'correct' | 'present' | 'absent'}> }) => ({
+      guess: attempt.guess,
+      submittedAt: attempt.submittedAt,
+      feedback: attempt.feedback
+    }));
+    
     // Build response
     const arcadeSession: ArcadeStartResponse = {
       puzzleId: puzzle.puzzle_id,
@@ -64,7 +80,9 @@ export async function GET(request: Request) {
       serverNow: new Date().toISOString(),
       solution: puzzle.solution_norm, // normalized solution for client-side evaluation
       hintsUsed: (session.hints_used as Array<{letter: string; position: number}>) || [],
-      hintEntitlementsAvailable
+      hintEntitlementsAvailable,
+      extraTryEntitlementsAvailable,
+      hiddenAttempts
     };
     
     return NextResponse.json({
