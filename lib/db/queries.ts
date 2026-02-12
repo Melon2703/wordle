@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './client';
-import type { DailyLeaderboard, ShopCatalog } from '../contracts';
+import type { ShopCatalog } from '../contracts';
 
 type Client = SupabaseClient<Database>;
 
@@ -201,62 +201,6 @@ export async function updateSessionResult(
     });
     throw new Error('Failed to update session result');
   }
-}
-
-export async function fetchDailyLeaderboard(
-  client: Client,
-  puzzleId: string
-): Promise<DailyLeaderboard> {
-  // Query sessions table directly with profile join
-  const { data, error } = await client
-    .from('sessions')
-    .select(`
-      profile_id,
-      attempts_used,
-      time_ms,
-      profiles!inner(telegram_id, username, first_name)
-    `)
-    .eq('puzzle_id', puzzleId)
-    .eq('result', 'win')
-    .not('time_ms', 'is', null)
-    .order('time_ms', { ascending: true })
-    .limit(50);
-
-  if (error) {
-    throw new Error(`Failed to fetch leaderboard: ${error.message}`);
-  }
-
-  const entries = (data || []).map((session, index) => {
-    const profile = session.profiles as Database['public']['Tables']['profiles']['Row'];
-    
-    // Build display name: @username if available, else first_name, else "Аноним"
-    let displayName = 'Аноним';
-    let profileUrl: string | undefined;
-    
-    if (profile.username) {
-      displayName = `@${profile.username}`;
-      // Only set profileUrl if username exists (username-based links work; ID-based don't)
-      profileUrl = `https://t.me/${profile.username}`;
-    } else if (profile.first_name) {
-      displayName = profile.first_name;
-      // No profileUrl for users without username (not clickable)
-    }
-    
-    return {
-      rank: index + 1,
-      userId: session.profile_id,
-      displayName,
-      attempts: session.attempts_used,
-      timeMs: session.time_ms || 0,
-      profileUrl
-    };
-  });
-
-  return {
-    puzzleId,
-    asOf: new Date().toISOString(),
-    entries
-  };
 }
 
 export async function listShopProducts(client: Client): Promise<ShopCatalog> {

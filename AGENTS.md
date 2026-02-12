@@ -13,7 +13,7 @@ TypeScript with React function components is the norm. Prettier enforces 2-space
 Automated testing is paused. Do not introduce new suites or frameworks. Before handing changes back, run `npm run lint` and `npm run typecheck`, then note any manual verification so the maintainer can reproduce it quickly.
 
 ## Documentation Expectations
-Consult `docs/` for product intent and architecture. After delivering notable features, update the relevant doc or add a brief note calling out new routes, env vars, or backend touchpoints. Minor fixes and copy tweaks do not require documentation changes.
+Consult `docs/` for product intent and architecture. After delivering notable features, update the relevant doc or add a brief note calling out new routes, env vars, or backend touchpoints. Minor fixes and copy tweaks do not require documentation changes – just write them in CHANGELOG.md
 
 ## Commit & Pull Request Guidelines
 Only the maintainer authors commits and PRs. Treat git as read-only—inspect history, diffs, and status only; leave staging, committing, and pushing to the owner. When delivering changes, provide clear summaries, affected paths, and manual testing notes so the maintainer can package the work efficiently.

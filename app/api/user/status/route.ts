@@ -159,7 +159,6 @@ export async function GET(request: NextRequest) {
       dailyTimeMs,
       streak,
       nextPuzzleAt: nextPuzzleAt.toISOString(),
-      profileId,  // Add profileId to response
       arcadeSolved,  // Add arcade count
     };
 

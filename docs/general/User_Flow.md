@@ -11,8 +11,8 @@ _Version: 1.0 • Updated: 2025-10-23 12:06 UTC_
 ---
 
 ## TL;DR
-- Two main loops: **Daily** (shared puzzle, streaks, rating) and **Arcade** (unlimited; separate ladder).  
-- **Fairness first:** attempts weigh more than time; monetization never affects Daily difficulty or rating.  
+- Two main loops: **Daily** (shared puzzle, streaks) and **Arcade** (unlimited play).  
+- **Fairness first:** attempts weigh more than time; monetization never affects core difficulty.  
 - **Onboarding** covers basics, RU orthography (ё/е, й/и, ь/ъ), duplicates, and accessibility defaults.  
 - **Accessibility by default:** high contrast, icons + color, haptics; large tap targets.
 
@@ -20,7 +20,7 @@ _Version: 1.0 • Updated: 2025-10-23 12:06 UTC_
 
 ## Guiding Principles
 - **Simple core, deep mastery.**
-- **Fair competition:** attempts > time; difficulty‑normalized daily rating.
+- **Fair competition:** attempts > time; difficulty stays consistent across modes.
 - **No pay‑to‑win:** Stars monetize cosmetics, analysis, archives, passes, and limited streak protection.
 - **Accessibility by default:** contrast, iconography, haptics.
 - **RU specificity:** strict orthography; duplicate handling is transparent.
@@ -32,7 +32,6 @@ _Version: 1.0 • Updated: 2025-10-23 12:06 UTC_
 **Home / Hub**
 - Daily
 - Arcade
-- Leaderboards
 - Shop (Stars)
 - Profile
 - Settings
@@ -73,7 +72,7 @@ _Version: 1.0 • Updated: 2025-10-23 12:06 UTC_
 ---
 
 ## 1) Daily Flow
-**Entry:** Home → Daily intro → Guess loop → Result (win/lose) → Post‑game → Share / Leaderboards
+**Entry:** Home → Daily intro → Guess loop → Result (win/lose) → Post‑game → Share
 
 **1.1 Daily intro**
 - Inform: 6 attempts; one shared puzzle per day; countdown to next rollover (single canonical timezone).
@@ -86,9 +85,9 @@ _Version: 1.0 • Updated: 2025-10-23 12:06 UTC_
 - Hard Mode tip (if enabled): “**Используйте открытые буквы** в новых попытках.”
 
 **1.3 Result — Win**
-- Show confetti/haptic; **streak +1**; **daily score** (attempts‑first; time secondary; difficulty‑scaled).  
+- Show confetti/haptic; **streak +1**; surface attempts/time summary for the player.  
 - RU: “**Готово!** Результат отправлен. Серия: 7.”  
-- CTAs: “**Поделиться**”, “**Рейтинг дня**”, “**В аркаду**”.
+- CTAs: “**Поделиться**”, “**В аркаду**”, “**На главную**”.
 
 **1.4 Result — Lose (after 6 attempts)**
 - Reveal answer with definition link; gentle nudge to Arcade.  
@@ -113,7 +112,7 @@ _Version: 1.0 • Updated: 2025-10-23 12:06 UTC_
 ---
 
 ## 2) Arcade Flow
-**Entry:** Home → Arcade landing → Variant select → Guess loop → Result → MMR update
+**Entry:** Home → Arcade landing → Variant select → Guess loop → Result → Replay options
 
 **2.1 Arcade landing**
 - RU: “**Аркада — играйте без ограничений.**”  
@@ -128,34 +127,14 @@ _Version: 1.0 • Updated: 2025-10-23 12:06 UTC_
 - RU errors consistent with Daily.
 
 **2.4 Result**
-- Show **Arcade rating (MMR) delta** vs. par; streaks are **Daily‑only**.  
-- RU: “Рейтинг аркады: **1735** (↑12).”  
-- CTAs: “**Сыграть ещё**”, “**Лидеры аркады**”, “**На главную**”.
+- Summarize attempts/time; remind that streaks remain Daily‑only.  
+- RU: “**Аркада пройдена!** Попробуйте ещё раз или вернитесь на главную.”  
+- CTAs: “**Сыграть ещё**”, “**На главную**”.
 
 **Edge cases (Arcade)**
 - Out of tickets → soft gate with Shop shortcut.  
 - Early exits persist progress only within a round.  
 - Anti‑abuse: rate‑limit new rounds if suspicious patterns are detected (no UI text unless blocked).
-
----
-
-## 3) Leaderboards & Seasons
-**Entry:** Home → Leaderboards → (Daily / Season / Friends)
-
-**3.1 Daily board**
-- Show percentile and rank; filters: Friends, Country; solved‑only.
-
-**3.2 Season board**
-- Rolling 28–30‑day window; trimmed mean or decay to avoid punishing late joiners.  
-- RU: “**Сезон:** Осталось 12 дней.”
-
-**3.3 Friends board**
-- Opt‑in with invite; basic moderation (mute/hide).  
-- Privacy note (RU): “**Ваши результаты видны только в выбранных таблицах.**”
-
-**Tie‑breakers & fairness**
-- Attempts first; then normalized time; then earliest solve timestamp.  
-- Fraud suspicion → score withheld pending review (silent to avoid gaming).
 
 ---
 
@@ -173,7 +152,7 @@ _Version: 1.0 • Updated: 2025-10-23 12:06 UTC_
 - Themes/skins, haptic/sound sets, profile frames; **Analysis Day‑Pass** (one‑off).
 
 **4.4 Fairness notice**
-- RU: “**Покупки не влияют** на сложность ежедневной игры и честность рейтинга.”
+- RU: “**Покупки не влияют** на сложность ежедневной игры и честность самой игры.”
 
 **4.5 Purchase outcomes**
 - Success → toast + item unlocked; Stay in context.  
@@ -183,7 +162,7 @@ _Version: 1.0 • Updated: 2025-10-23 12:06 UTC_
 ---
 
 ## 5) Profile
-- Overview: current streak, last 7 dailies, arcade MMR, cosmetics.  
+- Overview: current streak, last 7 dailies, arcade win count, cosmetics.  
 - If Supporter: open **Archive** and **Advanced Analysis**.  
 - Shareable recap cards from archive.
 
@@ -191,7 +170,7 @@ _Version: 1.0 • Updated: 2025-10-23 12:06 UTC_
 
 ## 6) Settings
 - **Accessibility:** High contrast, icon overlays, haptics, large tap targets.  
-- **Timer visibility:** default off; rating still computed server‑side.  
+- **Timer visibility:** default off.  
 - **RU input policy:** “Считать «ё» как «е» при вводе” (validation only; answers remain distinct).  
 - **Hard Mode default:** on/off with short description.  
 - **Language:** RU (default), EN (fallback).  
@@ -208,9 +187,9 @@ _Version: 1.0 • Updated: 2025-10-23 12:06 UTC_
 ---
 
 ## 8) Share
-- Post‑game: result card preview; copy is spoiler‑free; encourages friends board.  
+- Post-game: result card preview; copy is spoiler-free; invites friends to play.  
 - RU CTA: “**Бросить вызов в аркаде**”.  
-- From Archive: recap share with date and percentile.
+- From Archive: recap share with date and attempt summary.  
 
 ---
 
@@ -265,8 +244,7 @@ _Version: 1.0 • Updated: 2025-10-23 12:06 UTC_
 ## Review Checklist (for each release)
 - Onboarding: covers duplicates & orthography; accessibility defaults tested.  
 - Daily: attempts/time displayed appropriately; recap/definition share works.  
-- Arcade: gate logic communicates clearly; MMR feedback present.  
-- Leaderboards: filters working; tie‑breaks predictable; opt‑in privacy honored.  
+- Arcade: gate logic communicates clearly; result summary is clear.  
 - Shop: fairness notice visible; no power advantage in Daily.  
 - Settings: timer toggle discoverable; RU input policy clear.  
 - Help/Report: dictionary policy clear; report path simple.  

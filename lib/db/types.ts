@@ -276,17 +276,6 @@ export interface Database {
         };
       };
     };
-    Views: {
-      leaderboard_by_puzzle: {
-        Row: {
-          puzzle_id: string;
-          profile_id: string;
-          username: string | null;
-          attempts_used: number;
-          time_ms: number | null;
-          rank: number;
-        };
-      };
-    };
+    Views: Record<string, never>;
   };
 }

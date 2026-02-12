@@ -3,9 +3,7 @@ import type {
   ArcadeHintRequest,
   ArcadeHintResponse,
   ArcadeStartResponse,
-  DailyBoardEntry,
   DailyGuessResponse,
-  DailyLeaderboard,
   DailyPuzzlePayload,
   GuessLine,
   Hint,
@@ -21,9 +19,7 @@ export type {
   ArcadeHintRequest,
   ArcadeHintResponse,
   ArcadeStartResponse,
-  DailyBoardEntry,
   DailyGuessResponse,
-  DailyLeaderboard,
   DailyPuzzlePayload,
   GuessLine,
   Hint,
@@ -62,17 +58,6 @@ export const sampleDailyPuzzle: DailyPuzzlePayload = {
       createLine('СЛОВО', ['correct', 'absent', 'present', 'absent', 'present'])
     ]
   }
-};
-
-export const sampleLeaderboard: DailyLeaderboard = {
-  puzzleId: sampleDailyPuzzle.puzzleId,
-  asOf: new Date().toISOString(),
-  entries: [
-    { rank: 1, userId: '1', displayName: 'Аня', attempts: 3, timeMs: 95000 },
-    { rank: 2, userId: '2', displayName: 'Илья', attempts: 3, timeMs: 123000 },
-    { rank: 3, userId: '3', displayName: 'Вера', attempts: 4, timeMs: 140000 }
-  ],
-  you: { rank: 8, userId: 'me', displayName: 'Вы', attempts: 4, timeMs: 170000 }
 };
 
 export const sampleShopCatalog: ShopCatalog = {
