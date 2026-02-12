@@ -1,6 +1,6 @@
 'use client';
 
-import type { GuessLine } from '@/lib/contracts';
+import type { GuessLine } from '@/lib/types';
 import { GuessRow } from './GuessRow';
 
 interface PuzzleGridProps {

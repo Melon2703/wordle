@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Heading, Text } from '@/components/ui';
 import { X } from 'lucide-react';
 import { Tile } from '@/components/PuzzleGrid/Tile';
-import type { Hint } from '@/lib/contracts';
+import type { Hint } from '@/lib/types';
 import { purchaseProduct, cleanupCancelledPurchase } from '@/lib/api';
 import { invoice } from '@tma.js/sdk';
 import { useToast } from '@/components/ToastCenter';

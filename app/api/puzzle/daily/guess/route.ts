@@ -13,7 +13,7 @@ import { evaluateGuess } from '../../../../../lib/game/feedback';
 import { normalizeGuess, validateHardMode } from '../../../../../lib/game/policies';
 import { consumeRateLimit } from '../../../../../lib/rate-limit';
 import { loadDictionary } from '../../../../../lib/dict/loader';
-import type { DailyGuessResponse, GuessLine } from '../../../../../lib/contracts';
+import type { DailyGuessResponse, GuessLine } from '@/lib/types';
 
 export const runtime = 'nodejs';
 

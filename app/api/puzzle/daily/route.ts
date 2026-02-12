@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuthContext } from '../../../../lib/auth/validateInitData';
 import { getServiceClient } from '../../../../lib/db/client';
 import { getTodayPuzzle, ensureUserTracked, getSessionGuesses } from '../../../../lib/db/queries';
-import type { DailyPuzzlePayload, GuessLine } from '../../../../lib/contracts';
+import type { DailyPuzzlePayload, GuessLine } from '@/lib/types';
 
 export const runtime = 'nodejs';
 

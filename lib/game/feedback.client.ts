@@ -1,6 +1,6 @@
 // Client-side evaluation logic for Arcade mode
 // Duplicated from server-side to ensure identical behavior without exposing Daily answers
-import type { LetterState, TileFeedback, GuessLine } from '../contracts';
+import type { LetterState, TileFeedback, GuessLine } from '../types';
 
 function createCounts(word: string): Map<string, number> {
   const result = new Map<string, number>();

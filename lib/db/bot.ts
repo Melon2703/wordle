@@ -101,73 +101,76 @@ export async function getReminderCandidates(
   limit: number,
   now: Date
 ): Promise<ReminderCandidate[]> {
+  // 20 hours ago. This ensures we don't send reminders too frequently,
+  // but allows for some drift in the cron schedule.
+  const cutoff = new Date(now.getTime() - 20 * 60 * 60 * 1000);
+
   const result = await client
-    .from('telegram_users')
+    .from('notification_prefs')
     .select(
       `
-        telegram_id,
         profile_id,
-        language_code,
+        daily_reminder_enabled,
+        last_daily_sent,
+        tz_offset_minutes,
         profiles!inner(
           is_banned,
-          notification_prefs(daily_reminder_enabled, tz_offset_minutes, last_daily_sent)
+          telegram_users!inner(
+            telegram_id,
+            language_code
+          )
         )
       `
     )
-    .limit(limit * 4);
+    .eq('daily_reminder_enabled', true)
+    .or(`last_daily_sent.is.null,last_daily_sent.lt.${cutoff.toISOString()}`)
+    .order('last_daily_sent', { ascending: true, nullsFirst: true })
+    .limit(limit);
 
   if (result.error) {
     throw new Error(`Failed to load reminder candidates: ${result.error.message}`);
   }
 
+  // Supabase might return relations as arrays or single objects depending on schema detection.
+  // We type it loosely here to handle both, but expect it to be consistent.
   const rows = (result.data ?? []) as Array<{
-    telegram_id: number | null;
-    profile_id: string | null;
-    language_code?: string | null;
-    profiles?: {
-      is_banned?: boolean;
-      notification_prefs?: Array<{
-        daily_reminder_enabled?: boolean | null;
-        tz_offset_minutes?: number | null;
-        last_daily_sent?: string | null;
+    profile_id: string;
+    daily_reminder_enabled: boolean;
+    last_daily_sent: string | null;
+    tz_offset_minutes: number;
+    profiles: {
+      is_banned: boolean | null;
+      telegram_users: Array<{
+        telegram_id: number;
+        language_code: string | null;
       }> | null;
-    } | null;
+    } | Array<{
+      is_banned: boolean | null;
+      telegram_users: Array<{
+        telegram_id: number;
+        language_code: string | null;
+      }> | null;
+    }> | null;
   }>;
 
   const candidates: ReminderCandidate[] = [];
 
   for (const row of rows) {
-    if (!row.telegram_id || !row.profile_id) {
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+
+    if (!profile || profile.is_banned) {
       continue;
     }
 
-    if (row.profiles?.is_banned) {
-      continue;
-    }
-
-    const prefs = row.profiles?.notification_prefs?.[0];
-    const enabled = prefs?.daily_reminder_enabled ?? true;
-    if (!enabled) {
-      continue;
-    }
-
-    const tzOffset = prefs?.tz_offset_minutes ?? 0;
-    const lastSent = prefs?.last_daily_sent ?? null;
-
-    if (!isReminderDue(now, tzOffset, lastSent)) {
-      continue;
-    }
-
-    candidates.push({
-      profileId: row.profile_id,
-      telegramId: row.telegram_id,
-      languageCode: row.language_code ?? null,
-      tzOffsetMinutes: tzOffset,
-      lastDailySent: lastSent
-    });
-
-    if (candidates.length >= limit) {
-      break;
+    const telegramUsers = profile.telegram_users ?? [];
+    for (const user of telegramUsers) {
+      candidates.push({
+        profileId: row.profile_id,
+        telegramId: user.telegram_id,
+        languageCode: user.language_code ?? null,
+        tzOffsetMinutes: row.tz_offset_minutes,
+        lastDailySent: row.last_daily_sent
+      });
     }
   }
 
@@ -189,20 +192,6 @@ export async function markReminderSent(
   if (result.error) {
     throw new Error(`Failed to mark reminder sent: ${result.error.message}`);
   }
-}
 
-function isReminderDue(now: Date, tzOffsetMinutes: number, lastSent: string | null): boolean {
-  if (!lastSent) {
-    return true;
-  }
 
-  const offsetMs = tzOffsetMinutes * 60 * 1000;
-
-  const userNow = new Date(now.getTime() + offsetMs);
-  const userLast = new Date(new Date(lastSent).getTime() + offsetMs);
-
-  const currentDay = userNow.toISOString().slice(0, 10);
-  const lastDay = userLast.toISOString().slice(0, 10);
-
-  return currentDay !== lastDay;
 }

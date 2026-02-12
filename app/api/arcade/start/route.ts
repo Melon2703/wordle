@@ -4,7 +4,7 @@ import { getServiceClient } from '../../../../lib/db/client';
 import { ensureUserTracked } from '../../../../lib/db/queries';
 import { loadPuzzleAnswers } from '../../../../lib/dict/loader';
 import { TEMP_ARCADE_UNLIMITED } from '../../../../lib/env';
-import type { ArcadeStartResponse } from '../../../../lib/contracts';
+import type { ArcadeStartResponse } from '@/lib/types';
 import { ARCADE_THEMES } from '../../../../lib/types';
 import type { ArcadeTheme } from '../../../../lib/types';
 

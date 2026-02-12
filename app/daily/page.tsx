@@ -13,7 +13,7 @@ import { triggerHaptic } from '@/components/HapticsBridge';
 import { Button } from '@/components/ui';
 import { getDailyPuzzle, submitDailyGuess, getUserStatus } from '@/lib/api';
 import { buildKeyboardState } from '@/lib/game/feedback';
-import type { DailyPuzzlePayload } from '@/lib/contracts';
+import type { DailyPuzzlePayload } from '@/lib/types';
 import { trackEvent } from '@/lib/analytics';
 
 export default function DailyPage() {

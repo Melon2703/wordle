@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuthContext } from '../../../../lib/auth/validateInitData';
 import { getServiceClient } from '../../../../lib/db/client';
 import { getOrCreateProfile } from '../../../../lib/db/queries';
-import type { ArcadeHintRequest, ArcadeHintResponse } from '../../../../lib/contracts';
+import type { ArcadeHintRequest, ArcadeHintResponse } from '@/lib/types';
 
 export const runtime = 'nodejs';
 

@@ -11,7 +11,7 @@ import { evaluateGuess } from '../../../../lib/game/feedback';
 import { normalizeGuess, validateHardMode } from '../../../../lib/game/policies';
 import { consumeRateLimit } from '../../../../lib/rate-limit';
 import { loadDictionary, loadThemeWordSet } from '../../../../lib/dict/loader';
-import type { ArcadeGuessResponse, GuessLine } from '../../../../lib/contracts';
+import type { ArcadeGuessResponse, GuessLine } from '@/lib/types';
 import type { ArcadeTheme } from '../../../../lib/types';
 import { ARCADE_THEMES } from '../../../../lib/types';
 

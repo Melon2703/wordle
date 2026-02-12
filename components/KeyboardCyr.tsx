@@ -3,7 +3,7 @@
 import clsx from 'clsx';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { triggerHaptic } from './HapticsBridge';
-import type { LetterState } from '@/lib/contracts';
+import type { LetterState } from '@/lib/types';
 
 type KeyState = LetterState | undefined;
 

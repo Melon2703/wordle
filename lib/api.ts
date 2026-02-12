@@ -5,7 +5,7 @@ import type {
   DailyGuessResponse,
   DailyPuzzlePayload,
   ShopCatalog
-} from './contracts';
+} from './types';
 import type { UserStatus, Banner, ArcadeSessionCheckResponse, SavedWord } from './types';
 
 // Debug logging helper - only logs in development

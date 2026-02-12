@@ -1,6 +1,6 @@
 'use client';
 
-import type { GuessLine } from '@/lib/contracts';
+import type { GuessLine } from '@/lib/types';
 import { PuzzleGrid } from './PuzzleGrid';
 import { RisingStar } from './FiringStarAnimations';
 import { Card, Heading, Text } from '@/components/ui';

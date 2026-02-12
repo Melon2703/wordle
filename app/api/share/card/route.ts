@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import sharp from 'sharp';
-import type { GuessLine } from '@/lib/contracts';
+import type { GuessLine } from '@/lib/types';
 // why: Generate shareable PNG cards for Telegram using sharp (serverless-compatible)
 
 export const runtime = 'nodejs';

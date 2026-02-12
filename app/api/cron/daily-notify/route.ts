@@ -12,8 +12,9 @@ import { getReminderCandidates, markReminderSent } from '@/lib/db/bot';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const MAX_SEND_PER_RUN = 60;
-const DEFAULT_DELAY_MS = 40;
+const MAX_SEND_PER_RUN = 500;
+const BATCH_SIZE = 20;
+const TIMEOUT_MS = 9000; // 9 seconds (Vercel Hobby limit is 10s)
 
 type Summary = {
   ok: boolean;
@@ -67,27 +68,36 @@ export async function GET(request: NextRequest): Promise<Response> {
     errors: []
   };
 
-  for (const candidate of candidates) {
-    const chatId = candidate.telegramId;
-
-    if (dryRun) {
-      summary.skipped += 1;
-      continue;
+  // Process in batches to control concurrency
+  for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
+    // Check timeout
+    if (Date.now() - startedAt > TIMEOUT_MS) {
+      console.warn('Daily notify timeout reached, stopping early');
+      break;
     }
 
-    try {
-      await sendReminder(chatId, MINI_APP_URL);
-      await markReminderSent(client, candidate.profileId, new Date());
-      summary.sent += 1;
-    } catch (error) {
-      summary.failed += 1;
-      const reason =
-        error instanceof Error ? error.message : 'Unknown error while sending reminder';
-      summary.errors.push({ chatId, reason });
-      console.error('Failed to send daily reminder', { chatId, error });
-    }
+    const batch = candidates.slice(i, i + BATCH_SIZE);
 
-    await delay(DEFAULT_DELAY_MS);
+    await Promise.all(
+      batch.map(async (candidate) => {
+        if (dryRun) {
+          summary.skipped += 1;
+          return;
+        }
+
+        try {
+          await sendReminder(candidate.telegramId, MINI_APP_URL);
+          await markReminderSent(client, candidate.profileId, new Date());
+          summary.sent += 1;
+        } catch (error) {
+          summary.failed += 1;
+          const reason =
+            error instanceof Error ? error.message : 'Unknown error while sending reminder';
+          summary.errors.push({ chatId: candidate.telegramId, reason });
+          console.error('Failed to send daily reminder', { chatId: candidate.telegramId, error });
+        }
+      })
+    );
   }
 
   summary.durationMs = Date.now() - startedAt;

@@ -19,7 +19,7 @@ import { ExtraTryModal } from '@/components/ExtraTryModal';
 import { TopCenterIcon } from '@/components/TopCenterIcon';
 import { buildKeyboardState } from '@/lib/game/feedback';
 import { evaluateGuess, normalizeGuess, validateDictionary } from '@/lib/game/feedback.client';
-import type { ArcadeStartResponse, GuessLine, ArcadeTheme } from '@/lib/contracts';
+import type { ArcadeStartResponse, GuessLine, ArcadeTheme } from '@/lib/types';
 import { hasTelegramInitData, waitForTelegramInitData } from '@/lib/telegram';
 import { trackEvent } from '@/lib/analytics';
 

@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
-import type { LetterState } from '@/lib/contracts';
+import type { LetterState } from '@/lib/types';
 
 const stateToClass: Record<LetterState | 'empty', string> = {
   correct: 'bg-green-500 text-white',

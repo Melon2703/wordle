@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './client';
-import type { ShopCatalog } from '../contracts';
+import type { ShopCatalog } from '../types';
 import { upsertTelegramUser } from './bot';
 
 type Client = SupabaseClient<Database>;

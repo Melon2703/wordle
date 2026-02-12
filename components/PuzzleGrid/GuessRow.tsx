@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import type { TileFeedback } from '@/lib/contracts';
+import type { TileFeedback } from '@/lib/types';
 import { Tile } from './Tile';
 
 interface GuessRowProps {
