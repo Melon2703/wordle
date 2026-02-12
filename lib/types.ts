@@ -39,13 +39,21 @@ export interface DailyGuessResponse {
   attemptsUsed: number;
 }
 
+export interface Hint {
+  letter: string;
+  position: number;
+}
+
 export interface ArcadeStartResponse {
   puzzleId: string;
+  sessionId: string;
   mode: 'arcade';
   length: 4 | 5 | 6;
   maxAttempts: number;
   serverNow: string;
   solution: string;
+  hintsUsed: Hint[];
+  hintEntitlementsAvailable: number;
 }
 
 export interface ArcadeGuessResponse {
@@ -145,4 +153,31 @@ export interface PrepareShareRequest {
 export interface PrepareShareResponse {
   ok: boolean;
   preparedMessageId: string;
+}
+
+// Hint system
+export interface ArcadeHintRequest {
+  sessionId: string;
+}
+
+export interface ArcadeHintResponse {
+  hints: Hint[];
+  entitlementsRemaining: number;
+}
+
+export interface ArcadeStatusResponse {
+  isArcadeAvailable: boolean;
+  newGameEntitlements: number;
+}
+
+export interface ArcadeUnlockResponse {
+  ok: boolean;
+  isArcadeAvailable: boolean;
+}
+
+export interface ArcadeSessionCheckResponse {
+  hasIncomplete: boolean;
+  session?: ArcadeStartResponse;
+  lines?: GuessLine[];
+  startedAt?: string;
 }

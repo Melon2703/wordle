@@ -1,11 +1,14 @@
 import type {
   ArcadeGuessResponse,
+  ArcadeHintRequest,
+  ArcadeHintResponse,
   ArcadeStartResponse,
   DailyBoardEntry,
   DailyGuessResponse,
   DailyLeaderboard,
   DailyPuzzlePayload,
   GuessLine,
+  Hint,
   LetterState,
   Product,
   ProductType,
@@ -15,12 +18,15 @@ import type {
 
 export type {
   ArcadeGuessResponse,
+  ArcadeHintRequest,
+  ArcadeHintResponse,
   ArcadeStartResponse,
   DailyBoardEntry,
   DailyGuessResponse,
   DailyLeaderboard,
   DailyPuzzlePayload,
   GuessLine,
+  Hint,
   LetterState,
   Product,
   ProductType,
@@ -99,11 +105,14 @@ export const sampleShopCatalog: ShopCatalog = {
 
 export const sampleArcadeStart: ArcadeStartResponse = {
   puzzleId: '00000000-0000-0000-0000-0000000000aa',
+  sessionId: '00000000-0000-0000-0000-0000000000bb',
   mode: 'arcade',
   length: 5,
   maxAttempts: 6,
   serverNow: new Date().toISOString(),
-  solution: 'СЛОВО'
+  solution: 'СЛОВО',
+  hintsUsed: [],
+  hintEntitlementsAvailable: 0
 };
 
 export const sampleArcadeGuess: ArcadeGuessResponse = {
