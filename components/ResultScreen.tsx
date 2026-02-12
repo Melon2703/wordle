@@ -11,13 +11,13 @@ interface ResultScreenProps {
   answer?: string;
   mode: 'daily' | 'arcade';
   timeMs?: number;
-  onNewGame?: (length: 4 | 5 | 6 | 7) => void;
+  onNewGame?: (length: 4 | 5 | 6) => void;
   // Grid props
   length: number;
   lines: GuessLine[];
 }
 
-const lengths: Array<4 | 5 | 6 | 7> = [4, 5, 6, 7];
+const lengths: Array<4 | 5 | 6> = [4, 5, 6];
 
 export function ResultScreen({ 
   status, 
@@ -29,7 +29,7 @@ export function ResultScreen({
   length,
   lines
 }: ResultScreenProps) {
-  const [selectedLength, setSelectedLength] = useState<4 | 5 | 6 | 7>(5);
+  const [selectedLength, setSelectedLength] = useState<4 | 5 | 6>(5);
 
   const resultCopy = status === 'won' ? 'Победа!' : 'Попробуйте снова';
   

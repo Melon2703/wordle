@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
@@ -13,7 +13,7 @@ import { buildKeyboardState } from '@/lib/game/feedback';
 import { evaluateGuess, normalizeGuess, validateDictionary } from '@/lib/game/feedback.client';
 import type { ArcadeStartResponse, GuessLine } from '@/lib/contracts';
 
-const lengths: Array<ArcadeStartResponse['length']> = [4, 5, 6, 7];
+const allLengths: Array<ArcadeStartResponse['length']> = [4, 5, 6];
 
 export default function ArcadePage() {
   const toast = useToast();
@@ -25,6 +25,28 @@ export default function ArcadePage() {
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [dictionaryCache, setDictionaryCache] = useState<Map<number, Set<string>>>(new Map());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [availableLengths, setAvailableLengths] = useState<Array<ArcadeStartResponse['length']>>([5]);
+
+  // Check Telegram user ID to determine available word lengths
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const checkTelegramUser = () => {
+      const tg = (window as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp;
+      if (tg?.initDataUnsafe?.user?.id === 626033046) {
+        setAvailableLengths(allLengths); // Show all lengths for specific user
+      } else {
+        setAvailableLengths([5]); // Only show 5-letter words for regular users
+      }
+    };
+
+    // Try immediately
+    checkTelegramUser();
+    
+    // Also try after a delay in case Telegram isn't ready yet
+    const timeout = setTimeout(checkTelegramUser, 1000);
+    return () => clearTimeout(timeout);
+  }, []);
 
   const startArcadeMutation = useMutation({
     mutationFn: (len: ArcadeStartResponse['length']) => startArcade(len, false),
@@ -259,7 +281,7 @@ export default function ArcadePage() {
                 {/* Word length selector */}
                 <div className="flex justify-center">
                   <div className="flex flex-wrap items-center gap-2">
-                    {lengths.map((len) => (
+                    {availableLengths.map((len) => (
                       <button
                         key={len}
                         type="button"

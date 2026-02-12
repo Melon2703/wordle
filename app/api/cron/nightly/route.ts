@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getServiceClient } from '../../../../lib/db/client';
-import { loadDictionary } from '../../../../lib/dict/loader';
 
 export const runtime = 'nodejs';
 
@@ -21,7 +20,6 @@ export async function GET(): Promise<Response> {
     });
     
     const client = getServiceClient();
-    const dictionary = await loadDictionary();
     
     // Get tomorrow's date
     const tomorrow = new Date();
@@ -38,35 +36,39 @@ export async function GET(): Promise<Response> {
       .single();
     
     if (!existingPuzzle) {
-      // Create tomorrow's daily puzzle
-      const answers = Array.from(dictionary.answers).filter(word => word.length === 5);
-      const randomAnswer = answers[Math.floor(Math.random() * answers.length)];
-      
-      // Get the word from database
-      const { data: solutionWord } = await client
+      // Create tomorrow's daily puzzle - query database directly for random 5-letter solution
+      const { data: solutionWords, error: wordError } = await client
         .from('dictionary_words')
-        .select('word_id')
-        .eq('text_norm', randomAnswer)
+        .select('word_id, text_norm')
         .eq('is_solution', true)
-        .single();
+        .eq('len', 5)
+        .limit(1000);
       
-      if (solutionWord) {
-        await client
-          .from('puzzles')
-          .insert({
-            mode: 'daily',
-            date: tomorrowStr,
-            letters: 5,
-            solution_word_id: solutionWord.word_id,
-            status: 'published',
-            seed: `daily-${tomorrowStr}`
-          });
-        
-        console.log('Created tomorrow\'s puzzle:', {
-          date: tomorrowStr,
-          answer: randomAnswer
-        });
+      if (wordError || !solutionWords || solutionWords.length === 0) {
+        console.error('No 5-letter solution words found for daily puzzle');
+        return NextResponse.json(
+          { error: 'No words available for daily puzzle' },
+          { status: 500 }
+        );
       }
+      
+      const randomAnswer = solutionWords[Math.floor(Math.random() * solutionWords.length)];
+      
+      await client
+        .from('puzzles')
+        .insert({
+          mode: 'daily',
+          date: tomorrowStr,
+          letters: 5,
+          solution_word_id: randomAnswer.word_id,
+          status: 'published',
+          seed: `daily-${tomorrowStr}`
+        });
+      
+      console.log('Created tomorrow\'s puzzle:', {
+        date: tomorrowStr,
+        answer: randomAnswer.text_norm
+      });
     }
     
     // Refresh leaderboard materialized view

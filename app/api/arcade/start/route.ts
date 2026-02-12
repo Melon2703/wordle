@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { requireAuthContext } from '../../../../lib/auth/validateInitData';
 import { getServiceClient } from '../../../../lib/db/client';
 import { getOrCreateProfile } from '../../../../lib/db/queries';
-import { loadDictionary } from '../../../../lib/dict/loader';
 import type { ArcadeStartResponse } from '../../../../lib/contracts';
 
 export const runtime = 'nodejs';
@@ -16,9 +15,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { length, hardMode = false } = body;
     
-    if (!length || ![4, 5, 6, 7].includes(length)) {
+    if (!length || ![4, 5, 6].includes(length)) {
       return NextResponse.json(
-        { error: 'Invalid length. Must be 4, 5, 6, or 7' },
+        { error: 'Invalid length. Must be 4, 5, or 6' },
         { status: 400 }
       );
     }
@@ -32,34 +31,23 @@ export async function POST(request: Request) {
       auth.parsed.user?.last_name
     );
     
-    // Load dictionary
-    const dictionary = await loadDictionary();
+    // Query database directly for random solution word of specified length
+    const { data: solutionWords, error: wordError } = await client
+      .from('dictionary_words')
+      .select('word_id, text_norm')
+      .eq('is_solution', true)
+      .eq('len', length)
+      .limit(1000); // Reasonable limit to avoid loading too many words
     
-    // Pick random word of specified length
-    const answers = Array.from(dictionary.answers).filter(word => word.length === length);
-    if (answers.length === 0) {
+    if (wordError || !solutionWords || solutionWords.length === 0) {
       return NextResponse.json(
         { error: 'No words available for this length' },
         { status: 400 }
       );
     }
     
-    const randomAnswer = answers[Math.floor(Math.random() * answers.length)];
-    
-    // Get the word from database
-    const { data: solutionWord } = await client
-      .from('dictionary_words')
-      .select('word_id')
-      .eq('text_norm', randomAnswer)
-      .eq('is_solution', true)
-      .single();
-    
-    if (!solutionWord) {
-      return NextResponse.json(
-        { error: 'Solution word not found in database' },
-        { status: 500 }
-      );
-    }
+    // Pick random word from the results
+    const randomWord = solutionWords[Math.floor(Math.random() * solutionWords.length)];
     
     // Create arcade puzzle
     const { data: puzzle, error: puzzleError } = await client
@@ -67,7 +55,7 @@ export async function POST(request: Request) {
       .insert({
         mode: 'arcade',
         letters: length,
-        solution_word_id: solutionWord.word_id,
+        solution_word_id: randomWord.word_id,
         status: 'published',
         seed: `arcade-${Date.now()}`
       })
@@ -104,10 +92,10 @@ export async function POST(request: Request) {
     const response: ArcadeStartResponse = {
       puzzleId: puzzle.puzzle_id,
       mode: 'arcade',
-      length: length as 4 | 5 | 6 | 7,
+      length: length as 4 | 5 | 6,
       maxAttempts: length + 1, // Allow one extra attempt for arcade
       serverNow: new Date().toISOString(),
-      solution: randomAnswer
+      solution: randomWord.text_norm
     };
     
     return NextResponse.json(response);

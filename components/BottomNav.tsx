@@ -41,6 +41,7 @@ export function BottomNav() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<SettingsState>(initialSettings);
   const [showShop, setShowShop] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Load settings from localStorage
   useEffect(() => {
@@ -63,6 +64,7 @@ export function BottomNav() {
       const tg = (window as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp;
       if (tg?.initDataUnsafe?.user?.id === 626033046) {
         setShowShop(true);
+        setShowSettings(true);
       }
     };
 
@@ -117,18 +119,20 @@ export function BottomNav() {
             );
           })}
           
-          {/* Settings button */}
-          <button
-            type="button"
-            onClick={handleSettingsClick}
-            className={clsx(
-              'flex h-12 w-12 items-center justify-center rounded-lg transition-colors',
-              'hover:bg-blue-50'
-            )}
-            aria-label="Настройки"
-          >
-            <Settings className="h-6 w-6" />
-          </button>
+          {/* Settings button - only show for specific user */}
+          {showSettings && (
+            <button
+              type="button"
+              onClick={handleSettingsClick}
+              className={clsx(
+                'flex h-12 w-12 items-center justify-center rounded-lg transition-colors',
+                'hover:bg-blue-50'
+              )}
+              aria-label="Настройки"
+            >
+              <Settings className="h-6 w-6" />
+            </button>
+          )}
         </div>
       </nav>
       
