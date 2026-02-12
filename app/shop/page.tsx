@@ -1,35 +1,22 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getShopCatalog, purchaseProduct, cleanupCancelledPurchase } from '@/lib/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getShopCatalog } from '@/lib/api';
 import { useToast } from '@/components/ToastCenter';
 import { LoadingFallback } from '@/components/LoadingFallback';
 import { Button, Card, Heading, Text, Badge } from '@/components/ui';
-import { invoice } from '@tma.js/sdk';
 import { trackEvent } from '@/lib/analytics';
+import { useTelegramReady } from '@/lib/hooks/useTelegramReady';
+import { executePurchaseFlow } from '@/lib/purchase';
 
 export default function ShopPage() {
-  const [isTelegramReady, setIsTelegramReady] = useState(false);
+  const { isTelegramReady } = useTelegramReady();
+  const [isPurchasing, setIsPurchasing] = useState(false);
   const queryClient = useQueryClient();
   const { notify } = useToast();
   const readyLoggedRef = useRef(false);
   const catalogLoggedRef = useRef(false);
-
-  // Wait for Telegram WebApp to provide init data before fetching catalog
-  useEffect(() => {
-    const checkTelegramReady = () => {
-      const tg = (window as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
-
-      if (tg && tg.initData) {
-        setIsTelegramReady(true);
-      } else {
-        setTimeout(checkTelegramReady, 100);
-      }
-    };
-
-    checkTelegramReady();
-  }, []);
 
   useEffect(() => {
     if (!isTelegramReady || readyLoggedRef.current) {
@@ -39,8 +26,8 @@ export default function ShopPage() {
     trackEvent('shop_ready_state', { mode: 'shop', ready: true });
   }, [isTelegramReady]);
 
-  const { data, isLoading } = useQuery({ 
-    queryKey: ['shop', 'catalog'], 
+  const { data, isLoading } = useQuery({
+    queryKey: ['shop', 'catalog'],
     queryFn: getShopCatalog,
     enabled: isTelegramReady
   });
@@ -56,62 +43,31 @@ export default function ShopPage() {
     });
   }, [data]);
 
-  const purchaseMutation = useMutation({
-    mutationFn: purchaseProduct,
-    onSuccess: () => {
-      notify('Покупка завершена успешно!');
-      queryClient.invalidateQueries({ queryKey: ['purchases'] });
-    },
-    onError: () => {
-      notify('Ошибка при покупке');
-    }
-  });
-
   const handlePurchase = async (productId: string) => {
+    setIsPurchasing(true);
     try {
       trackEvent('shop_product_clicked', {
         mode: 'shop',
         product_id: productId
       });
-      // First, create the purchase record via API
-      const purchaseResult = await purchaseProduct(productId);
-      
-      // Use the real invoice URL from Telegram Bot API
-      const invoiceUrl = purchaseResult.invoice_url;
-      
-      // Open the invoice using TMA.js SDK (correct method for invoice links)
-      const result = await invoice.openUrl(invoiceUrl);
-      
-      if (result === 'paid') {
-        notify('Покупка завершена успешно!');
-        queryClient.invalidateQueries({ queryKey: ['purchases'] });
-        trackEvent('shop_purchase_result', {
-          mode: 'shop',
-          product_id: productId,
-          payment_outcome: 'paid'
-        });
-      } else {
-        // Payment was cancelled - clean up the pending purchase
-        try {
-          await cleanupCancelledPurchase(purchaseResult.purchase_id);
-        } catch {
-          // Don't fail the whole operation if cleanup fails
+
+      const outcome = await executePurchaseFlow(productId, {
+        eventName: 'shop_purchase_result',
+        eventParams: { mode: 'shop', product_id: productId },
+        onPaid: () => {
+          notify('Покупка завершена успешно!');
+          queryClient.invalidateQueries({ queryKey: ['purchases'] });
+        },
+        onCancelled: () => {
+          notify('Покупка отменена');
         }
-        notify('Покупка отменена');
-        trackEvent('shop_purchase_result', {
-          mode: 'shop',
-          product_id: productId,
-          payment_outcome: 'cancelled'
-        });
-      }
-      
-    } catch {
-      notify('Ошибка при покупке');
-      trackEvent('shop_purchase_result', {
-        mode: 'shop',
-        product_id: productId,
-        payment_outcome: 'failed'
       });
+
+      if (outcome === 'failed') {
+        notify('Ошибка при покупке');
+      }
+    } finally {
+      setIsPurchasing(false);
     }
   };
 
@@ -147,10 +103,10 @@ export default function ShopPage() {
             <Button
               fullWidth
               onClick={() => handlePurchase(product.id)}
-              disabled={purchaseMutation.isPending}
+              disabled={isPurchasing}
               className="mt-4"
             >
-              {purchaseMutation.isPending ? 'Покупка...' : 'Получить'}
+              {isPurchasing ? 'Покупка...' : 'Получить'}
             </Button>
           </Card>
         ))}

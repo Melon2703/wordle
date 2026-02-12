@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { Banner } from '@/lib/types';
 import { trackEvent } from '@/lib/analytics';
+import { usePrefersReducedMotion } from '@/lib/hooks/usePrefersReducedMotion';
 
 interface BannerProps {
   banner: Banner;
@@ -26,19 +27,9 @@ const ctaStyles = {
 
 export function Banner({ banner, onDismiss }: BannerProps) {
   const [isVisible, setIsVisible] = useState(true);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const prefersReducedMotion = usePrefersReducedMotion();
   const hasLoggedImpressionRef = useRef(false);
 
-  // Check for reduced motion preference
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setPrefersReducedMotion(mediaQuery.matches);
-    
-    const handleChange = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
-    mediaQuery.addEventListener('change', handleChange);
-    
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
 
   const handleDismiss = () => {
     trackEvent('home_banner_dismissed', {
@@ -90,9 +81,8 @@ export function Banner({ banner, onDismiss }: BannerProps) {
 
   return (
     <div
-      className={`relative rounded-lg border px-4 py-3 text-sm transition-all duration-150 ${
-        prefersReducedMotion ? '' : 'animate-in slide-in-from-top-2'
-      } ${variantStyles[banner.variant]}`}
+      className={`relative rounded-lg border px-4 py-3 text-sm transition-all duration-150 ${prefersReducedMotion ? '' : 'animate-in slide-in-from-top-2'
+        } ${variantStyles[banner.variant]}`}
       role="banner"
       aria-live="polite"
     >
@@ -108,9 +98,8 @@ export function Banner({ banner, onDismiss }: BannerProps) {
         {banner.ctaText && banner.ctaLink && (
           <button
             onClick={handleCtaClick}
-            className={`flex-shrink-0 text-sm font-medium underline-offset-2 hover:underline transition-colors ${
-              ctaStyles[banner.variant]
-            }`}
+            className={`flex-shrink-0 text-sm font-medium underline-offset-2 hover:underline transition-colors ${ctaStyles[banner.variant]
+              }`}
             aria-label={`${banner.ctaText} - ${banner.message}`}
           >
             {banner.ctaText}

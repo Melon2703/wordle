@@ -1,37 +1,24 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { getUserPurchases, refundPurchase, type Purchase } from '@/lib/api';
 import { useToast } from '@/components/ToastCenter';
 import { LoadingFallback } from '@/components/LoadingFallback';
 import { Button, Card, Heading, Text, Badge } from '@/components/ui';
 import { popup, hapticFeedback } from '@tma.js/sdk';
 import { trackEvent } from '@/lib/analytics';
+import { useTelegramReady } from '@/lib/hooks/useTelegramReady';
 
 export default function PurchasesPage() {
-  const [isTelegramReady, setIsTelegramReady] = useState(false);
+  const { isTelegramReady } = useTelegramReady();
   const queryClient = useQueryClient();
   const { notify } = useToast();
   const purchasesLoadedRef = useRef(false);
   const pendingRefundRef = useRef<{ purchaseId: string; starsAmount: number } | null>(null);
 
-  // Wait for Telegram WebApp to be ready
-  useEffect(() => {
-    const checkTelegramReady = () => {
-      const tg = (window as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
-      if (tg && tg.initData) {
-        setIsTelegramReady(true);
-      } else {
-        setTimeout(checkTelegramReady, 100);
-      }
-    };
-
-    checkTelegramReady();
-  }, []);
-
-  const { data: purchases, isLoading } = useQuery({ 
-    queryKey: ['purchases'], 
+  const { data: purchases, isLoading } = useQuery({
+    queryKey: ['purchases'],
     queryFn: getUserPurchases,
     enabled: isTelegramReady,
     staleTime: 30 * 1000 // 30 seconds
@@ -44,7 +31,7 @@ export default function PurchasesPage() {
       if (hapticFeedback.isSupported()) {
         hapticFeedback.notificationOccurred('success');
       }
-      
+
       notify('Возврат обработан успешно');
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
       if (pendingRefundRef.current) {
@@ -60,7 +47,7 @@ export default function PurchasesPage() {
       if (hapticFeedback.isSupported()) {
         hapticFeedback.notificationOccurred('error');
       }
-      
+
       notify('Ошибка при обработке возврата');
       if (pendingRefundRef.current) {
         trackEvent('purchase_refund_result', {
@@ -91,13 +78,13 @@ export default function PurchasesPage() {
     if (hapticFeedback.isSupported()) {
       hapticFeedback.impactOccurred('medium');
     }
-    
+
     trackEvent('purchase_refund_clicked', {
       mode: 'purchases',
       purchase_id: purchaseId,
       stars_amount: starsAmount
     });
-    
+
     // Check if popup is supported
     if (!popup.isSupported()) {
       if (confirm('Вы уверены, что хотите вернуть эту покупку?')) {
@@ -115,11 +102,11 @@ export default function PurchasesPage() {
       }
       return;
     }
-    
+
     try {
       // Use standard browser confirmation for now
       const confirmed = confirm(`Вы уверены, что хотите вернуть "${productTitle}" за ⭐ ${starsAmount}?`);
-      
+
       if (confirmed) {
         pendingRefundRef.current = { purchaseId, starsAmount };
         trackEvent('purchase_refund_confirmed', {
@@ -134,7 +121,7 @@ export default function PurchasesPage() {
           purchase_id: purchaseId
         });
       }
-      
+
     } catch (error) {
       console.error('Refund confirmation error');
       // Fallback to standard confirmation
@@ -197,8 +184,8 @@ export default function PurchasesPage() {
                       <Heading level={3}>
                         {purchase.products?.title_ru || 'Неизвестный товар'}
                       </Heading>
-                      <Badge 
-                        variant={getStatusVariant(purchase.status)} 
+                      <Badge
+                        variant={getStatusVariant(purchase.status)}
                         size="sm"
                       >
                         {getStatusText(purchase.status)}
@@ -224,7 +211,7 @@ export default function PurchasesPage() {
                       variant="danger"
                       size="sm"
                       onClick={() => handleRefund(
-                        purchase.purchase_id, 
+                        purchase.purchase_id,
                         purchase.products?.title_ru || 'Неизвестный товар',
                         purchase.stars_amount
                       )}

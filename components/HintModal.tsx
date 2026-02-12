@@ -6,11 +6,9 @@ import { Button, Heading, Text } from '@/components/ui';
 import { X } from 'lucide-react';
 import { Tile } from '@/components/PuzzleGrid/Tile';
 import type { Hint } from '@/lib/types';
-import { purchaseProduct, cleanupCancelledPurchase } from '@/lib/api';
-import { invoice } from '@tma.js/sdk';
 import { useToast } from '@/components/ToastCenter';
 import { waitForTelegramInitData } from '@/lib/telegram';
-import { trackEvent } from '@/lib/analytics';
+import { executePurchaseFlow } from '@/lib/purchase';
 
 interface HintModalProps {
   isOpen: boolean;
@@ -53,49 +51,31 @@ export function HintModal({
 
     setIsPurchasing(true);
     try {
-      trackEvent('arcade_hint_purchase_flow', {
-        mode: 'arcade',
-        product_id: 'arcade_hint',
-        stage: 'started'
-      });
       const ready = await waitForTelegramInitData();
       if (!ready) {
         notify('Телеграм еще загружается, попробуйте чуть позже');
         return;
       }
 
-      const purchaseResult = await purchaseProduct('arcade_hint');
-      const invoiceUrl = purchaseResult.invoice_url;
-      
-      const result = await invoice.openUrl(invoiceUrl);
-      
-      if (result === 'paid') {
-        notify('Покупка завершена успешно!');
-        queryClient.invalidateQueries({ queryKey: ['purchases'] });
-        setConfirming(false);
-        if (onPurchaseComplete) {
-          await onPurchaseComplete();
+      const outcome = await executePurchaseFlow('arcade_hint', {
+        eventName: 'arcade_hint_purchase_flow',
+        eventParams: { mode: 'arcade' },
+        onPaid: async () => {
+          notify('Покупка завершена успешно!');
+          queryClient.invalidateQueries({ queryKey: ['purchases'] });
+          setConfirming(false);
+          if (onPurchaseComplete) {
+            await onPurchaseComplete();
+          }
+        },
+        onCancelled: () => {
+          notify('Покупка отменена');
         }
-      } else {
-        try {
-          await cleanupCancelledPurchase(purchaseResult.purchase_id);
-        } catch {
-          // Don't fail the whole operation if cleanup fails
-        }
-        notify('Покупка отменена');
-        trackEvent('arcade_hint_purchase_flow', {
-          mode: 'arcade',
-          product_id: 'arcade_hint',
-          stage: 'cancelled'
-        });
-      }
-    } catch {
-      notify('Ошибка при покупке');
-      trackEvent('arcade_hint_purchase_flow', {
-        mode: 'arcade',
-        product_id: 'arcade_hint',
-        stage: 'failed'
       });
+
+      if (outcome === 'failed') {
+        notify('Ошибка при покупке');
+      }
     } finally {
       setIsPurchasing(false);
     }

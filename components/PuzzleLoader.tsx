@@ -4,13 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import type { LetterState } from '@/lib/types';
-
-const stateToClass: Record<LetterState | 'empty', string> = {
-  correct: 'bg-green-500 text-white',
-  present: 'bg-yellow-400 text-slate-800',
-  absent: 'bg-gray-300 text-slate-800 opacity-80',
-  empty: 'bg-white text-slate-800 opacity-60'
-};
+import { stateToClass } from '@/lib/game/tile-colors';
 
 interface PuzzleLoaderProps {
   length?: number;
@@ -35,7 +29,7 @@ export function PuzzleLoader({ length = 5 }: PuzzleLoaderProps) {
       setAnimationPhase('flipping');
       setCurrentTileIndex(0);
       const randomStates = generateRandomStates();
-      
+
       // Flip tiles one by one with random colors
       intervalId = setInterval(() => {
         setCurrentTileIndex((prevIndex) => {
@@ -55,12 +49,12 @@ export function PuzzleLoader({ length = 5 }: PuzzleLoaderProps) {
             });
             clearInterval(intervalId);
             setAnimationPhase('colored');
-            
+
             // Wait 1 second, then flip back
             timeoutId = setTimeout(() => {
               setAnimationPhase('flipping-back');
               setCurrentTileIndex(0);
-              
+
               // Flip back to empty one by one
               intervalId = setInterval(() => {
                 setCurrentTileIndex((prevIndex) => {
@@ -80,20 +74,20 @@ export function PuzzleLoader({ length = 5 }: PuzzleLoaderProps) {
                     });
                     clearInterval(intervalId);
                     setAnimationPhase('empty');
-                    
+
                     // Wait 1 second, then start next cycle
                     timeoutId = setTimeout(() => {
                       startAnimationCycle();
                     }, 1000);
-                    
+
                     return prevIndex;
                   }
                 });
               }, 90); // Slightly faster flip back
-              
+
               return prevIndex;
             }, 1000);
-            
+
             return prevIndex;
           }
         });
@@ -113,19 +107,19 @@ export function PuzzleLoader({ length = 5 }: PuzzleLoaderProps) {
 
   return (
     <div className="flex justify-center">
-      <div 
+      <div
         className="grid justify-center"
-        style={{ 
+        style={{
           gap: '3px', // Smaller gap for 1/3 scale
           gridTemplateColumns: `repeat(${length}, 19px)` // 1/3 of 56px ≈ 19px
         }}
       >
         {Array.from({ length }).map((_, index) => {
           const state = tileStates[index];
-          const isCurrentlyFlipping = 
+          const isCurrentlyFlipping =
             (animationPhase === 'flipping' && index === currentTileIndex) ||
             (animationPhase === 'flipping-back' && index === currentTileIndex);
-          
+
           return (
             <motion.span
               key={index}

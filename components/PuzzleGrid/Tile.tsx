@@ -3,13 +3,7 @@
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import type { LetterState } from '@/lib/types';
-
-const stateToClass: Record<LetterState | 'empty', string> = {
-  correct: 'bg-green-500 text-white',
-  present: 'bg-yellow-400 text-slate-800',
-  absent: 'bg-gray-300 text-slate-800 opacity-80',
-  empty: 'bg-white text-slate-800 opacity-60'
-};
+import { stateToClass } from '@/lib/game/tile-colors';
 
 interface TileProps {
   letter?: string;
@@ -20,7 +14,7 @@ interface TileProps {
 
 export function Tile({ letter, state, delay = 0, isFlashing = false }: TileProps) {
   const variant = state ?? 'empty';
-  
+
   return (
     <motion.span
       className={clsx(

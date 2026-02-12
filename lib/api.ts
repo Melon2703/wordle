@@ -1,5 +1,4 @@
 import type {
-  ArcadeGuessResponse,
   ArcadeStartResponse,
   ArcadeTheme,
   DailyGuessResponse,
@@ -10,23 +9,9 @@ import type { UserStatus, Banner, ArcadeSessionCheckResponse, SavedWord } from '
 
 
 
-// Telegram WebApp types
+// Telegram WebApp types (internal to this module)
 interface TelegramWebApp {
   initData?: string;
-  version?: string;
-  platform?: string;
-  ready?: boolean;
-  showPopup?: (params: {
-    title?: string;
-    message: string;
-    buttons?: Array<{
-      id?: string;
-      type?: 'default' | 'ok' | 'close' | 'cancel' | 'destructive';
-      text?: string;
-    }>;
-  }, callback?: (buttonId: string) => void) => void;
-  openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
-  openTelegramLink?: (url: string) => void;
 }
 
 interface TelegramWindow {
@@ -36,36 +21,6 @@ interface TelegramWindow {
   tg?: {
     WebApp?: TelegramWebApp;
   };
-}
-
-// Helper function to open user profile with confirmation
-export async function openUserProfile(username: string, displayName: string): Promise<void> {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  const tg = (window as TelegramWindow).Telegram?.WebApp;
-  if (!tg?.showPopup || !tg?.openTelegramLink) {
-    return;
-  }
-
-  try {
-    tg.showPopup({
-      title: 'Открыть профиль?',
-      message: `Вы хотите открыть профиль пользователя ${displayName}?`,
-      buttons: [
-        { id: 'cancel', type: 'cancel', text: 'Отмена' },
-        { id: 'open', type: 'default', text: 'Открыть' }
-      ]
-    }, (buttonId) => {
-      if (buttonId === 'open') {
-        const profileUrl = `https://t.me/${username}`;
-        tg.openTelegramLink?.(profileUrl);
-      }
-    });
-  } catch (error) {
-    console.error('Error showing popup:', error);
-  }
 }
 
 // Helper to get Telegram init data from window with comprehensive detection
@@ -159,18 +114,7 @@ export async function startArcade(
   return handleResponse<ArcadeStartResponse>(response);
 }
 
-export async function submitArcadeGuess(
-  puzzleId: string,
-  guess: string
-): Promise<ArcadeGuessResponse> {
-  const response = await fetch('/api/arcade/guess', {
-    method: 'POST',
-    headers: createHeaders(),
-    body: JSON.stringify({ puzzleId, guess })
-  });
 
-  return handleResponse<ArcadeGuessResponse>(response);
-}
 
 export async function getShopCatalog(): Promise<ShopCatalog> {
   // Try to get init data with retry mechanism
@@ -189,13 +133,7 @@ export async function getShopCatalog(): Promise<ShopCatalog> {
   return handleResponse<ShopCatalog>(response);
 }
 
-export async function checkDictionaryWord(word: string): Promise<{ valid: boolean }> {
-  const response = await fetch(`/api/dict/check?word=${encodeURIComponent(word)}`, {
-    headers: createHeaders()
-  });
 
-  return handleResponse<{ valid: boolean }>(response);
-}
 
 export async function getDictionaryWords(length: 4 | 5 | 6 | 7, theme: ArcadeTheme): Promise<Set<string>> {
   const response = await fetch(`/api/dict/words?length=${length}&theme=${theme}`, {

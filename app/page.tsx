@@ -9,23 +9,16 @@ import { Button, Card, Heading, Text } from '@/components/ui';
 import { getUserStatus, getActiveBanners, getDailyPuzzle, getSavedWords } from '@/lib/api';
 import { CircleDashed, CheckCircle2, XCircle, Play, Flame, Clock, BookMarked, CalendarCheck2, Zap } from 'lucide-react';
 import { trackEvent } from '@/lib/analytics';
+import { usePrefersReducedMotion } from '@/lib/hooks/usePrefersReducedMotion';
+import { useCountdown } from '@/lib/hooks/useCountdown';
+import { pluralizeRu } from '@/lib/pluralize';
 
 export default function HomePage() {
   const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set());
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const [timeUntilNext, setTimeUntilNext] = useState<string>('');
+  const prefersReducedMotion = usePrefersReducedMotion();
   const savedWordsLoggedRef = useRef(false);
 
-  // Check for reduced motion preference
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setPrefersReducedMotion(mediaQuery.matches);
-    
-    const handleChange = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
-    mediaQuery.addEventListener('change', handleChange);
-    
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
+
 
   // Load dismissed banners from localStorage
   useEffect(() => {
@@ -40,13 +33,7 @@ export default function HomePage() {
     }
   }, []);
 
-  // Check for onboarding completion
-  useEffect(() => {
-    const onboardingCompleted = localStorage.getItem('wordle-onboarding-completed');
-    if (!onboardingCompleted) {
-      // Onboarding can be handled elsewhere if needed
-    }
-  }, []);
+
 
   // Fetch user status
   const { data: userStatus, isLoading: statusLoading } = useQuery({
@@ -78,35 +65,7 @@ export default function HomePage() {
     });
   }, [savedWords, savedWordsLoading]);
 
-  // Update countdown timer
-  useEffect(() => {
-    if (!userStatus?.nextPuzzleAt) return;
-
-    const updateCountdown = () => {
-      const now = new Date();
-      const nextPuzzle = new Date(userStatus.nextPuzzleAt);
-      const diff = nextPuzzle.getTime() - now.getTime();
-
-      if (diff <= 0) {
-        setTimeUntilNext('Новая загадка готова!');
-        return;
-      }
-
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-      if (hours > 0) {
-        setTimeUntilNext(`${hours}ч ${minutes}м`);
-      } else {
-        setTimeUntilNext(`${minutes}м`);
-      }
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 60000); // Update every minute
-
-    return () => clearInterval(interval);
-  }, [userStatus?.nextPuzzleAt]);
+  const timeUntilNext = useCountdown(userStatus?.nextPuzzleAt);
 
   // Fetch banners
   const { data: banners = [], isLoading: bannersLoading } = useQuery({
@@ -153,7 +112,7 @@ export default function HomePage() {
 
   // Determine smart badges
   const isFirstTime = userStatus?.streak === 0 && userStatus?.dailyStatus === 'not_started';
-  const isNearMidnight = userStatus?.nextPuzzleAt ? 
+  const isNearMidnight = userStatus?.nextPuzzleAt ?
     new Date(userStatus.nextPuzzleAt).getTime() - Date.now() < 30 * 60 * 1000 : false;
 
   // Status helper functions
@@ -181,48 +140,22 @@ export default function HomePage() {
     if (savedWordsLoading) {
       return 'Загружаем словарь…';
     }
-
     const count = savedWords?.length ?? 0;
     if (count === 0) {
       return 'Пока нет сохраненных слов';
     }
-
-    const remainder10 = count % 10;
-    const remainder100 = count % 100;
-
-    if (remainder10 === 1 && remainder100 !== 11) {
-      return `${count} слово`;
-    }
-
-    if (remainder10 >= 2 && remainder10 <= 4 && (remainder100 < 12 || remainder100 > 14)) {
-      return `${count} слова`;
-    }
-
-    return `${count} слов`;
+    return pluralizeRu(count, 'слово', 'слова', 'слов');
   };
 
   const getArcadeSolvedText = () => {
     if (statusLoading) {
       return 'Загружаем…';
     }
-
     const count = userStatus?.arcadeSolved ?? 0;
     if (count === 0) {
       return 'Пока нет решенных';
     }
-
-    const remainder10 = count % 10;
-    const remainder100 = count % 100;
-
-    if (remainder10 === 1 && remainder100 !== 11) {
-      return `${count} решена`;
-    }
-
-    if (remainder10 >= 2 && remainder10 <= 4 && (remainder100 < 12 || remainder100 > 14)) {
-      return `${count} решены`;
-    }
-
-    return `${count} решено`;
+    return pluralizeRu(count, 'решена', 'решены', 'решено');
   };
 
   return (
@@ -246,9 +179,8 @@ export default function HomePage() {
         <Link
           href="/daily"
           onClick={() => handleCardTap('daily')}
-          className={`block ${prefersReducedMotion ? '' : 'hover:-translate-y-0.5'} ${
-            isFirstTime ? 'ring-2 ring-blue-300 ring-opacity-50' : ''
-          }`}
+          className={`block ${prefersReducedMotion ? '' : 'hover:-translate-y-0.5'} ${isFirstTime ? 'ring-2 ring-blue-300 ring-opacity-50' : ''
+            }`}
           aria-label="Ежедневная загадка - одна загадка в день"
         >
           <Card padding="lg" interactive className="text-center">
@@ -258,7 +190,7 @@ export default function HomePage() {
                 <Heading level={2}>Ежедневная загадка</Heading>
                 <Text className="mt-1">Отгадывайте новое слово каждый день</Text>
               </div>
-            
+
               {/* Status Row */}
               {!statusLoading && userStatus && (
                 <div className="flex items-center justify-center gap-4 text-caption">
@@ -267,13 +199,13 @@ export default function HomePage() {
                     {getStatusIcon(userStatus.dailyStatus)}
                     <span>{getStatusText(userStatus.dailyStatus)}</span>
                   </div>
-                  
+
                   {/* Streak */}
                   <div className="flex items-center gap-1">
                     <Flame className="w-4 h-4 text-orange-500" />
                     <span>{userStatus.streak}</span>
                   </div>
-                  
+
                   {/* Countdown */}
                   <div className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
@@ -281,7 +213,7 @@ export default function HomePage() {
                   </div>
                 </div>
               )}
-              
+
               {isNearMidnight && (
                 <div className="inline-block rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700">
                   Скоро!

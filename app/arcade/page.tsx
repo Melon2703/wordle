@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { KeyboardCyr } from '@/components/KeyboardCyr';
 import { PuzzleGrid } from '@/components/PuzzleGrid';
@@ -12,16 +12,16 @@ import { SaveWordButton } from '@/components/SaveWordButton';
 import { useToast } from '@/components/ToastCenter';
 import { triggerHaptic } from '@/components/HapticsBridge';
 import { Button, Card, Heading, Text } from '@/components/ui';
-import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess, getArcadeStatus, unlockArcade, useExtraTry as callUseExtraTry, finishExtraTry, purchaseProduct, cleanupCancelledPurchase, getUserStatus } from '@/lib/api';
-import { invoice } from '@tma.js/sdk';
+import { startArcade, completeArcadeSession, getDictionaryWords, callArcadeHint, checkArcadeSession, recordArcadeGuess, getArcadeStatus, unlockArcade, useExtraTry as callUseExtraTry, finishExtraTry, getUserStatus } from '@/lib/api';
 import { HintModal } from '@/components/HintModal';
 import { ExtraTryModal } from '@/components/ExtraTryModal';
 import { TopCenterIcon } from '@/components/TopCenterIcon';
 import { buildKeyboardState } from '@/lib/game/feedback';
 import { evaluateGuess, normalizeGuess, validateDictionary } from '@/lib/game/feedback.client';
 import type { ArcadeStartResponse, GuessLine, ArcadeTheme } from '@/lib/types';
-import { hasTelegramInitData, waitForTelegramInitData } from '@/lib/telegram';
 import { trackEvent } from '@/lib/analytics';
+import { useTelegramReady } from '@/lib/hooks/useTelegramReady';
+import { executePurchaseFlow } from '@/lib/purchase';
 
 const allLengths: Array<ArcadeStartResponse['length']> = [4, 5, 6];
 const defaultLength: ArcadeStartResponse['length'] = 5;
@@ -57,8 +57,8 @@ export default function ArcadePage() {
   const [showExtraTryModal, setShowExtraTryModal] = useState(false);
   const [isUsingExtraTry, setIsUsingExtraTry] = useState(false);
   const [isStatusLoading, setIsStatusLoading] = useState(true);
-  const [isTelegramReady, setIsTelegramReady] = useState(() => hasTelegramInitData());
-  
+  const { isTelegramReady, ensureTelegramReady } = useTelegramReady();
+
   // Track pending record requests
   const pendingRecords = useRef<Promise<unknown>[]>([]);
   const sessionRestoredRef = useRef(false);
@@ -95,56 +95,10 @@ export default function ArcadePage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (isTelegramReady) {
-      return;
-    }
-
-    let isMounted = true;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const pollTelegram = () => {
-      if (!isMounted) {
-        return;
-      }
-
-      if (hasTelegramInitData()) {
-        setIsTelegramReady(true);
-        return;
-      }
-
-      timeoutId = setTimeout(pollTelegram, 100);
-    };
-
-    pollTelegram();
-
-    return () => {
-      isMounted = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [isTelegramReady]);
-
-  const ensureTelegramReady = useCallback(async () => {
-    if (isTelegramReady) {
-      return true;
-    }
-
-    const ready = await waitForTelegramInitData({ timeoutMs: 4000, intervalMs: 100 });
-    if (!ready) {
-      toast.notify('Телеграм еще загружается, попробуйте чуть позже');
-      return false;
-    }
-
-    setIsTelegramReady(true);
-    return true;
-  }, [isTelegramReady, toast]);
-
   // Check Telegram user ID to determine available word lengths
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
+
     const checkTelegramUser = () => {
       const tg = (window as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp;
       if (tg?.initDataUnsafe?.user?.id === 626033046) {
@@ -156,7 +110,7 @@ export default function ArcadePage() {
 
     // Try immediately
     checkTelegramUser();
-    
+
     // Also try after a delay in case Telegram isn't ready yet
     const timeout = setTimeout(checkTelegramUser, 1000);
     return () => clearTimeout(timeout);
@@ -228,7 +182,7 @@ export default function ArcadePage() {
         hint_entitlements: sessionData.hintEntitlementsAvailable,
         extra_try_entitlements: sessionData.extraTryEntitlementsAvailable
       });
-      
+
       // Fetch dictionary if not cached
       const cacheKey = getDictionaryKey(sessionData.length, sessionData.theme);
       if (!dictionaryCache.has(cacheKey)) {
@@ -262,11 +216,11 @@ export default function ArcadePage() {
     if (!session) {
       throw new Error('No active session');
     }
-    
+
     const normalizedGuess = normalizeGuess(guess, false);
     // why: normalize both guess and solution to lowercase for consistent comparison
     const feedback = evaluateGuess(normalizedGuess.toLowerCase(), session.solution.toLowerCase());
-    
+
     return {
       guess: normalizedGuess,
       submittedAt: new Date().toISOString(),
@@ -290,7 +244,7 @@ export default function ArcadePage() {
           toast.notify('Не удалось восстановить игру. Начните новую.');
           return;
         }
-        
+
         setSession(incompleteSession.session);
         setLines(incompleteSession.lines);
         setHintEntitlementsRemaining(incompleteSession.session.hintEntitlementsAvailable);
@@ -306,13 +260,13 @@ export default function ArcadePage() {
             extra_try_entitlements: incompleteSession.session.extraTryEntitlementsAvailable
           });
         }
-        
+
         // Check if this is a last-attempt loss that should show the extra try modal
         if (incompleteSession.lines.length > 0) {
           const lastLine = incompleteSession.lines[incompleteSession.lines.length - 1];
           const isWin = lastLine.feedback.every(f => f.state === 'correct');
           const isLastAttempt = incompleteSession.lines.length >= incompleteSession.session.maxAttempts;
-          
+
           if (!isWin && isLastAttempt) {
             if (!extraTryPromptLoggedRef.current) {
               extraTryPromptLoggedRef.current = true;
@@ -325,7 +279,7 @@ export default function ArcadePage() {
             setShowExtraTryModal(true);
           }
         }
-        
+
         // Set session start time
         if (incompleteSession.startedAt) {
           const startedAtMs = new Date(incompleteSession.startedAt).getTime();
@@ -334,13 +288,13 @@ export default function ArcadePage() {
         } else {
           setSessionStartTime(Date.now());
         }
-        
+
         const sessionTheme = incompleteSession.session.theme ?? defaultTheme;
 
         // Set active selectors to match restored session
         setActiveLength(incompleteSession.session.length);
         setActiveTheme(sessionTheme);
-        
+
         // Fetch dictionary if not cached
         const cacheKey = getDictionaryKey(incompleteSession.session.length, sessionTheme);
         if (!dictionaryCache.has(cacheKey)) {
@@ -356,7 +310,7 @@ export default function ArcadePage() {
               toast.notify('Не удалось загрузить словарь. Проверка слов недоступна.');
             });
         }
-        
+
       } catch {
         toast.notify('Ошибка при восстановлении игры. Начните новую.');
         // Clear the invalid session state
@@ -375,7 +329,7 @@ export default function ArcadePage() {
       const lastLine = lines[lines.length - 1];
       const isWin = lastLine.feedback.every(f => f.state === 'correct');
       const isLastAttempt = lines.length >= session.maxAttempts;
-      
+
       if (!isWin && isLastAttempt && !showExtraTryModal) {
         if (!extraTryPromptLoggedRef.current) {
           extraTryPromptLoggedRef.current = true;
@@ -406,7 +360,7 @@ export default function ArcadePage() {
 
   const handleUseHint = async () => {
     if (!session?.sessionId) return;
-    
+
     setIsLoadingHint(true);
     try {
       const response = await callArcadeHint(session.sessionId);
@@ -491,21 +445,14 @@ export default function ArcadePage() {
   const handleBuyGames = async () => {
     const ready = await ensureTelegramReady();
     if (!ready) {
+      toast.notify('Телеграм еще загружается, попробуйте чуть позже');
       return;
     }
 
-    try {
-      trackEvent('arcade_unlock_games_flow', {
-        mode: 'arcade',
-        product_id: 'arcade_new_game',
-        stage: 'started'
-      });
-      const purchaseResult = await purchaseProduct('arcade_new_game');
-      const invoiceUrl = purchaseResult.invoice_url;
-      
-      const result = await invoice.openUrl(invoiceUrl);
-      
-      if (result === 'paid') {
+    const outcome = await executePurchaseFlow('arcade_new_game', {
+      eventName: 'arcade_unlock_games_flow',
+      eventParams: { mode: 'arcade' },
+      onPaid: async () => {
         toast.notify('Покупка завершена успешно!');
         const status = await getArcadeStatus();
         const credits = Math.max(0, Math.min(status.arcadeCredits ?? 0, maxArcadeCredits));
@@ -513,42 +460,24 @@ export default function ArcadePage() {
         setNewGameEntitlements(status.newGameEntitlements);
         queryClient.invalidateQueries({ queryKey: ['arcade', 'status'] });
         queryClient.invalidateQueries({ queryKey: ['purchases'] });
-        trackEvent('arcade_unlock_games_flow', {
-          mode: 'arcade',
-          product_id: 'arcade_new_game',
-          stage: 'completed',
-          arcade_credits: credits
-        });
-      } else {
-        try {
-          await cleanupCancelledPurchase(purchaseResult.purchase_id);
-        } catch {
-          // Don't fail the whole operation if cleanup fails
-        }
+      },
+      onCancelled: () => {
         toast.notify('Покупка отменена');
-        trackEvent('arcade_unlock_games_flow', {
-          mode: 'arcade',
-          product_id: 'arcade_new_game',
-          stage: 'cancelled'
-        });
       }
-    } catch {
+    });
+
+    if (outcome === 'failed') {
       toast.notify('Ошибка при покупке');
-      trackEvent('arcade_unlock_games_flow', {
-        mode: 'arcade',
-        product_id: 'arcade_new_game',
-        stage: 'failed'
-      });
     }
   };
 
   const handleUseExtraTry = async () => {
     if (!session?.sessionId) return;
-    
+
     setIsUsingExtraTry(true);
     try {
       await callUseExtraTry(session.sessionId);
-      
+
       setLines([]);
       setCurrentGuess('');
       setSessionStartTime(Date.now());
@@ -561,7 +490,7 @@ export default function ArcadePage() {
         mode: 'arcade',
         remaining_entitlements_after: Math.max(extraTryEntitlements - 1, 0)
       });
-      
+
       toast.notify('Попытка добавлена!');
     } catch {
       toast.notify('Не удалось использовать попытку');
@@ -573,7 +502,7 @@ export default function ArcadePage() {
 
   const handleFinishGame = async () => {
     if (!session?.sessionId) return;
-    
+
     setIsUsingExtraTry(true);
     try {
       await finishExtraTry(session.sessionId);
@@ -591,7 +520,7 @@ export default function ArcadePage() {
         theme: session?.theme
       });
       sessionStartedRef.current = false;
-      
+
       // finishExtraTry already marks the session as complete, no need to call completeArcadeSession
     } catch {
       toast.notify('Ошибка завершения игры');
@@ -604,21 +533,14 @@ export default function ArcadePage() {
   const handleBuyExtraTries = async () => {
     const ready = await ensureTelegramReady();
     if (!ready) {
+      toast.notify('Телеграм еще загружается, попробуйте чуть позже');
       return;
     }
 
-    try {
-      trackEvent('arcade_extra_try_purchase_flow', {
-        mode: 'arcade',
-        product_id: 'arcade_extra_try',
-        stage: 'started'
-      });
-      const purchaseResult = await purchaseProduct('arcade_extra_try');
-      const invoiceUrl = purchaseResult.invoice_url;
-      
-      const result = await invoice.openUrl(invoiceUrl);
-      
-      if (result === 'paid') {
+    const outcome = await executePurchaseFlow('arcade_extra_try', {
+      eventName: 'arcade_extra_try_purchase_flow',
+      eventParams: { mode: 'arcade' },
+      onPaid: async () => {
         toast.notify('Покупка завершена успешно!');
         let shouldAutoUseExtraTry = false;
         // Refresh session to get updated entitlements
@@ -648,31 +570,14 @@ export default function ArcadePage() {
         if (shouldAutoUseExtraTry) {
           await handleUseExtraTry();
         }
-        trackEvent('arcade_extra_try_purchase_flow', {
-          mode: 'arcade',
-          product_id: 'arcade_extra_try',
-          stage: 'completed'
-        });
-      } else {
-        try {
-          await cleanupCancelledPurchase(purchaseResult.purchase_id);
-        } catch {
-          // Don't fail the whole operation if cleanup fails
-        }
+      },
+      onCancelled: () => {
         toast.notify('Покупка отменена');
-        trackEvent('arcade_extra_try_purchase_flow', {
-          mode: 'arcade',
-          product_id: 'arcade_extra_try',
-          stage: 'cancelled'
-        });
       }
-    } catch {
+    });
+
+    if (outcome === 'failed') {
       toast.notify('Ошибка при покупке');
-      trackEvent('arcade_extra_try_purchase_flow', {
-        mode: 'arcade',
-        product_id: 'arcade_extra_try',
-        stage: 'failed'
-      });
     }
   };
 
@@ -727,16 +632,16 @@ export default function ArcadePage() {
       setCurrentGuess('');
       return;
     }
-    
+
     if (isSubmitting) {
       toast.notify('Обработка догадки...');
       return;
     }
-    
+
     // Store guess in local variable and clear currentGuess immediately
     const submittedGuess = currentGuess;
     setCurrentGuess('');
-    
+
     // Validate dictionary if available
     const cacheKey = getDictionaryKey(session.length, session.theme);
     const dictionary = dictionaryCache.get(cacheKey);
@@ -744,19 +649,19 @@ export default function ArcadePage() {
       toast.notify('Слово не найдено в словаре.');
       return;
     }
-    
+
     // Check for duplicate words (case-insensitive)
     const normalizedSubmittedGuess = normalizeGuess(submittedGuess, false).toLowerCase();
-    const isDuplicate = lines.some(line => 
+    const isDuplicate = lines.some(line =>
       normalizeGuess(line.guess, false).toLowerCase() === normalizedSubmittedGuess
     );
     if (isDuplicate) {
       toast.notify('Вы уже пробовали это слово');
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       // Evaluate guess locally
       const line = evaluateGuessLocally(submittedGuess);
@@ -771,14 +676,14 @@ export default function ArcadePage() {
         word_length: session.length,
         theme: session.theme
       });
-      
+
       // Record guess in database
       const feedbackMask = JSON.stringify(line.feedback.map(f => f.state));
       const normalizedGuess = normalizeGuess(submittedGuess, false);
-      
+
       // Check if this is the last attempt
       const isLastAttempt = lines.length + 1 >= session.maxAttempts;
-      
+
       // Create the record promise
       const recordPromise = recordArcadeGuess(
         session.sessionId,
@@ -794,10 +699,10 @@ export default function ArcadePage() {
         // Remove from pending array when done
         pendingRecords.current = pendingRecords.current.filter(p => p !== recordPromise);
       });
-      
+
       // Add to pending array
       pendingRecords.current.push(recordPromise);
-      
+
       // If this is the last attempt, await ALL pending records before proceeding
       if (isLastAttempt) {
         try {
@@ -806,10 +711,10 @@ export default function ArcadePage() {
           // Error completing record requests (non-critical)
         }
       }
-      
+
       // Check win/loss
       const isLost = !isWin && isLastAttempt;
-      
+
       if (isWin) {
         triggerHaptic('success');
         // Invalidate user status to ensure the arcade count refreshes before showing the result
@@ -825,7 +730,7 @@ export default function ArcadePage() {
         });
         sessionStartedRef.current = false;
         extraTryPromptLoggedRef.current = false;
-        
+
         // Record session completion in background
         if (sessionStartTime) {
           const timeMs = Date.now() - sessionStartTime;
@@ -870,7 +775,7 @@ export default function ArcadePage() {
 
   return (
     <main className="page-container">
-        <section className="flex flex-1 flex-col px-4 mx-auto w-full max-w-lg">
+      <section className="flex flex-1 flex-col px-4 mx-auto w-full max-w-lg">
         {session ? (
           <>
             {/* Hint Modal */}
@@ -899,7 +804,7 @@ export default function ArcadePage() {
             {/* Hint Icon */}
             {!showResult && (
               <div className="fixed top-0 left-0 right-0 z-50 pointer-events-none h-12">
-                <TopCenterIcon 
+                <TopCenterIcon
                   onClick={handleHintIconClick}
                   badgeCount={session.hintsUsed.length}
                 />
@@ -924,11 +829,11 @@ export default function ArcadePage() {
 
             {!showResult && (
               <div className="pt-2 pb-4">
-                <PuzzleGrid 
-                  length={length} 
-                  maxAttempts={session.maxAttempts} 
-                  lines={lines} 
-                  activeGuess={currentGuess} 
+                <PuzzleGrid
+                  length={length}
+                  maxAttempts={session.maxAttempts}
+                  lines={lines}
+                  activeGuess={currentGuess}
                 />
               </div>
             )}
@@ -969,12 +874,11 @@ export default function ArcadePage() {
             {/* Share Button - only show when game is completed */}
 
             {/* Keyboard with animation */}
-            <div className={`transition-all duration-300 -mx-4 ${
-              showResult ? 'opacity-0 pointer-events-none h-0 overflow-hidden' : 'opacity-100'
-            }`}>
-              <KeyboardCyr 
-                onKey={handleKey} 
-                onEnter={handleEnter} 
+            <div className={`transition-all duration-300 -mx-4 ${showResult ? 'opacity-0 pointer-events-none h-0 overflow-hidden' : 'opacity-100'
+              }`}>
+              <KeyboardCyr
+                onKey={handleKey}
+                onEnter={handleEnter}
                 onBackspace={handleBackspace}
                 keyStates={keyboardState}
                 disableEnter={currentGuess.length !== length}
@@ -1000,7 +904,7 @@ export default function ArcadePage() {
               <Card padding="lg" className="text-center">
                 <Heading level={3} className="mb-4">Бесплатные игры закончились</Heading>
                 <Text className="mb-6">Пополните запас, чтобы продолжить играть в аркаду.</Text>
-                
+
                 {newGameEntitlements > 0 ? (
                   <>
                     {!isConfirmingUnlock ? (
